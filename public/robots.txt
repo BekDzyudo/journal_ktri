@@ -1,0 +1,20 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow private pages
+Disallow: /admin
+Disallow: /api
+Disallow: /profil
+
+# Allow all public pages
+Allow: /
+Allow: /news
+Allow: /materials
+Allow: /rtr
+Allow: /contact
+Allow: /faq
+Allow: /institut-info
+
+# Sitemap location
+Sitemap: https://ktri.uz/sitemap.xml
