@@ -207,11 +207,11 @@ function Footer() {
               <p className="text-xs text-white/60">Rasmiy web-sayt</p>
             </div>
             <Link 
-              to="https://ipitvet.uz/uz/" 
+              to="https://ktri.uz/" 
               target="_blank"
               className="text-sm text-white hover:text-cyan-300 transition-colors flex items-center gap-2"
             >
-              https://ipitvet.uz/
+              https://ktri.uz/
               <HiOutlineExternalLink className="text-base" />
             </Link>
           </div>
