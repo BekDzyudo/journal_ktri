@@ -11,6 +11,8 @@ import Tahririyat from "./pages/tahririyat/Tahririyat";
 import Announcements from "./pages/announcements/Announcements";
 import AnnouncementDetail from "./pages/announcements/AnnouncementDetail";
 import Magazine from "./pages/jurnal/Magazine";
+import MagazineDetail from "./pages/jurnal/MagazineDetail";
+import SendJournal from "./pages/sendJournal/SendJournal";
 
 function App() {
 
@@ -40,6 +42,14 @@ function App() {
         {
           path: "magazines",
           element: <Magazine/>
+        },
+        {
+          path: "magazine/:id",
+          element: <MagazineDetail/>
+        },
+        {
+          path: "send-article",
+          element: <SendJournal/>
         },
         {
           path: "contact",

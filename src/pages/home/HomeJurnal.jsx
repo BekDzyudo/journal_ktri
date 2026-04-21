@@ -14,6 +14,7 @@ import {
 } from "react-icons/fa";
 import HomeJurnalHero from "./HomeJurnalHero";
 import SEO from "../../components/SEO";
+import { Link } from "react-router-dom";
 
 function HomeJurnal() {
   const [activeCard, setActiveCard] = useState(1);
@@ -27,7 +28,7 @@ function HomeJurnal() {
     {
       id: 2,
       icon: FaClipboardList,
-      title: "Karib chiqish tartibi",
+      title: "Ko'rib chiqish tartibi",
     },
     {
       id: 3,
@@ -57,7 +58,7 @@ function HomeJurnal() {
             
             <div className="space-y-6 text-gray-800 text-[17px] leading-relaxed">
               <p className="text-justify">
-                <span className="font-bold text-gray-900">"Maktab ta'limi: muammolar, izlanishlar, yechimlar"</span> jurnali 
+                <span className="font-bold text-gray-900">"Kasbiy ta'lim: muammolar, izlanishlar, yechimlar"</span> jurnali 
                 ijtimoiy-gumanitar va boshqa sohalarga mo'ljallangan ixtisoslashgan nashr bo'lib, 
                 quyida ko'rsatilgan sohalardagi ilmiy-amaliy innovatsion yangiliklarni har tomonlama yoritish, 
                 jurnalxonlarning ta'limiy-ilmiy innovatsion axborotga bo'lgan talab-ehtiyojlarini yanada to'laroq qondirish, 
@@ -69,19 +70,19 @@ function HomeJurnal() {
                 <ul className="space-y-3 list-none">
                   <li className="flex gap-2">
                     <span className="text-info font-bold mt-1">•</span>
-                    <span>Mamlakatda maktab ta'limi va ta'lim uzluksizligi yo'nalishlarida olib borilayotgan islohotlarning mazmun-mohiyatidan, zamonaviy pedagogik texnologiyalarining yaratilishi va ularni keng tatbiq etish borasida amalga oshirilayotgan ishlar haqida</span>
+                    <span>Mamlakatda Kasbiy ta'lim va ta'lim uzluksizligi yo'nalishlarida olib borilayotgan islohotlarning mazmun-mohiyatidan, zamonaviy pedagogik texnologiyalarining yaratilishi va ularni keng tatbiq etish borasida amalga oshirilayotgan ishlar haqida</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-info font-bold mt-1">•</span>
-                    <span>Maktab ta'limiga oid yagona milliy axborot makonini yaratish hamda umumiy o'rta ta'limning nazariy-amaliy jarayonlariga iqtidorli yoshlar hamda tajribali ustozlarni faol jalb etish</span>
+                    <span>Kasbiy ta'limga oid yagona milliy axborot makonini yaratish hamda umumiy o'rta ta'limning nazariy-amaliy jarayonlariga iqtidorli yoshlar hamda tajribali ustozlarni faol jalb etish</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-info font-bold mt-1">•</span>
-                    <span>Xalqaro tendensiyalar va ilmiy izlanishlar bilan muvofiqlikni ta'minlash maqsadida maktab ta'limining dolzarb muammolari yuzasidan tizimli asosda amalga oshilayotgan xalqaro ilmiy-tadqiqotlar tahlilini yetkazib borish</span>
+                    <span>Xalqaro tendensiyalar va ilmiy izlanishlar bilan muvofiqlikni ta'minlash maqsadida Kasbiy ta'limning dolzarb muammolari yuzasidan tizimli asosda amalga oshilayotgan xalqaro ilmiy-tadqiqotlar tahlilini yetkazib borish</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-info font-bold mt-1">•</span>
-                    <span>Maktab ta'limi tizimini rivojlantirishning strategik yo'nalishlari, maqsad va dasturlarini ishlab chiqish hamda amalga oshirishning istiqbolli yo'nalishlarini belgilovchi masalalarni muhokama qilish</span>
+                    <span>Kasbiy ta'lim tizimini rivojlantirishning strategik yo'nalishlari, maqsad va dasturlarini ishlab chiqish hamda amalga oshirishning istiqbolli yo'nalishlarini belgilovchi masalalarni muhokama qilish</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-info font-bold mt-1">•</span>
@@ -101,12 +102,12 @@ function HomeJurnal() {
         return (
           <div className="prose max-w-none">
             <h2 className="text-4xl font-bold text-gray-700 mb-6 font-serif">
-              Ko'rib chiqish tartibi
+              Ko‘rib chiqish tartibi
             </h2>
             
             <div className="space-y-5 text-gray-800 text-[17px] leading-relaxed">
               <p className="font-semibold text-lg text-gray-900">
-                "Maktab ta'limi: muammolar, izlanishlar, yechimlar" jurnalidagi maqolalarni ko'rib chiqish tartibi:
+                "Kasbiy ta'lim: muammolar, izlanishlar, yechimlar" jurnalidagi maqolalarni ko'rib chiqish tartibi:
               </p>
 
               <div className="space-y-4">
@@ -207,7 +208,7 @@ function HomeJurnal() {
               </div>
 
               <p className="text-justify">
-                <span className="font-bold text-gray-900">"Maktab ta'limi: muammolar, izlanishlar, yechimlar"</span> jurnalida 
+                <span className="font-bold text-gray-900">"Kasbiy ta'lim: muammolar, izlanishlar, yechimlar"</span> jurnalida 
                 nashr etishga rozilik bildirgan holda, mualliflar o'z maqolalari haqidagi ma'lumotlarni, 
                 shu jumladan uning to'liq matnli joylashuvini jurnalning veb-saytida ko'rsatilgan 
                 uchinchi tomon manbalariga o'tkazishga rozilik bildiradilar.
@@ -406,7 +407,7 @@ function HomeJurnal() {
                 "Ta'lim va tarbiya nazariyasi va metodikasi",
                 "Inklyuziv ta'lim",
                 "Xalqaro tadqiqotlar",
-                "Maktab ta'limini tashkil etish",
+                "Kasbiy ta'limni tashkil etish",
                 "Malaka oshirish va qayta tayyorlash",
                 "Ta'lim menejmenti va boshqaruv",
                 "Ustoz-shogird",
@@ -548,12 +549,12 @@ function HomeJurnal() {
                 </div>
 
                 {/* Maqola berish button */}
-                <button className="bg-info hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2">
+                <Link to="/send-article" className="bg-info hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   Maqola berish
-                </button>
+                </Link>
               </div>
             </div>
           </div>

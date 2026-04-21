@@ -68,6 +68,16 @@ function Tahririyat() {
       email: "kasbiytalim@gmail.com",
       image: "/opa.jpeg",
     },
+     {
+      id: 5,
+      name: "O'rinov Yigitali Muratovich",
+      category: "A'zo",
+      position: "Professor, texnika fanlari doktori",
+      jobTitle: "Qat'iy tartibdagi hujjatlar bilan ishlash bo‘limi boshlig'i",
+      phone: "+998 71 244-55-78",
+      email: "kasbiytalim@gmail.com",
+      image: "/yigit.jpg",
+    },
     {
       id: 6,
       name: "Xudayberganov Tohir Farxadovich",

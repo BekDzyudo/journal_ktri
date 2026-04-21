@@ -111,26 +111,24 @@ function Footer() {
         <div className="flex flex-col gap-4">
           <h4 className="font-bold text-lg text-cyan-400 mb-2">Havolalar</h4>
           <ul className="flex flex-col gap-2">
-            {institutLinks.map((link) => (
-              <li key={link.to}>
-                <Link to={link.to} className="text-sm text-white/80 hover:text-cyan-300 hover:translate-x-1 transition-all inline-block">
-                  {link.label}
-                </Link>
-              </li>
-            ))}
             <li>
-              <Link to="/news" className="text-sm text-white/80 hover:text-cyan-300 hover:translate-x-1 transition-all inline-block">
-                Yangiliklar
+              <Link to="/" className="text-sm text-white/80 hover:text-cyan-300 hover:translate-x-1 transition-all inline-block">
+                Biz haqimizda
               </Link>
             </li>
             <li>
-              <Link to="/digital-educational-resources" className="text-sm text-white/80 hover:text-cyan-300 hover:translate-x-1 transition-all inline-block">
-                Raqamli ta'lim resurslari
+              <Link to="/leadership" className="text-sm text-white/80 hover:text-cyan-300 hover:translate-x-1 transition-all inline-block">
+                Tahririyat
               </Link>
             </li>
             <li>
-              <Link to="/methodological-support" className="text-sm text-white/80 hover:text-cyan-300 hover:translate-x-1 transition-all inline-block">
-                Metodik ta'minot
+              <Link to="/announcements" className="text-sm text-white/80 hover:text-cyan-300 hover:translate-x-1 transition-all inline-block">
+                E'lonlar
+              </Link>
+            </li>
+             <li>
+              <Link to="/magazines" className="text-sm text-white/80 hover:text-cyan-300 hover:translate-x-1 transition-all inline-block">
+               Nashrlar
               </Link>
             </li>
           </ul>

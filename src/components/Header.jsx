@@ -104,11 +104,11 @@ function Header() {
           </ul>
         </div>
         <div className="navbar-end 2xl:gap-4 xl:gap-2 gap-2">
-          <button className="group relative cursor-pointer bg-white/95 hover:bg-white text-blue-700 hover:text-blue-800 font-bold py-2 sm:py-3 px-4 xl:px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2 border-2 border-white/50 hover:border-white backdrop-blur-sm">
+          <Link to="/send-article" className="group relative cursor-pointer bg-white/95 hover:bg-white text-blue-700 hover:text-blue-800 font-bold py-2 sm:py-3 px-4 xl:px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2 border-2 border-white/50 hover:border-white backdrop-blur-sm">
             <FaPaperPlane className="text-sm xl:text-base group-hover:rotate-12 transition-transform duration-300" />
             <span className="text-xs xl:text-sm whitespace-nowrap">Maqola berish</span>
             <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-          </button>
+          </Link>
         </div>
       </div>
     </div>
