@@ -13,6 +13,11 @@ import AnnouncementDetail from "./pages/announcements/AnnouncementDetail";
 import Magazine from "./pages/jurnal/Magazine";
 import MagazineDetail from "./pages/jurnal/MagazineDetail";
 import SendJournal from "./pages/sendJournal/SendJournal";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import AdminPanel from "./pages/admin/AdminPanel";
 
 function App() {
 
@@ -21,45 +26,66 @@ function App() {
   const routes = createBrowserRouter([
     {
       path: "/",
-      element: <MainLayout />,
-      children: [
-        {
-          index: true,
-          element: <HomeJurnal />,
-        },
-        {
-          path: "leadership",
-          element: <Tahririyat/>
-        },
-        {
-          path: "announcements",
-          element: <Announcements/>
-        },
-        {
-          path: "announcements/:id",
-          element: <AnnouncementDetail/>
-        },
-        {
-          path: "magazines",
-          element: <Magazine/>
-        },
-        {
-          path: "magazine/:id",
-          element: <MagazineDetail/>
-        },
-        {
-          path: "send-article",
-          element: <SendJournal/>
-        },
-        {
-          path: "contact",
-          element: <Contact/>
-        },
-      ],
+      element: <NotFound />,
+      // element: <MainLayout />,
+      // children: [
+      //   {
+      //     index: true,
+      //     element: <HomeJurnal />,
+      //   },
+      //   {
+      //     path: "leadership",
+      //     element: <Tahririyat/>
+      //   },
+      //   {
+      //     path: "announcements",
+      //     element: <Announcements/>
+      //   },
+      //   {
+      //     path: "announcements/:id",
+      //     element: <AnnouncementDetail/>
+      //   },
+      //   {
+      //     path: "magazines",
+      //     element: <Magazine/>
+      //   },
+      //   {
+      //     path: "magazine/:id",
+      //     element: <MagazineDetail/>
+      //   },
+      //   {
+      //     path: "send-article",
+      //     element: <SendJournal/>
+      //   },
+      //   {
+      //     path: "contact",
+      //     element: <Contact/>
+      //   },
+      //   {
+      //     path: "admin",
+      //     element: <AdminPanel/>
+      //   },
+      // ],
     },
-    {
-      path: "*",
-      element: <NotFound />    }
+    // {
+    //   path: "/login",
+    //   element: <Login/>
+    // },
+    // {
+    //   path: "/register",
+    //   element: <Register/>
+    // },
+    // {
+    //   path: "/forgot-password",
+    //   element: <ForgotPassword/>
+    // },
+    // {
+    //   path: "/reset-password",
+    //   element: <ResetPassword/>
+    // },
+    // {
+    //   path: "*",
+    //   element: <NotFound />    }
   ]);
   return (
     <>
