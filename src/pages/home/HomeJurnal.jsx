@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useState, useEffect } from "react";
 import {
   FaBullseye,
   FaClipboardList,
@@ -18,6 +18,47 @@ import { Link } from "react-router-dom";
 
 function HomeJurnal() {
   const [activeCard, setActiveCard] = useState(1);
+  const [currentDatabaseIndex, setCurrentDatabaseIndex] = useState(0);
+
+  // Xalqaro bazalar ro'yxati
+  const internationalDatabases = [
+    {
+      name: "Google Scholar",
+      logo: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Google_Scholar_logo.svg",
+      bgColor: "from-blue-50 to-blue-100"
+    },
+    {
+      name: "Crossref",
+      logo: "https://www.crossref.org/images/logos/crossref-logo-landscape-200.svg",
+      bgColor: "from-green-50 to-green-100"
+    },
+    {
+      name: "DOAJ",
+      logo: "https://doaj.org/static/doaj/images/doaj_logo.png",
+      bgColor: "from-orange-50 to-orange-100"
+    },
+    {
+      name: "ResearchGate",
+      logo: "https://upload.wikimedia.org/wikipedia/commons/5/5e/ResearchGate_icon_SVG.svg",
+      bgColor: "from-cyan-50 to-cyan-100"
+    },
+    {
+      name: "Academia.edu",
+      logo: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Academia.edu_logo.svg",
+      bgColor: "from-purple-50 to-purple-100"
+    }
+  ];
+
+  // Avtomatik aylanish
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDatabaseIndex((prev) => 
+        prev === internationalDatabases.length - 1 ? 0 : prev + 1
+      );
+    }, 3000); // 3 soniyada bir o'zgaradi
+
+    return () => clearInterval(interval);
+  }, [internationalDatabases.length]);
 
   const navigationCards = [
     {
@@ -574,9 +615,9 @@ function HomeJurnal() {
                 <p className="text-sm mb-5 text-blue-50 leading-relaxed">
                   Tadqiqot natijalaringizni jurnalimizda nashr qiling
                 </p>
-                <button className="w-full bg-white text-info font-bold py-3 px-4 rounded-xl hover:bg-blue-50 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105">
+                <Link to="send-article" className="w-full bg-white text-info font-bold py-3 px-4 rounded-xl hover:bg-blue-50 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105">
                   Maqola yuborish
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -616,32 +657,69 @@ function HomeJurnal() {
               </div>
             </div>
 
-            {/* Jurnal haqida */}
-            <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg p-6 border-2 border-blue-200">
+            {/* Xalqaro bazalarda indekslanishi */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-indigo-200">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
                   <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <h3 className="text-lg font-bold text-gray-800">
-                  Jurnal haqida
+                  Xalqaro bazalarda indekslanishi
                 </h3>
               </div>
-              <div className="space-y-4">
-                <div className="bg-white/70 rounded-lg p-3">
-                  <p className="text-sm text-gray-600 mb-2">Nashr qilingan yili</p>
-                  <p className="text-base font-bold text-gray-800">2013-yildan beri</p>
+              
+              {/* Database Carousel */}
+              <div className="relative overflow-hidden rounded-xl">
+                <div 
+                  className="transition-all duration-500 ease-in-out"
+                  style={{ transform: `translateX(-${currentDatabaseIndex * 100}%)` }}
+                >
+                  <div className="flex">
+                    {internationalDatabases.map((db, index) => (
+                      <div 
+                        key={index} 
+                        className="w-full flex-shrink-0"
+                      >
+                        <div className={`bg-gradient-to-br ${db.bgColor} rounded-lg p-6 h-48 flex flex-col items-center justify-center`}>
+                          <div className="bg-white rounded-lg p-4 mb-3 shadow-md w-full h-28 flex items-center justify-center">
+                            <img 
+                              src={db.logo} 
+                              alt={db.name}
+                              className="max-w-full max-h-full object-contain"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                              }}
+                            />
+                            <div className="text-2xl font-bold text-gray-700 hidden">
+                              {db.name}
+                            </div>
+                          </div>
+                          <p className="text-base font-bold text-gray-800 text-center">
+                            {db.name}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="bg-white/70 rounded-lg p-3 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">E-ISSN:</span>
-                    <span className="text-base font-bold text-blue-600">3060-4788</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">UDK:</span>
-                    <span className="text-base font-bold text-blue-600">373.3/.5</span>
-                  </div>
+                
+                {/* Indicators */}
+                <div className="flex justify-center gap-2 mt-4">
+                  {internationalDatabases.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentDatabaseIndex(index)}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        currentDatabaseIndex === index 
+                          ? 'w-8 bg-indigo-500' 
+                          : 'w-2 bg-gray-300 hover:bg-gray-400'
+                      }`}
+                      aria-label={`Go to ${internationalDatabases[index].name}`}
+                    />
+                  ))}
                 </div>
               </div>
             </div>

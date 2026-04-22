@@ -57,7 +57,7 @@ function HomeJurnalHero() {
         >
           <div className="absolute inset-0 w-full h-full">
             <img
-              src="/rtr_bg7.jpg"
+              src="/bg_image_banner.png"
               alt=""
               className="absolute inset-0 w-full h-full object-cover"
             />
