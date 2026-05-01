@@ -1,16 +1,33 @@
 // User Roles
 export const ROLES = {
-  USER: 'user',
-  ADMIN: 'admin',
-  SUPERADMIN: 'superadmin',
-  SUPER_ADMIN: 'superadmin', // Alias for backwards compatibility
+  USER: 'MUALLIF',
+  ADMIN: 'TAQRIZCHI',
+  SUPERADMIN: 'ADMIN',
+  SUPER_ADMIN: 'ADMIN', // Alias for backwards compatibility
+}
+
+const ROLE_ALIASES = {
+  user: ROLES.USER,
+  muallif: ROLES.USER,
+  MUALLIF: ROLES.USER,
+  admin: ROLES.ADMIN,
+  taqrizchi: ROLES.ADMIN,
+  TAQRIZCHI: ROLES.ADMIN,
+  superadmin: ROLES.SUPERADMIN,
+  super_admin: ROLES.SUPERADMIN,
+  ADMIN: ROLES.SUPERADMIN,
+}
+
+export const normalizeRole = (role) => {
+  if (!role || typeof role !== 'string') return ROLES.USER
+  return ROLE_ALIASES[role] || ROLE_ALIASES[role.toLowerCase()] || role
 }
 
 // Role Display Names
 export const ROLE_NAMES = {
   [ROLES.USER]: 'Muallif',
   [ROLES.ADMIN]: 'Taqrizchi',
-  [ROLES.SUPERADMIN]: 'Muharrir',
+  [ROLES.SUPERADMIN]: 'Admin',
 }
 
 // Article Statuses
@@ -141,5 +158,5 @@ export const PERMISSIONS = {
 
 // Check if user has permission
 export const hasPermission = (userRole, permission) => {
-  return PERMISSIONS[userRole]?.[permission] || false
+  return PERMISSIONS[normalizeRole(userRole)]?.[permission] || false
 }

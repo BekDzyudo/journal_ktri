@@ -1,46 +1,50 @@
 import React, { useState, useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FaPaperPlane, FaUser, FaEnvelope, FaPhone, FaFileUpload, FaCheckCircle, FaBook, FaTimes, FaFilePdf } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { AuthContext } from '../../context/AuthContext'
 import SEO from '../../components/SEO'
 import { getAccessToken } from '../../utils/authStorage'
+import { parseApiError } from '../../utils/apiError'
+
+const INITIAL_FORM_DATA = {
+  fullName: '',
+  email: '',
+  gender: '',
+  workplace: '',
+  position: '',
+  category: '',
+  phone: '',
+  articleTitle: '',
+  keywords: '',
+  annotation: '',
+  bibliography: '',
+  acceptTerms: false
+}
+
+const CATEGORIES = [
+  'Umumiy pedagogika, pedagogika tarixi va ta\'lim',
+  'Ta\'lim va tarbiya nazariyasi va metodikasi',
+  'Inklyuziv ta\'lim',
+  'Xalqaro tadqiqotlar',
+  'Maktab ta\'limini tashkil etish',
+  'Malaka oshirish va qayta tayyorlash',
+  'Ta\'lim menejmenti va boshqaruv',
+  'Ustoz-shogird',
+  'Kasbga yo\'naltirish',
+  'Psixologik xizmat',
+  'Ta\'lim uzluksizligi va islohotlar'
+]
 
 function SendJournal() {
   const { auth, userData } = useContext(AuthContext)
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    authorNames: '',
-    gender: '',
-    workplace: '',
-    position: '',
-    category: '',
-    phone: '',
-    articleTitle: '',
-    keywords: '',
-    annotation: '',
-    bibliography: '',
-    acceptTerms: false
-  })
+  const navigate = useNavigate()
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA)
+  const [coAuthors, setCoAuthors] = useState([''])
   const [file, setFile] = useState(null)
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showModal, setShowModal] = useState(false)
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
-
-  const categories = [
-    'Umumiy pedagogika, pedagogika tarixi va ta\'lim',
-    'Ta\'lim va tarbiya nazariyasi va metodikasi',
-    'Inklyuziv ta\'lim',
-    'Xalqaro tadqiqotlar',
-    'Maktab ta\'limini tashkil etish',
-    'Malaka oshirish va qayta tayyorlash',
-    'Ta\'lim menejmenti va boshqaruv',
-    'Ustoz-shogird',
-    'Kasbga yo\'naltirish',
-    'Psixologik xizmat',
-    'Ta\'lim uzluksizligi va islohotlar'
-  ]
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -54,17 +58,35 @@ function SendJournal() {
     }
   }
 
+  const handleCoAuthorChange = (index, value) => {
+    setCoAuthors((prev) => prev.map((author, idx) => (idx === index ? value : author)))
+    if (errors.authorNames) {
+      setErrors((prev) => ({ ...prev, authorNames: '' }))
+    }
+  }
+
+  const addCoAuthor = () => {
+    setCoAuthors((prev) => [...prev, ''])
+  }
+
+  const removeCoAuthor = (index) => {
+    setCoAuthors((prev) => {
+      const next = prev.filter((_, idx) => idx !== index)
+      return next.length ? next : ['']
+    })
+  }
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
     if (selectedFile) {
       const fileExtension = selectedFile.name.split('.').pop().toLowerCase()
-      if (fileExtension === 'doc' || fileExtension === 'docx') {
+      if (fileExtension === 'pdf') {
         setFile(selectedFile)
         if (errors.file) {
           setErrors(prev => ({ ...prev, file: '' }))
         }
       } else {
-        setErrors(prev => ({ ...prev, file: 'Faqat .doc yoki .docx formatdagi fayllarni yuklash mumkin' }))
+        setErrors(prev => ({ ...prev, file: 'Faqat .pdf formatdagi faylni yuklash mumkin' }))
         e.target.value = null
       }
     }
@@ -77,6 +99,7 @@ function SendJournal() {
 
   const validateForm = () => {
     const newErrors = {}
+    const normalizedCoAuthors = coAuthors.map((author) => author.trim()).filter(Boolean)
     
     if (!formData.fullName.trim()) newErrors.fullName = 'FISH ni kiriting'
     if (!formData.email.trim()) {
@@ -84,7 +107,7 @@ function SendJournal() {
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Noto\'g\'ri elektron pochta formati'
     }
-    if (!formData.authorNames.trim()) newErrors.authorNames = 'Muallif(lar) FISH ni kiriting'
+    if (!normalizedCoAuthors.length) newErrors.authorNames = 'Kamida bitta hammuallif F.I.Sh ni kiriting'
     if (!formData.gender) newErrors.gender = 'Jinsni tanlang'
     if (!formData.workplace.trim()) newErrors.workplace = 'Ish joyini kiriting'
     if (!formData.position.trim()) newErrors.position = 'Lavozimni kiriting'
@@ -98,7 +121,7 @@ function SendJournal() {
     if (!formData.acceptTerms) newErrors.acceptTerms = 'Oferta shartlarini qabul qilishingiz kerak'
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return newErrors
   }
 
   const scrollToFirstError = (errors) => {
@@ -116,16 +139,17 @@ function SendJournal() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!validateForm()) {
+    const validationErrors = validateForm()
+    if (Object.keys(validationErrors).length > 0) {
       // Validatsiya xatosi haqida toast ko'rsatish
-      const errorCount = Object.keys(errors).length
+      const errorCount = Object.keys(validationErrors).length
       toast.error(`Iltimos, ${errorCount} ta bo'sh maydonni to'ldiring!`, {
         position: 'top-center',
         autoClose: 5000,
       })
       
       // Birinchi xatoga scroll qilish
-      scrollToFirstError(errors)
+      scrollToFirstError(validationErrors)
       return
     }
 
@@ -137,6 +161,8 @@ function SendJournal() {
       Object.keys(formData).forEach(key => {
         formDataToSend.append(key, formData[key])
       })
+      const authorNames = coAuthors.map((author) => author.trim()).filter(Boolean).join(', ')
+      formDataToSend.append('authorNames', authorNames)
       if (file) {
         formDataToSend.append('articleFile', file)
         formDataToSend.append('fileName', file.name)
@@ -148,7 +174,7 @@ function SendJournal() {
       }
 
       const accessToken = getAccessToken()
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/articles/submit/`, {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/maqola-yuborish/`, {
         method: 'POST',
         headers: accessToken ? {
           'Authorization': 'Bearer ' + accessToken,
@@ -156,37 +182,21 @@ function SendJournal() {
         body: formDataToSend
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
       if (response.ok) {
         toast.success('Maqola muvaffaqiyatli yuborildi!', {
           position: 'top-center',
           autoClose: 3000,
         })
-        
-        setIsSubmitting(false)
-        setShowSuccessModal(true)
-        
-        // Reset form
-        setFormData({
-          fullName: '',
-          email: '',
-          authorNames: '',
-          gender: '',
-          workplace: '',
-          position: '',
-          category: '',
-          phone: '',
-          articleTitle: '',
-          keywords: '',
-          annotation: '',
-          bibliography: '',
-          acceptTerms: false
-        })
+
+        setFormData(INITIAL_FORM_DATA)
+        setCoAuthors([''])
         setFile(null)
         document.getElementById('fileInput').value = null
+        navigate('/admin')
       } else {
-        throw new Error(data.detail || 'Xatolik yuz berdi')
+        throw new Error(parseApiError(data, 'Xatolik yuz berdi'))
       }
     } catch (error) {
       console.error('Error submitting article:', error)
@@ -351,21 +361,44 @@ function SendJournal() {
               </div>
 
               <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-6">
-                {/* Muallif(lar) */}
-                <div>
+                {/* Hamualliflar */}
+                <div className="md:col-span-2 2xl:col-span-3">
                   <label className="block text-base font-semibold text-gray-700 mb-2">
-                    Maqola muallifi (mualliflari) F.I.Sh (to'liq): <span className="text-red-500">*</span>
+                    Maqola hammualliflarining F.I.Sh (to'liq): <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="authorNames"
-                    value={formData.authorNames}
-                    onChange={handleChange}
-                    className={`input input-bordered w-full ${
-                      errors.authorNames ? 'input-error' : ''
-                    }`}
-                    placeholder="Kiriting"
-                  />
+                  <div className="space-y-3">
+                    {coAuthors.map((author, index) => (
+                      <div key={index} className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          name={index === 0 ? 'authorNames' : `authorNames-${index}`}
+                          value={author}
+                          onChange={(e) => handleCoAuthorChange(index, e.target.value)}
+                          className={`input input-bordered w-full ${
+                            errors.authorNames ? 'input-error' : ''
+                          }`}
+                          placeholder={`${index + 1}-hammuallif F.I.Sh`}
+                        />
+                        {coAuthors.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeCoAuthor(index)}
+                            className="btn btn-outline btn-error sm:w-auto"
+                            aria-label="Hammuallifni o'chirish"
+                          >
+                            <FaTimes />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addCoAuthor}
+                      className="btn btn-outline btn-primary"
+                    >
+                      + Yana hammuallif qo'shish
+                    </button>
+                  </div>
                   {errors.authorNames && <p className="mt-1 text-sm text-red-500">{errors.authorNames}</p>}
                 </div>
 
@@ -383,7 +416,7 @@ function SendJournal() {
                     }`}
                   >
                     <option value="">Tanlang</option>
-                    {categories.map((cat, index) => (
+                    {CATEGORIES.map((cat, index) => (
                       <option key={index} value={cat}>{cat}</option>
                     ))}
                   </select>
@@ -391,19 +424,19 @@ function SendJournal() {
                 </div>
 
                 {/* Maqola nomi */}
-                <div>
+                <div className="md:col-span-2 2xl:col-span-3">
                   <label className="block text-base font-semibold text-gray-700 mb-2">
                     Maqola nomi: <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     name="articleTitle"
                     value={formData.articleTitle}
                     onChange={handleChange}
-                    className={`input input-bordered w-full ${
-                      errors.articleTitle ? 'input-error' : ''
+                    rows={3}
+                    className={`textarea textarea-bordered w-full resize-y min-h-24 ${
+                      errors.articleTitle ? 'textarea-error' : ''
                     }`}
-                    placeholder="Kiriting"
+                    placeholder="Maqola nomini to'liq kiriting"
                   />
                   {errors.articleTitle && <p className="mt-1 text-sm text-red-500">{errors.articleTitle}</p>}
                 </div>
@@ -421,8 +454,11 @@ function SendJournal() {
                     className={`input input-bordered w-full ${
                       errors.keywords ? 'input-error' : ''
                     }`}
-                    placeholder="Kiriting"
+                    placeholder="kasbiy ta'lim, pedagogika, innovatsiya"
                   />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Kalit so'zlarni vergul bilan ajratib kiriting. Masalan: kasbiy ta'lim, pedagogika, innovatsiya
+                  </p>
                   {errors.keywords && <p className="mt-1 text-sm text-red-500">{errors.keywords}</p>}
                 </div>
               </div>
@@ -471,13 +507,13 @@ function SendJournal() {
                 {/* Fayl yuklash */}
                 <div>
                   <label className="block text-base font-semibold text-gray-700 mb-2">
-                    Maqolani .doc, .docx formatlarda yuklash kerak. <span className="text-red-500">*</span>
+                    Maqolani .pdf formatda yuklash kerak. <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
                       type="file"
                       id="fileInput"
-                      accept=".doc,.docx"
+                      accept=".pdf,application/pdf"
                       onChange={handleFileChange}
                       className="hidden"
                     />
@@ -493,7 +529,7 @@ function SendJournal() {
                           {file ? file.name : 'Fayl tanlang'}
                         </p>
                         <p className="text-sm text-gray-500 mt-1">
-                          .doc yoki .docx formatida
+                          Faqat .pdf formatida
                         </p>
                       </div>
                     </label>
@@ -606,43 +642,6 @@ function SendJournal() {
             </div>
           </div>
         </div>
-
-        {/* Success Modal */}
-        {showSuccessModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-              {/* Success Icon */}
-              <div className="flex flex-col items-center p-8">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                  <FaCheckCircle className="text-5xl text-green-600 animate-pulse" />
-                </div>
-                
-                <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">
-                  Muvaffaqiyatli yuborildi!
-                </h2>
-                
-                <p className="text-gray-600 text-center mb-6 leading-relaxed">
-                  Sizning maqolangiz qabul qilindi va ko'rib chiqish jarayonida. 
-                  <br />
-                  <strong>Tez orada siz bilan bog'lanamiz!</strong>
-                </p>
-
-                <div className="w-full bg-blue-50 rounded-xl p-4 mb-6">
-                  <p className="text-sm text-blue-800 text-center">
-                    📧 Maqola holati haqida ma'lumot elektron pochtangizga yuboriladi
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setShowSuccessModal(false)}
-                  className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-                >
-                  Yopish
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* PDF Modal */}
         {showModal && (

@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock } from "react-icons/fa";
@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 import useGetFetchProfile from "../../hooks/useGetFetchProfile";
 import { formatPhoneNumber } from "../../utils/phoneFormatter";
 import { getAccessToken } from "../../utils/authStorage";
-import { ROLES } from "../../constants/roles.js";
+import { ROLES, normalizeRole } from "../../constants/roles.js";
 import AdminHeader from "../../components/admin/AdminHeader.jsx";
 import UserDashboard from "../dashboard/user/UserDashboard.jsx";
 import AdminDashboard from "../dashboard/admin/AdminDashboard.jsx";
@@ -20,15 +20,7 @@ function AdminPanel() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   
-  // Get user role from context or userData
-  const userRole = contextUserRole || userData?.role || ROLES.USER;
-  
-  // Debug: Console da rolni ko'rsatish
-  useEffect(() => {
-    console.log('👤 Current User Role:', userRole);
-    console.log('📋 User Data:', userData);
-    console.log('🔐 Context Role:', contextUserRole);
-  }, [userRole, userData, contextUserRole]);
+  const userRole = normalizeRole(contextUserRole || userData?.role);
 
   // Profile edit states
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -52,6 +44,7 @@ function AdminPanel() {
   const { data: user } = useGetFetchProfile(
     `${import.meta.env.VITE_BASE_URL}/user-data/`
   );
+  const profileUser = user || userData || {};
 
   useEffect(() => {
     if (!auth) {
@@ -61,8 +54,7 @@ function AdminPanel() {
     }
   }, [auth, navigate, user]);
 
-  // Get role-specific configuration
-  const getRoleConfig = () => {
+  const roleConfig = useMemo(() => {
     switch (userRole) {
       case ROLES.ADMIN:
         return {
@@ -73,7 +65,7 @@ function AdminPanel() {
         };
       case ROLES.SUPERADMIN:
         return {
-          title: "Super Admin paneli",
+          title: "Admin paneli",
           subtitle: "Barcha ma'lumotlarni boshqaring",
           gradient: "from-emerald-50 via-white to-teal-50",
           headerGradient: "from-emerald-500 to-teal-600"
@@ -86,12 +78,9 @@ function AdminPanel() {
           headerGradient: "from-blue-500 to-indigo-600"
         };
     }
-  };
+  }, [userRole]);
 
-  const roleConfig = getRoleConfig();
-
-  // Menu items based on role
-  const getMenuItems = () => {
+  const menuItems = useMemo(() => {
     const baseItems = [
       { id: "dashboard", label: "Dashboard", icon: <FaChartLine /> },
       { id: "profile", label: "Profil", icon: <FaUser /> },
@@ -103,14 +92,12 @@ function AdminPanel() {
     }
 
     return baseItems;
-  };
-
-  const menuItems = getMenuItems();
+  }, [userRole]);
 
   // Profile update handlers
   const handleOpenEditModal = () => {
     setEditFormData({
-      phone_number: user?.phone_number || "",
+      phone_number: profileUser?.phone_number || profileUser?.telefon || "",
     });
     setUpdateError("");
     setUpdateSuccess("");
@@ -254,11 +241,11 @@ function AdminPanel() {
   const renderDashboard = () => {
     switch (userRole) {
       case ROLES.ADMIN:
-        return <AdminDashboard userData={userData} auth={auth} />;
+        return <AdminDashboard userData={profileUser} />;
       case ROLES.SUPERADMIN:
-        return <SuperAdminDashboard userData={userData} auth={auth} />;
+        return <SuperAdminDashboard userData={profileUser} />;
       default:
-        return <UserDashboard userData={userData} auth={auth} />;
+        return <UserDashboard userData={profileUser} />;
     }
   };
 
@@ -266,7 +253,7 @@ function AdminPanel() {
     <div className={`min-h-screen bg-gradient-to-br ${roleConfig.gradient} mt-20`}>
       <AdminHeader
         userRole={userRole}
-        userData={userData}
+        userData={profileUser}
         roleConfig={roleConfig}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -291,7 +278,7 @@ function AdminPanel() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Ism</label>
                   <input
                     type="text"
-                    value={user?.first_name || ""}
+                    value={profileUser?.first_name || profileUser?.ism || ""}
                     readOnly
                     className="input input-bordered w-full bg-gray-50"
                   />
@@ -300,7 +287,7 @@ function AdminPanel() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Familiya</label>
                   <input
                     type="text"
-                    value={user?.last_name || ""}
+                    value={profileUser?.last_name || profileUser?.familiya || ""}
                     readOnly
                     className="input input-bordered w-full bg-gray-50"
                   />
@@ -309,7 +296,7 @@ function AdminPanel() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                   <input
                     type="email"
-                    value={user?.email || ""}
+                    value={profileUser?.email || ""}
                     readOnly
                     className="input input-bordered w-full bg-gray-50"
                   />
@@ -318,7 +305,7 @@ function AdminPanel() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Telefon</label>
                   <input
                     type="text"
-                    value={user?.phone_number || ""}
+                    value={profileUser?.phone_number || profileUser?.telefon || ""}
                     readOnly
                     className="input input-bordered w-full bg-gray-50"
                   />
@@ -353,10 +340,10 @@ function AdminPanel() {
           </div>
         )}
 
-        {/* Users Tab (SuperAdmin only) - Rendered by SuperAdminDashboard */}
+        {/* Users Tab (ADMIN only) - Rendered by SuperAdminDashboard */}
         {activeTab === "users" && userRole === ROLES.SUPERADMIN && (
           <div className="bg-white rounded-xl shadow-md p-8">
-            <SuperAdminDashboard userData={userData} auth={auth} />
+            <SuperAdminDashboard userData={profileUser} />
           </div>
         )}
       </main>

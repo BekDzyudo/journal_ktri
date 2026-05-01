@@ -24,6 +24,7 @@ import ArticleChatModal from "../../../components/ArticleChatModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import {
   ROLES,
+  normalizeRole,
   ARTICLE_STATUS,
   SUPERADMIN_STATUS_DISPLAY,
   SUPERADMIN_STATUS_COLORS,
@@ -68,7 +69,7 @@ function SuperAdminDashboard({ userData }) {
     inReview: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.IN_EDITING).length,
     accepted: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
     rejected: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
-    totalUsers: allUsers.filter((u) => !u.role || u.role === ROLES.USER).length,
+    totalUsers: allUsers.filter((u) => normalizeRole(u.role) === ROLES.USER).length,
     totalAdmins: adminUsers.length,
   });
 
@@ -85,12 +86,16 @@ function SuperAdminDashboard({ userData }) {
 
       const articlesData = articlesRes.ok ? await articlesRes.json() : [];
       const usersData = usersRes.ok ? await usersRes.json() : [];
-      const adminUsers = usersData.filter((u) => u.role === ROLES.ADMIN);
+      const normalizedUsers = usersData.map((u) => ({
+        ...u,
+        role: normalizeRole(u.role),
+      }));
+      const adminUsers = normalizedUsers.filter((u) => u.role === ROLES.ADMIN);
 
       setArticles(articlesData);
-      setUsers(usersData);
+      setUsers(normalizedUsers);
       setAdmins(adminUsers);
-      setStats(buildStats(articlesData, usersData, adminUsers));
+      setStats(buildStats(articlesData, normalizedUsers, adminUsers));
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Ma'lumotlarni yuklashda xatolik");
@@ -164,7 +169,7 @@ function SuperAdminDashboard({ userData }) {
   };
 
   const handleToggleAdminRole = async (targetUser) => {
-    const isAdmin = targetUser.role === ROLES.ADMIN;
+    const isAdmin = normalizeRole(targetUser.role) === ROLES.ADMIN;
     const confirmMessage = isAdmin
       ? `${targetUser.first_name} ${targetUser.last_name} dan taqrizchi huquqini olib qo'yasizmi?`
       : `${targetUser.first_name} ${targetUser.last_name} ni taqrizchi qilasizmi?`;

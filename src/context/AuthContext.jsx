@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useState } from "react";
 import { refreshAccessToken } from "../components/authentication/auth";
 import { jwtDecode } from "jwt-decode";
-import { ROLES } from "../constants/roles";
+import { ROLES, normalizeRole } from "../constants/roles";
 import {
   clearAuthStorage,
   clearLegacyAuthStorage,
@@ -36,7 +36,7 @@ function normalizeUser(raw) {
   const user = unwrapUserPayload(raw);
   if (!user || typeof user !== "object") return null;
 
-  const role = user.role ?? user.rol ?? user.user_role ?? ROLES.USER;
+  const role = normalizeRole(user.role ?? user.rol ?? user.user_role);
   const firstName = user.first_name ?? user.ism ?? user.name ?? "";
   const lastName = user.last_name ?? user.familiya ?? user.surname ?? "";
 
@@ -134,10 +134,11 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    const resolvedRole =
+    const resolvedRole = normalizeRole(
       userFromLogin != null
         ? userFromLogin.role ?? userFromLogin.rol ?? role
-        : role;
+        : role
+    );
 
     setAuthTokens({ access, refresh });
     saveUserRoleToStorage(resolvedRole);
@@ -210,7 +211,7 @@ export const AuthProvider = ({ children }) => {
         const normalizedStoredUser = normalizeUser(storedUserData);
         if (normalizedStoredUser) {
           setUserData(normalizedStoredUser);
-          setUserRole(normalizedStoredUser.role || storedRole || ROLES.USER);
+          setUserRole(normalizeRole(normalizedStoredUser.role || storedRole));
         }
       } else if (storedRole && !cancelled) {
         setUserRole(storedRole);
