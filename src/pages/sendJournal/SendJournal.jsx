@@ -1,8 +1,12 @@
-import React, { useState } from 'react'
+import React, { useState, useContext } from 'react'
 import { FaPaperPlane, FaUser, FaEnvelope, FaPhone, FaFileUpload, FaCheckCircle, FaBook, FaTimes, FaFilePdf } from 'react-icons/fa'
+import { toast } from 'react-toastify'
+import { AuthContext } from '../../context/AuthContext'
 import SEO from '../../components/SEO'
+import { getAccessToken } from '../../utils/authStorage'
 
 function SendJournal() {
+  const { auth, userData } = useContext(AuthContext)
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -97,48 +101,101 @@ function SendJournal() {
     return Object.keys(newErrors).length === 0
   }
 
+  const scrollToFirstError = (errors) => {
+    const errorFields = Object.keys(errors)
+    if (errorFields.length > 0) {
+      const firstErrorField = errorFields[0]
+      const element = document.querySelector(`[name="${firstErrorField}"]`) || document.getElementById('fileInput')
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        element.focus()
+      }
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     
     if (!validateForm()) {
+      // Validatsiya xatosi haqida toast ko'rsatish
+      const errorCount = Object.keys(errors).length
+      toast.error(`Iltimos, ${errorCount} ta bo'sh maydonni to'ldiring!`, {
+        position: 'top-center',
+        autoClose: 5000,
+      })
+      
+      // Birinchi xatoga scroll qilish
+      scrollToFirstError(errors)
       return
     }
 
     setIsSubmitting(true)
 
-    // Form submission logic here
-    const formDataToSend = new FormData()
-    Object.keys(formData).forEach(key => {
-      formDataToSend.append(key, formData[key])
-    })
-    if (file) {
-      formDataToSend.append('articleFile', file)
-    }
-
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Form submitted:', formData, file)
-      setIsSubmitting(false)
-      setShowSuccessModal(true)
-      // Reset form
-      setFormData({
-        fullName: '',
-        email: '',
-        authorNames: '',
-        gender: '',
-        workplace: '',
-        position: '',
-        category: '',
-        phone: '',
-        articleTitle: '',
-        keywords: '',
-        annotation: '',
-        bibliography: '',
-        acceptTerms: false
+    try {
+      // Form submission logic
+      const formDataToSend = new FormData()
+      Object.keys(formData).forEach(key => {
+        formDataToSend.append(key, formData[key])
       })
-      setFile(null)
-      document.getElementById('fileInput').value = null
-    }, 2000)
+      if (file) {
+        formDataToSend.append('articleFile', file)
+        formDataToSend.append('fileName', file.name)
+      }
+
+      // Foydalanuvchi ma'lumotlarini qo'shish
+      if (auth && userData) {
+        formDataToSend.append('userId', userData.id || userData.email)
+      }
+
+      const accessToken = getAccessToken()
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/articles/submit/`, {
+        method: 'POST',
+        headers: accessToken ? {
+          'Authorization': 'Bearer ' + accessToken,
+        } : {},
+        body: formDataToSend
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Maqola muvaffaqiyatli yuborildi!', {
+          position: 'top-center',
+          autoClose: 3000,
+        })
+        
+        setIsSubmitting(false)
+        setShowSuccessModal(true)
+        
+        // Reset form
+        setFormData({
+          fullName: '',
+          email: '',
+          authorNames: '',
+          gender: '',
+          workplace: '',
+          position: '',
+          category: '',
+          phone: '',
+          articleTitle: '',
+          keywords: '',
+          annotation: '',
+          bibliography: '',
+          acceptTerms: false
+        })
+        setFile(null)
+        document.getElementById('fileInput').value = null
+      } else {
+        throw new Error(data.detail || 'Xatolik yuz berdi')
+      }
+    } catch (error) {
+      console.error('Error submitting article:', error)
+      toast.error('Maqola yuborishda xatolik: ' + error.message, {
+        position: 'top-center',
+        autoClose: 5000,
+      })
+      setIsSubmitting(false)
+    }
   }
 
   return (

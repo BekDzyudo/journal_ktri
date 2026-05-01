@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import SEO from "../../components/SEO";
+import { parseApiError } from "../../utils/apiError";
 
 function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -60,47 +61,46 @@ function ResetPassword() {
     }
 
     try {
-      // Mock rejimi
-      if (import.meta.env.VITE_USE_MOCK === 'true') {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Mock rejimda tokenni tekshirmasdan parolni o'zgartiramiz
-        // Haqiqiy dasturda token orqali foydalanuvchini topish kerak
-        setSuccess(true);
-        setTimeout(() => {
-          navigate("/login", { state: { message: "Parol muvaffaqiyatli o'zgartirildi! (Mock rejim)" } });
-        }, 2000);
-        setLoading(false);
-        return;
-      }
-
-      // Haqiqiy API
       if (!token) {
         setError("Token topilmadi. Iltimos, emaildan kelgan havolani ishlating");
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/password-reset-confirm/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token: token,
-          password: formData.password,
-        }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/auth/password-reset-confirm/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            token,
+            password: formData.password,
+            confirm_password: formData.confirm_password,
+          }),
+        }
+      );
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        setError("Server javobi noto'g'ri formatda");
+        return;
+      }
 
       if (response.ok) {
         setSuccess(true);
+        const msg =
+          typeof data?.message === "string"
+            ? data.message
+            : "Parol muvaffaqiyatli o'zgartirildi!";
         setTimeout(() => {
-          navigate("/login");
+          navigate("/login", { replace: true, state: { message: msg } });
         }, 3000);
       } else {
-        setError(data.detail || "Xatolik yuz berdi");
+        setError(parseApiError(data, "Parolni o'rnatib bo'lmadi"));
       }
     } catch (err) {
       setError("Xatolik yuz berdi. Iltimos qayta urinib ko'ring");

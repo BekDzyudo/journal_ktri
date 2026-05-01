@@ -3,6 +3,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FiLogIn, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { AuthContext } from "../../context/AuthContext";
 import SEO from "../../components/SEO";
+import { ROLES } from "../../constants/roles";
+import { parseApiError } from "../../utils/apiError";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -28,7 +30,7 @@ function Login() {
 
   useEffect(() => {
     if (auth) {
-      navigate("/admin");
+      navigate("/dashboard");
     }
   }, [auth, navigate]);
 
@@ -74,33 +76,9 @@ function Login() {
     }
 
     try {
-      if (import.meta.env.VITE_USE_MOCK === 'true') {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-        const user = mockUsers.find(u => u.email === formData.email && u.password === formData.password);
-        
-        if (!user) {
-          setFieldErrors({ 
-            email: "Email yoki parol noto'g'ri",
-            password: "Email yoki parol noto'g'ri"
-          });
-          setLoading(false);
-          return;
-        }
-        
-        const mockAccessToken = `mock_access_${Date.now()}`;
-        const mockRefreshToken = `mock_refresh_${Date.now()}`;
-        
-        login(mockAccessToken, mockRefreshToken);
-        localStorage.setItem('userData', JSON.stringify(user));
-        
-        navigate("/admin");
-        setLoading(false);
-        return;
-      }
 
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/login/`, {
+      // Production mode: Real API
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/auth/login/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,14 +86,27 @@ function Login() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        setError("Server javobi noto'g'ri formatda");
+        return;
+      }
 
       if (response.ok) {
-        login(data.access, data.refresh);
-        navigate("/admin");
+        const access = data?.tokens?.access;
+        const refreshToken = data?.tokens?.refresh;
+        if (!access || !refreshToken) {
+          setError("Server javobida tokenlar topilmadi. Administrator bilan bog'laning.");
+          return;
+        }
+
+        const role = data?.user?.rol ?? data?.user?.role ?? ROLES.USER;
+        await login(access, refreshToken, role, data?.user ?? null);
+        navigate("/dashboard");
       } else {
-        const errorMessage = data.detail || "Email yoki parol noto'g'ri";
-        setError(errorMessage);
+        setError(parseApiError(data, "Email yoki parol noto'g'ri"));
       }
     } catch (err) {
       setError("Xatolik yuz berdi. Iltimos qayta urinib ko'ring");

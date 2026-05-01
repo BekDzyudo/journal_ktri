@@ -12,11 +12,13 @@ import Announcements from "./pages/announcements/Announcements";
 import AnnouncementDetail from "./pages/announcements/AnnouncementDetail";
 import Magazine from "./pages/jurnal/Magazine";
 import MagazineDetail from "./pages/jurnal/MagazineDetail";
+import ArticleDetail from "./pages/jurnal/ArticleDetail";
 import SendJournal from "./pages/sendJournal/SendJournal";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+import NewPassword from "./pages/auth/NewPassword";
 import AdminPanel from "./pages/admin/AdminPanel";
 
 function App() {
@@ -26,66 +28,77 @@ function App() {
   const routes = createBrowserRouter([
     {
       path: "/",
-      element: <NotFound />,
-      // element: <MainLayout />,
-      // children: [
-      //   {
-      //     index: true,
-      //     element: <HomeJurnal />,
-      //   },
-      //   {
-      //     path: "leadership",
-      //     element: <Tahririyat/>
-      //   },
-      //   {
-      //     path: "announcements",
-      //     element: <Announcements/>
-      //   },
-      //   {
-      //     path: "announcements/:id",
-      //     element: <AnnouncementDetail/>
-      //   },
-      //   {
-      //     path: "magazines",
-      //     element: <Magazine/>
-      //   },
-      //   {
-      //     path: "magazine/:id",
-      //     element: <MagazineDetail/>
-      //   },
-      //   {
-      //     path: "send-article",
-      //     element: <SendJournal/>
-      //   },
-      //   {
-      //     path: "contact",
-      //     element: <Contact/>
-      //   },
-      //   {
-      //     path: "admin",
-      //     element: <AdminPanel/>
-      //   },
-      // ],
+      element: <MainLayout />,
+      children: [
+        {
+          index: true,
+          element: <HomeJurnal />,
+        },
+        {
+          path: "leadership",
+          element: <Tahririyat/>
+        },
+        {
+          path: "announcements",
+          element: <Announcements/>
+        },
+        {
+          path: "announcements/:id",
+          element: <AnnouncementDetail/>
+        },
+        {
+          path: "magazines",
+          element: <Magazine/>
+        },
+        {
+          path: "magazine/:id",
+          element: <MagazineDetail/>
+        },
+        {
+          path: "article/:articleId",
+          element: <ArticleDetail/>
+        },
+        {
+          path: "send-article",
+          element: auth ? <SendJournal/> : <Navigate to="/login" replace />
+        },
+        {
+          path: "contact",
+          element: <Contact/>
+        },
+        {
+          path: "admin",
+          element: <AdminPanel/>
+        },
+        {
+          path: "dashboard",
+          element: <Navigate to="/admin" replace />
+        },
+      ],
     },
-    // {
-    //   path: "/login",
-    //   element: <Login/>
-    // },
-    // {
-    //   path: "/register",
-    //   element: <Register/>
-    // },
-    // {
-    //   path: "/forgot-password",
-    //   element: <ForgotPassword/>
-    // },
-    // {
-    //   path: "/reset-password",
-    //   element: <ResetPassword/>
-    // },
-    // {
-    //   path: "*",
-    //   element: <NotFound />    }
+    {
+      path: "/login",
+      element: <Login/>
+    },
+    {
+      path: "/register",
+      element: <Register/>
+    },
+    {
+      path: "/forgot-password",
+      element: <ForgotPassword/>
+    },
+    {
+      path: "/reset-password",
+      element: <ResetPassword/>
+    },
+    {
+      path: "/new-password",
+      element: <NewPassword/>
+    },
+    {
+      path: "*",
+      element: <NotFound />    }
   ]);
   return (
     <>

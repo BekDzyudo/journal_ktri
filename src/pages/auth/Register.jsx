@@ -4,6 +4,7 @@ import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus, FiPhone } from "re
 import { AuthContext } from "../../context/AuthContext";
 import SEO from "../../components/SEO";
 import { formatPhoneNumber, cleanPhoneNumber } from "../../utils/phoneFormatter";
+import { mapApiFieldErrors, parseApiError } from "../../utils/apiError";
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ function Register() {
 
   useEffect(() => {
     if (auth) {
-      navigate("/admin");
+      navigate("/dashboard");
     }
   }, [auth, navigate]);
 
@@ -77,7 +78,7 @@ function Register() {
     if (!formData.password) {
       errors.password = "Parol kiritilishi shart";
     } else if (formData.password.length < 8) {
-      errors.password = "Parol kamida 8 ta belgidan iborat bo'lishi kerak";
+      errors.password = "Parol kamida 8 ta belgidan iborat harflar va raqamdan iborat bo'lishi kerak";
     }
     
     if (!formData.confirm_password) {
@@ -102,35 +103,9 @@ function Register() {
     }
 
     try {
-      if (import.meta.env.VITE_USE_MOCK === 'true') {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-        const userExists = mockUsers.find(u => u.email === formData.email);
-        
-        if (userExists) {
-          setFieldErrors({ email: "Bu email allaqachon ro'yxatdan o'tgan" });
-          setLoading(false);
-          return;
-        }
-        
-        mockUsers.push({
-          id: Date.now(),
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          phone_number: formData.phone_number,
-          password: formData.password,
-          date_joined: new Date().toISOString(),
-        });
-        localStorage.setItem('mockUsers', JSON.stringify(mockUsers));
-        
-        navigate("/login", { state: { message: "Ro'yxatdan o'tdingiz! Endi tizimga kiring." } });
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/register/`, {
+    
+      // Production mode: Real API
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/auth/register/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -141,16 +116,30 @@ function Register() {
           email: formData.email,
           phone_number: formData.phone_number,
           password: formData.password,
+          confirm_password: formData.confirm_password,
         }),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        setError("Server javobi noto'g'ri formatda");
+        return;
+      }
 
       if (response.ok) {
-        navigate("/login", { state: { message: "Ro'yxatdan o'tdingiz! Endi tizimga kiring." } });
+        const msg =
+          typeof data?.message === "string"
+            ? data.message
+            : "Ro'yxatdan o'tdingiz! Endi tizimga kiring.";
+        navigate("/login", { state: { message: msg } });
       } else {
-        const errorMessage = data.detail || data.email?.[0] || data.phone_number?.[0] || JSON.stringify(data) || "Xatolik yuz berdi";
-        setError(errorMessage);
+        const fields = mapApiFieldErrors(data);
+        if (Object.keys(fields).length) {
+          setFieldErrors((prev) => ({ ...prev, ...fields }));
+        }
+        setError(parseApiError(data, "Ro'yxatdan o'tishda xatolik"));
       }
     } catch (err) {
       setError("Xatolik yuz berdi. Iltimos qayta urinib ko'ring");
@@ -166,28 +155,28 @@ function Register() {
         description="Kasbiy ta'limni rivojlantirish instituti jurnali - ro'yxatdan o'tish"
         keywords="ro'yxatdan o'tish, register, KTRI, jurnal"
       />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
-          <div className="text-center mb-8">
+          <div className="text-center mb-4">
             <Link to="/">
               <img
                 src="/new_logo_white.png"
                 alt="KTRI Logo"
-                className="mx-auto h-20 w-auto mb-4"
+                className="mx-auto h-16 w-auto mb-3"
               />
             </Link>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Ro'yxatdan o'tish</h2>
-            <p className="text-gray-600">Yangi hisob yaratish uchun ma'lumotlarni kiriting</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">Ro'yxatdan o'tish</h2>
+            <p className="text-sm text-gray-600">Yangi hisob yaratish uchun ma'lumotlarni kiriting</p>
           </div>
 
-          <div className="bg-white shadow-2xl rounded-2xl p-8">
+          <div className="bg-white shadow-2xl rounded-2xl p-6">
             {error && (
               <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
                 <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* First Name */}
               <div>
                 <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -203,7 +192,7 @@ function Register() {
                     type="text"
                     value={formData.first_name}
                     onChange={handleChange}
-                    className={`block w-full pl-10 pr-3 py-3 border ${fieldErrors.first_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
+                    className={`block w-full pl-10 pr-3 py-2.5 border ${fieldErrors.first_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
                     placeholder="Ismingizni kiriting"
                   />
                 </div>
@@ -227,7 +216,7 @@ function Register() {
                     type="text"
                     value={formData.last_name}
                     onChange={handleChange}
-                    className={`block w-full pl-10 pr-3 py-3 border ${fieldErrors.last_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
+                    className={`block w-full pl-10 pr-3 py-2.5 border ${fieldErrors.last_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
                     placeholder="Familiyangizni kiriting"
                   />
                 </div>
@@ -251,8 +240,8 @@ function Register() {
                     type="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className={`block w-full pl-10 pr-3 py-3 border ${fieldErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
-                    placeholder="example@mail.com"
+                    className={`block w-full pl-10 pr-3 py-2.5 border ${fieldErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
+                    placeholder="example@gmail.com"
                   />
                 </div>
                 {fieldErrors.email && (
@@ -275,7 +264,7 @@ function Register() {
                     type="tel"
                     value={formData.phone_number}
                     onChange={handleChange}
-                    className={`block w-full pl-10 pr-3 py-3 border ${fieldErrors.phone_number ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
+                    className={`block w-full pl-10 pr-3 py-2.5 border ${fieldErrors.phone_number ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
                     placeholder="+998 XX XXX XX XX"
                     maxLength="17"
                   />
@@ -300,7 +289,7 @@ function Register() {
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={handleChange}
-                    className={`block w-full pl-10 pr-10 py-3 border ${fieldErrors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
+                    className={`block w-full pl-10 pr-10 py-2.5 border ${fieldErrors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
                     placeholder="••••••••"
                   />
                   <button
@@ -338,7 +327,7 @@ function Register() {
                     type={showConfirmPassword ? "text" : "password"}
                     value={formData.confirm_password}
                     onChange={handleChange}
-                    className={`block w-full pl-10 pr-10 py-3 border ${fieldErrors.confirm_password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
+                    className={`block w-full pl-10 pr-10 py-2.5 border ${fieldErrors.confirm_password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
                     placeholder="••••••••"
                   />
                   <button
@@ -362,7 +351,7 @@ function Register() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -378,7 +367,7 @@ function Register() {
               </button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-4 text-center">
               <p className="text-sm text-gray-600">
                 Hisobingiz bormi?{" "}
                 <Link
@@ -391,7 +380,7 @@ function Register() {
             </div>
           </div>
 
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <Link
               to="/"
               className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200 cursor-pointer"

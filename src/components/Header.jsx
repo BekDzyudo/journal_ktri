@@ -6,7 +6,6 @@ import { useGlobalContext } from "../hooks/useGlobalContext";
 import { useHero } from "../context/HeroContext";
 import { FiLogIn } from "react-icons/fi";
 import { AuthContext } from "../context/AuthContext";
-import useGetFetchProfile from "../hooks/useGetFetchProfile";
 function Header() {
   const { onHero } = useHero();
   const { pathname } = useLocation();
@@ -18,10 +17,14 @@ function Header() {
   
   const { userData, auth, logout } = useContext(AuthContext);
   const { theme, changeTheme } = useGlobalContext();
-
-  const { data: user } = useGetFetchProfile(
-    `${import.meta.env.VITE_BASE_URL}/user-data/`
-  );
+  const displayName =
+    userData?.first_name ||
+    userData?.ism ||
+    userData?.email ||
+    "Foydalanuvchi";
+  const fullName = [userData?.first_name || userData?.ism, userData?.last_name || userData?.familiya]
+    .filter(Boolean)
+    .join(" ");
 
   // Dropdown tashqarisiga bosilganda yopish
   useEffect(() => {
@@ -57,7 +60,7 @@ function Header() {
 
   return (
     <div
-      className="shadow-xl py-1 sm:py-2 fixed top-0 left-0 w-full z-30 backdrop-blur-md border-b border-white/10"
+      className="shadow-xl py-1 sm:py-2 fixed top-0 left-0 w-full z-[60] backdrop-blur-md border-b border-white/10"
       style={bgStyle}
     >
       <div className="navbar gap-2 px-3.5 sm:px-5 mx-auto w-full xl:w-full 2xl:w-11/12 items-center">
@@ -140,19 +143,19 @@ function Header() {
             >
               <FaUser className="text-sm xl:text-base" />
               <span className="hidden lg:inline text-xs xl:text-sm">
-                {auth ? (user?.first_name || "User") : "Kirish"}
+                {auth ? displayName : "Kirish"}
               </span>
               <FaAngleDown className={`text-xs xl:text-sm transition-transform duration-300 ${userDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Desktop Dropdown Menu */}
             {userDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50">
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[100]">
                 {auth ? (
                   <>
                     <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-                      <p className="text-sm font-semibold text-gray-800">{user?.first_name} {user?.last_name}</p>
-                      <p className="text-xs text-gray-600">{user?.email}</p>
+                      <p className="text-sm font-semibold text-gray-800">{fullName || displayName}</p>
+                      {userData?.email && <p className="text-xs text-gray-600">{userData.email}</p>}
                     </div>
                     <Link
                       to="/admin"

@@ -1,119 +1,247 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
 import { refreshAccessToken } from "../components/authentication/auth";
 import { jwtDecode } from "jwt-decode";
+import { ROLES } from "../constants/roles";
+import {
+  clearAuthStorage,
+  clearLegacyAuthStorage,
+  getAccessToken,
+  getRefreshToken,
+  getUserData,
+  getUserRole,
+  setAccessToken,
+  setAuthTokens,
+  setRefreshToken,
+  setUserData as saveUserDataToStorage,
+  setUserRole as saveUserRoleToStorage,
+} from "../utils/authStorage";
 
 export const AuthContext = createContext();
 
+const TOKEN_REFRESH_SKEW_SECONDS = 30;
+
+const apiBase = () => (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+
+function unwrapUserPayload(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  if (payload.user && typeof payload.user === "object") return payload.user;
+  if (payload.data && typeof payload.data === "object") return payload.data;
+  if (Array.isArray(payload.results)) return payload.results[0] || null;
+  if (Array.isArray(payload)) return payload[0] || null;
+  return payload;
+}
+
+/** Login / profil javoblarini UI (first_name, last_name, role) bilan bir xil qiladi */
+function normalizeUser(raw) {
+  const user = unwrapUserPayload(raw);
+  if (!user || typeof user !== "object") return null;
+
+  const role = user.role ?? user.rol ?? user.user_role ?? ROLES.USER;
+  const firstName = user.first_name ?? user.ism ?? user.name ?? "";
+  const lastName = user.last_name ?? user.familiya ?? user.surname ?? "";
+
+  return {
+    ...user,
+    first_name: firstName,
+    last_name: lastName,
+    role,
+  };
+}
+
+function saveUser(user, setUserData, setUserRole) {
+  const normalized = normalizeUser(user);
+  if (!normalized) return null;
+
+  saveUserDataToStorage(normalized);
+  saveUserRoleToStorage(normalized.role);
+  setUserData(normalized);
+  setUserRole(normalized.role);
+  return normalized;
+}
+
 export const AuthProvider = ({ children }) => {
   const [auth, setAuth] = useState(
-    localStorage.getItem("accessToken") ? true : false
+    Boolean(getAccessToken() || getRefreshToken())
   );
   const [userData, setUserData] = useState(
-    JSON.parse(localStorage.getItem("userData")) || null
+    getUserData()
+  );
+  const [userRole, setUserRole] = useState(
+    getUserRole() || ROLES.USER
   );
 
   // Token muddatini tekshirish
-  const isTokenExpired = (token) => {
+  const isTokenExpired = useCallback((token, skewSeconds = 0) => {
     try {
       if (!token || typeof token !== "string") {
         return true;
       }
       const decoded = jwtDecode(token);
+      if (!decoded.exp) return false;
       const currentTime = Date.now() / 1000;
-      return decoded.exp < currentTime;
+      return decoded.exp <= currentTime + skewSeconds;
     } catch (error) {
       console.error("Error decoding token:", error);
       return true;
     }
-  };
+  }, []);
 
-  // Login - access va refresh tokenlarni saqlash
-  const login = (access, refresh) => {
-    localStorage.setItem("accessToken", access);
-    localStorage.setItem("refreshToken", refresh);
-    setAuth(true);
+  const fetchProfile = useCallback(async (accessToken, baseUser = null) => {
+    if (!accessToken) return baseUser;
 
-    // Mock rejimida user data allaqachon saqlanganmi tekshirish
-    if (import.meta.env.VITE_USE_MOCK === 'true') {
-      const storedUserData = localStorage.getItem("userData");
-      if (storedUserData) {
-        setUserData(JSON.parse(storedUserData));
+    const endpoints = [`${apiBase()}/profil/`, `${apiBase()}/profil`];
+    let lastError = null;
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (response.status === 404) {
+          lastError = new Error("Profil endpoint topilmadi");
+          continue;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Profil so'rovi xato: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const normalizedProfile = normalizeUser(payload);
+        if (!normalizedProfile) return baseUser;
+
+        return normalizeUser({
+          ...(baseUser || {}),
+          ...normalizedProfile,
+        });
+      } catch (error) {
+        lastError = error;
       }
+    }
+
+    console.warn("Profil ma'lumotlari olinmadi:", lastError);
+    return baseUser;
+  }, []);
+
+  // Login - access va refresh tokenlarni saqlash; ixtiyoriy user — login javobidan
+  const login = async (access, refresh, role = ROLES.USER, userFromLogin = null) => {
+    if (!access || !refresh) {
+      console.error("login: access va refresh token talab qilinadi");
       return;
     }
 
-    // Haqiqiy API - Foydalanuvchi ma'lumotlarini olish
-    fetch(`${import.meta.env.VITE_BASE_URL}/user-data/`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + access,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(res.status);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        setUserData(data);
-        localStorage.setItem("userData", JSON.stringify(data));
-      })
-      .catch((err) => {
-        console.error("Error fetching user data:", err);
-      });
+    const resolvedRole =
+      userFromLogin != null
+        ? userFromLogin.role ?? userFromLogin.rol ?? role
+        : role;
+
+    setAuthTokens({ access, refresh });
+    saveUserRoleToStorage(resolvedRole);
+    setAuth(true);
+    setUserRole(resolvedRole);
+
+    const baseFromLogin = userFromLogin
+      ? normalizeUser({ ...userFromLogin, role: resolvedRole })
+      : null;
+    if (baseFromLogin) {
+      saveUser(baseFromLogin, setUserData, setUserRole);
+    }
+
+    // Profil endpointi qo'shimcha maydonlar berishi mumkin — login user bilan birlashtiramiz
+    const profileUser = await fetchProfile(access, baseFromLogin);
+    if (profileUser) {
+      saveUser(profileUser, setUserData, setUserRole);
+    }
   };
 
   // Logout
-  const logout = () => {
+  const logout = useCallback(() => {
     setAuth(false);
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userData");
+    clearAuthStorage();
     setUserData(null);
-  };
+    setUserRole(ROLES.USER);
+  }, []);
 
   // Refresh token
-  const refresh = async () => {
-    const refreshToken = localStorage.getItem("refreshToken");
+  const refresh = useCallback(async () => {
+    const refreshToken = getRefreshToken();
 
     if (!refreshToken || isTokenExpired(refreshToken)) {
       logout();
-      return;
+      return null;
     }
 
     try {
       const newTokens = await refreshAccessToken(refreshToken);
       if (newTokens.access) {
-        localStorage.setItem("accessToken", newTokens.access);
+        setAccessToken(newTokens.access);
+        if (newTokens.refresh) {
+          setRefreshToken(newTokens.refresh);
+        }
         setAuth(true);
+        return newTokens.access;
       } else {
         logout();
+        return null;
       }
     } catch (error) {
       console.error("Error refreshing token:", error);
       logout();
+      return null;
     }
-  };
+  }, [isTokenExpired, logout]);
 
   // Component mount bo'lganda tokenlarni tekshirish
   useEffect(() => {
-    const storedAccessToken = localStorage.getItem("accessToken");
-    const storedRefreshToken = localStorage.getItem("refreshToken");
+    let cancelled = false;
+    clearLegacyAuthStorage();
 
-    if (storedAccessToken && !isTokenExpired(storedAccessToken)) {
-      setAuth(true);
-      // User data ni olish
-      const storedUserData = localStorage.getItem("userData");
-      if (storedUserData) {
-        setUserData(JSON.parse(storedUserData));
+    const initAuth = async () => {
+      const storedAccessToken = getAccessToken();
+      const storedRefreshToken = getRefreshToken();
+      const storedRole = getUserRole();
+      const storedUserData = getUserData();
+
+      if (storedUserData && !cancelled) {
+        const normalizedStoredUser = normalizeUser(storedUserData);
+        if (normalizedStoredUser) {
+          setUserData(normalizedStoredUser);
+          setUserRole(normalizedStoredUser.role || storedRole || ROLES.USER);
+        }
+      } else if (storedRole && !cancelled) {
+        setUserRole(storedRole);
       }
-    } else if (storedRefreshToken && !isTokenExpired(storedRefreshToken)) {
-      refresh();
-    } else {
-      logout();
-    }
-  }, []);
+
+      let activeAccessToken = storedAccessToken;
+
+      if (!activeAccessToken || isTokenExpired(activeAccessToken, TOKEN_REFRESH_SKEW_SECONDS)) {
+        if (storedRefreshToken && !isTokenExpired(storedRefreshToken)) {
+          activeAccessToken = await refresh();
+        } else {
+          logout();
+          return;
+        }
+      }
+
+      if (!activeAccessToken || cancelled) return;
+
+      setAuth(true);
+      const profileUser = await fetchProfile(activeAccessToken, storedUserData);
+      if (profileUser && !cancelled) {
+        saveUser(profileUser, setUserData, setUserRole);
+      }
+    };
+
+    initAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchProfile, isTokenExpired, logout, refresh]);
 
   return (
     <AuthContext.Provider
@@ -124,146 +252,11 @@ export const AuthProvider = ({ children }) => {
         refresh,
         isTokenExpired,
         userData,
+        userRole,
+        setUserRole,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
-// import { createContext, useEffect, useState } from "react";
-// import { refreshAccessToken } from "../components/authentication/auth";
-// import { jwtDecode } from "jwt-decode";
-
-// export const AuthContext = createContext()
-
-// export const AuthProvider = ({children}) =>{
-
-//     const [auth, setAuth] = useState({
-//         refreshToken: localStorage.getItem("refreshToken") || null,
-//         accessToken: localStorage.getItem("accessToken") || null,
-//       });
-//     const [userData, setUserData] = useState(JSON.parse(localStorage.getItem("userData")) || null)
-//      const [MaterialMetod, setMaterialMetod] = useState(null)
-
-//     // notifMetodist
-//     function lookAtActionMetodist(){
-//       if (!auth?.accessToken) return;
-//       fetch(
-//         `${import.meta.env.VITE_BASE_URL}/notification_app/notification-list`,
-//         {
-//           headers: {
-//             "Content-Type": "application/json",
-//             Authorization: "Bearer " + auth?.accessToken,
-//           },
-//         }
-//       )
-//         .then((res) => {
-//           if (!res.ok) throw new Error(res.status);
-//           return res.json();
-//         })
-//         .then((data) => {
-//           setMaterialMetod(data)          
-//         })
-//         .catch((err) => {
-//           console.log(err);
-//         })
-//         .finally(()=>{
-//         });
-//     }
-      
-
-//   const isTokenExpired = (token) => {
-//       try {
-//         if (!token || typeof token !== 'string') {
-//           return true; // Token yo'q yoki noto'g'ri turda bo'lsa, muddati tugagan deb hisoblaymiz
-//         }
-//         const decoded = jwtDecode(token);
-        
-//         const currentTime = Date.now() / 1000; // Hozirgi vaqtni sekundda olamiz
-//         return decoded.exp < currentTime; // Token muddati tugaganmi?
-//       } catch (error) {
-//         console.error("Error decoding token:", error);
-//         return true; // Agar token noto'g'ri bo'lsa, uni muddati tugagan deb hisoblaymiz
-//       }
-//   };
-
-//   // login
-//   const login = (data) => { 
-//     setAuth({refreshToken: data.refresh, accessToken: data.access});
-//     localStorage.setItem("accessToken", data.access);
-//     localStorage.setItem("refreshToken", data.refresh);
-
-//     fetch(`${import.meta.env.VITE_BASE_URL}/user-data/`, {
-//       headers: {
-//         "Content-Type": "application/json",
-//         Authorization: "Bearer " + data.access,
-//       },
-//     })
-//     .then((res)=>{
-//       if(!res.ok){
-//         throw new Error(res);
-//       }
-//       return res.json()
-//     })
-//     .then((data)=>{      
-//       setUserData({userId: data.id, user_roles: data.user_roles})
-//       localStorage.setItem("userData", JSON.stringify({userId: data.id, user_roles: data.user_roles}))
-//     })
-//     .catch((err)=>{
-//       console.log(err);
-      
-//     })
-//   };
-
-//   // logout
-//   const logout = () => {
-//     setAuth({ accessToken: null, refreshToken: null });
-//     localStorage.clear();
-//     setUserData(null);
-//   };
-
-//   // refresh
-//   const refresh = async () => {
-//     const refreshToken = localStorage.getItem("refreshToken");
-//     // Refresh token mavjudligini va muddati tugaganligini tekshirish
-//     if (!refreshToken || isTokenExpired(refreshToken)) {
-//       logout();
-//       return;
-//     }
-  
-//     try {
-//       const newTokens = await refreshAccessToken(refreshToken);
-//       if (newTokens.access) {
-//         setAuth((prev) => ({ ...prev, accessToken: newTokens.access }));
-//         localStorage.setItem("accessToken", newTokens.access);
-//       } else {
-//         logout(); // Refresh token noto‘g‘ri bo‘lsa, logout qilish
-//       }
-//     } catch (error) {
-//       logout();
-//     }
-//   };
-
-//   useEffect(() => {
-//     const storedRefreshToken = localStorage.getItem("refreshToken");
-//     const storedAccessToken = localStorage.getItem("accessToken");
-  
-//     // Tokenlarni tekshirish
-//     if (storedRefreshToken && !isTokenExpired(storedRefreshToken)) {
-//       if (storedAccessToken && !isTokenExpired(storedAccessToken)) {
-//         setAuth({ accessToken: storedAccessToken, refreshToken: storedRefreshToken });
-//       } else {
-//         refresh(); // Access token muddati tugagan bo‘lsa, yangilashga urinib ko‘ramiz
-//       }
-//     } else {
-//       logout(); // Refresh token muddati tugagan bo‘lsa, foydalanuvchini tizimdan chiqaramiz
-//     }
-//   }, []);
-
-//   return (
-//     <AuthContext.Provider value={{auth, login, logout, refresh, isTokenExpired, userData, MaterialMetod, lookAtActionMetodist}}>
-//         {children}
-//     </AuthContext.Provider>
-//   )
-
-// }
