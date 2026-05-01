@@ -1,0 +1,16 @@
+﻿// Browser Console ga kiriting:
+
+const users = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+
+if (users.length === 0) {
+  console.log('❌ LocalStorage da hech qanday test foydalanuvchi yo\'q!');
+  console.log('✨ Setup sahifasiga o\'ting: http://localhost:5173/setup-users.html');
+} else {
+  console.log(✅  ta test foydalanuvchi topildi:\n);
+  console.table(users.map(u => ({
+    Email: u.email,
+    Parol: u.password,
+    Rol: u.role,
+    'Ism Familiya': ${u.first_name} 
+  })));
+}

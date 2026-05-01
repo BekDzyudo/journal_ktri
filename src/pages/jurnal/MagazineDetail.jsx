@@ -6,138 +6,27 @@ import {
   FaDownload,
   FaArrowLeft,
   FaFilePdf,
+  FaUser,
+  FaHashtag,
+  FaBookOpen,
 } from "react-icons/fa";
 import { useHero } from "../../context/HeroContext";
 import SEO from "../../components/SEO";
+import useGetFetch from "../../hooks/useGetFetch";
 
 function MagazineDetail() {
   const { id } = useParams();
   const { setOnHero } = useHero();
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setOnHero(false);
     return () => setOnHero(false);
   }, [setOnHero]);
 
-  // Mock data - keyinchalik API dan olinadi
-  const magazines = [
-    {
-      id: 1,
-      title: "Kasbiy ta'lim jurnali - 2024 yil, 1-son",
-      image: "/jurnalmocup.png",
-      date: "2024-01-15",
-      views: 3250,
-      volume: "1",
-      issue: "1",
-      year: "2024",
-      description: `Bu son kasbiy ta'lim tizimining zamonaviy tendensiyalari va innovatsion yondashuvlariga bag'ishlangan. 
-      Jurnalda O'zbekiston va xorijiy tajribalar asosida kasbiy ta'limni rivojlantirishning istiqbollari, 
-      shuningdek, ta'lim jarayonida zamonaviy texnologiyalardan foydalanish masalalari yoritilgan.`,
-      pdfUrl: "/magazines/2024-1.pdf",
-      pages: 120,
-    },
-    {
-      id: 2,
-      title: "Kasbiy ta'lim jurnali - 2023 yil, 4-son",
-      image: "/jurnalmocup.png",
-      date: "2023-12-20",
-      views: 2890,
-      volume: "1",
-      issue: "4",
-      year: "2023",
-      description: `Ushbu sonda kasbiy ta'limda pedagogik texnologiyalar, o'qitish metodlari va talabalar kompetensiyalarini 
-      rivojlantirish bo'yicha tadqiqot natijalari keltirilgan. Jurnal ilmiy va amaliy ahamiyatga ega maqolalarni o'z ichiga oladi.`,
-      pdfUrl: "/magazines/2023-4.pdf",
-      pages: 115,
-    },
-    {
-      id: 3,
-      title: "Kasbiy ta'lim jurnali - 2023 yil, 3-son",
-      image: "/jurnalmocup.png",
-      date: "2023-09-15",
-      views: 2540,
-      volume: "1",
-      issue: "3",
-      year: "2023",
-      description: `Jurnal sonida kasbiy ta'lim muassasalarida raqamli texnologiyalarni joriy etish, masofaviy ta'lim 
-      imkoniyatlari va ta'lim sifatini baholash mezonlari muhokama qilingan.`,
-      pdfUrl: "/magazines/2023-3.pdf",
-      pages: 108,
-    },
-    {
-      id: 4,
-      title: "Kasbiy ta'lim jurnali - 2023 yil, 2-son",
-      image: "/jurnalmocup.png",
-      date: "2023-06-10",
-      views: 2240,
-      volume: "1",
-      issue: "2",
-      year: "2023",
-      description: `Ushbu sonda kasbiy ta'lim va ishlab chiqarish o'rtasidagi integratsiya, shuningdek, 
-      talabalarning amaliy ko'nikmalarini rivojlantirishga qaratilgan zamonaviy yondashuvlar tahlil qilingan.`,
-      pdfUrl: "/magazines/2023-2.pdf",
-      pages: 112,
-    },
-    {
-      id: 5,
-      title: "Kasbiy ta'lim jurnali - 2023 yil, 1-son",
-      image: "/jurnalmocup.png",
-      date: "2023-03-05",
-      views: 1980,
-      volume: "1",
-      issue: "1",
-      year: "2023",
-      description: `2023 yilning birinchi soni kasbiy ta'limda yangi standartlar, o'quv dasturlarini takomillashtirish 
-      va o'qituvchilarning malakasini oshirish masalalariga bag'ishlangan.`,
-      pdfUrl: "/magazines/2023-1.pdf",
-      pages: 105,
-    },
-    {
-      id: 6,
-      title: "Kasbiy ta'lim jurnali - 2022 yil, 4-son",
-      image: "/jurnalmocup.png",
-      date: "2022-12-15",
-      views: 1720,
-      volume: "1",
-      issue: "4",
-      year: "2022",
-      description: `Jurnal soni kasbiy ta'lim sohasidagi xalqaro hamkorlik, tajriba almashish va 
-      yosh mutaxassislar tayyorlashning dolzarb masalalari bilan tanishtirishga qaratilgan.`,
-      pdfUrl: "/magazines/2022-4.pdf",
-      pages: 98,
-    },
-    {
-      id: 7,
-      title: "Kasbiy ta'lim jurnali - 2022 yil, 3-son",
-      image: "/jurnalmocup.png",
-      date: "2022-09-10",
-      views: 1560,
-      volume: "1",
-      issue: "3",
-      year: "2022",
-      description: `Ushbu sonda kasbiy ta'limda ilmiy-tadqiqot ishlarini tashkil etish, innovatsion 
-      loyihalarni amalga oshirish va talabalar faolligini oshirish yo'llari ko'rib chiqilgan.`,
-      pdfUrl: "/magazines/2022-3.pdf",
-      pages: 102,
-    },
-    {
-      id: 8,
-      title: "Kasbiy ta'lim jurnali - 2022 yil, 2-son",
-      image: "/jurnalmocup.png",
-      date: "2022-06-05",
-      views: 1420,
-      volume: "1",
-      issue: "2",
-      year: "2022",
-      description: `2022 yilning ikkinchi sonida kasbiy ta'lim muassasalarida zamonaviy laboratoriyalar yaratish, 
-      amaliy mashg'ulotlarni tashkil etish va sanoat bilan hamkorlik qilish tajribalari taqdim etilgan.`,
-      pdfUrl: "/magazines/2022-2.pdf",
-      pages: 95,
-    },
-  ];
-
-  const magazine = magazines.find((mag) => mag.id === parseInt(id));
+  const { data: magazine, isPending, error } = useGetFetch(
+    `${import.meta.env.VITE_BASE_URL}/jurnal-sonlari/${id}/`,
+  );
+  console.log(magazine);
 
   // Sanani formatlash
   const formatDate = (dateString) => {
@@ -167,7 +56,55 @@ function MagazineDetail() {
     return views.toString();
   };
 
-  if (loading) {
+  const normalizeArticles = (raw) => {
+    const list = Array.isArray(raw) ? raw : [];
+    return list.map((a, idx) => {
+      const title =
+        a?.title ||
+        a?.name ||
+        a?.maqola_nomi ||
+        a?.articleTitle ||
+        `Maqola #${idx + 1}`;
+
+      const author =
+        a?.author ||
+        a?.authorName ||
+        a?.authorNames ||
+        a?.authors ||
+        a?.muallif ||
+        a?.mualliflar ||
+        "-";
+
+      const pdfUrl =
+        a?.pdf ||
+        a?.pdfUrl ||
+        a?.pdf_url ||
+        a?.file ||
+        a?.fileUrl ||
+        a?.file_url ||
+        a?.downloadUrl ||
+        a?.download_url ||
+        "";
+
+      const startPage =
+        a?.startPage ?? a?.start_page ?? a?.pageStart ?? a?.page_start ?? a?.fromPage ?? a?.from_page;
+      const endPage =
+        a?.endPage ?? a?.end_page ?? a?.pageEnd ?? a?.page_end ?? a?.toPage ?? a?.to_page;
+
+      const pagesText =
+        Number.isFinite(Number(startPage)) && Number.isFinite(Number(endPage))
+          ? `${Number(startPage)}–${Number(endPage)}`
+          : startPage || endPage
+            ? `${startPage || "?"}–${endPage || "?"}`
+            : (a?.pages || a?.bet || a?.betlar || "-");
+
+      const id = a?.id ?? a?.pk ?? `${idx}`;
+
+      return { id, title, author, pdfUrl, pagesText, raw: a };
+    });
+  };
+
+  if (isPending) {
     return (
       <section className="relative min-h-screen w-full bg-gradient-to-b from-base-100 via-base-200 to-base-100 py-24 flex items-center justify-center">
         <div className="text-center">
@@ -279,6 +216,8 @@ function MagazineDetail() {
                 <a
                   href={magazine.pdfUrl}
                   download
+                  target="_blank"
+                  rel="noreferrer"
                   className="flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
                 >
                   <FaFilePdf size={24} />
@@ -286,31 +225,116 @@ function MagazineDetail() {
                   <FaDownload size={18} />
                 </a>
 
-                {/* Additional Info */}
-                <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-gray-200 p-6">
-                  <h3 className="text-lg font-bold text-gray-800 mb-3">
-                    Qo'shimcha ma'lumot
-                  </h3>
-                  <ul className="space-y-2 text-gray-700">
-                    <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
-                      <span>ISSN: 2181-9483 (Print) / 2181-9491 (Online)</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
-                      <span>
-                        Nashr davomiyiligi: Choraklik (3 oyda bir marta)
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
-                      <span>Til: O'zbek, Rus, Ingliz</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
-                      <span>Format: PDF, A4 (210x297 mm)</span>
-                    </li>
-                  </ul>
+                {/* Maqolalar list */}
+                <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-lg overflow-hidden">
+                  <div className="p-6 sm:p-7 bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-gray-100">
+                    <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center">
+                          <FaBookOpen className="text-blue-700" size={18} />
+                        </div>
+                        <div>
+                          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Maqolalar ro‘yxati</h2>
+                          <p className="text-sm text-gray-600 mt-0.5">Sarlavha, muallif, PDF va bet oralig‘i</p>
+                        </div>
+                      </div>
+
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 border border-blue-100 text-blue-800 font-semibold text-sm">
+                        <FaHashtag className="text-blue-700" />
+                        {normalizeArticles(magazine?.maqolalar || magazine?.articles || magazine?.maqolalar_royxati).length} ta
+                      </div>
+                    </div>
+                  </div>
+
+                  {normalizeArticles(magazine?.maqolalar || magazine?.articles || magazine?.maqolalar_royxati).length === 0 ? (
+                    <div className="p-10 text-center">
+                      <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                        <FaFilePdf className="text-gray-500" size={22} />
+                      </div>
+                      <p className="text-gray-700 font-semibold">Hozircha maqolalar ro‘yxati mavjud emas</p>
+                      <p className="text-gray-500 text-sm mt-1">Keyinroq shu yerda paydo bo‘ladi.</p>
+                    </div>
+                  ) : (
+                    <div className="p-6 sm:p-7">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                        {normalizeArticles(magazine?.maqolalar || magazine?.articles || magazine?.maqolalar_royxati).map((a, idx) => (
+                          <div
+                            key={a.id}
+                            className="group relative bg-white rounded-2xl border-2 border-gray-100 shadow-md hover:shadow-xl hover:border-blue-200 transition-all duration-300 overflow-hidden"
+                          >
+                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-60" />
+
+                            <div className="p-5 flex flex-col h-full">
+                              {/* Header */}
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold">
+                                  {idx + 1}
+                                </div>
+                                <div className="min-w-0">
+                                  <Link
+                                    to={`/article/${a.id}`}
+                                    className="block font-bold text-gray-900 text-base leading-snug group-hover:text-blue-700 transition-colors break-words"
+                                    title={a.title}
+                                  >
+                                    {a.title}
+                                  </Link>
+                                  <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                                    <FaUser className="text-gray-400 shrink-0" />
+                                    <span className="truncate" title={a.author}>{a.author}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Meta */}
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs sm:text-sm border border-blue-100">
+                                  <FaHashtag className="text-blue-700" />
+                                  Bet: <span className="font-semibold">{a.pagesText}</span>
+                                </span>
+                                {a.pdfUrl ? (
+                                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs sm:text-sm border border-emerald-100">
+                                    <FaFilePdf className="text-emerald-600" />
+                                    PDF bor
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-xs sm:text-sm border border-gray-200">
+                                    <FaFilePdf className="text-gray-400" />
+                                    PDF yo‘q
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Actions */}
+                              <div className="mt-auto pt-5 flex items-center gap-3">
+                                {a.pdfUrl ? (
+                                  <a
+                                    href={a.pdfUrl}
+                                    download
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+                                  >
+                                    <FaFilePdf size={18} />
+                                    <span>PDF yuklab olish</span>
+                                    <FaDownload size={14} />
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-100 text-gray-500 font-semibold border border-gray-200 cursor-not-allowed"
+                                  >
+                                    <FaFilePdf size={18} />
+                                    PDF mavjud emas
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -320,5 +344,4 @@ function MagazineDetail() {
     </>
   );
 }
-
 export default MagazineDetail;

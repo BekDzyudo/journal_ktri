@@ -6,6 +6,7 @@ import {
 } from "react-icons/fa";
 import { useHero } from "../../context/HeroContext";
 import SEO from "../../components/SEO";
+import useGetFetch from "../../hooks/useGetFetch";
 
 function Tahririyat() {
   const { setOnHero } = useHero();
@@ -17,80 +18,13 @@ function Tahririyat() {
   }, [setOnHero]);
 
   // Tahririyat jamoasi a'zolari (Mock data - keyinchalik API dan olinadi)
-  const editorialTeam = [
-    {
-      id: 1,
-      name: "Kadirov Xayot Sharipovich",
-      category: "Bosh muharrir",
-      position: "Pedagogika fanlari doktori, professor",
-      jobTitle: "Kasbiy ta'limni rivojlantirish instituti direktori",
-      phone: "+998 71 244-55-66",
-      email: "kasbiytalim@gmail.com",
-      image: "/direktor.jpeg",
-    },
-    {
-      id: 2,
-      name: "Shoyqulov Baxtiyor Bakirovich",
-      category: "Bosh muharrir o'rinbosari",
-      position: "Dotsent, pedagogika fanlari nomzodi",
-      jobTitle: "Direktorning kasbiy ta'limni rejalashtirish va rivojlantirish bo‘yicha o‘rinbosari",
-      phone: "+998 71 244-55-67",
-      email: "kasbiytalim@gmail.com",
-      image: "/baxtiyor.jpg",
-    },
-    {
-      id: 3,
-      name: "Temirov Xushnud Jamolovich",
-      category: "Ma'sul kotib",
-      position: "Katta ilmiy xodim-izlanuvchi",
-      jobTitle: "Malaka oshirish va qayta tayyorlash bo‘yicha direktor o‘rinbosari",
-      phone: "+998 71 244-55-68",
-      email: "kasbiytalim@gmail.com",
-      image: "/xushnud.jpg",
-    },
-    {
-      id: 4,
-      name: "Muhammadyunusova Mohistara Muhammadilxom qizi",
-      category: "A'zo",
-      position: "Sotsiologiya fanlari bo‘yicha falsafa doktori (PhD)",
-      jobTitle: "Moilaviy va iqtisodiy masalalar bo‘yicha direktor o‘rinbosari",
-      phone: "+998 71 244-55-69",
-      email: "kasbiytalim@gmail.com",
-      image: "/moxistara.jpg",
-    },
-    {
-      id: 5,
-      name: "Ashurov Sanobarxon Yuldashevna",
-      category: "A'zo",
-      position: "Professor, texnika fanlari doktori",
-      jobTitle: "Ilmiy tadqiqotlar, fan va ta'lim texnologiyalari transferi bo'limi boshlig'i",
-      phone: "+998 71 244-55-70",
-      email: "kasbiytalim@gmail.com",
-      image: "/opa.jpeg",
-    },
-     {
-      id: 5,
-      name: "O'rinov Yigitali Muratovich",
-      category: "A'zo",
-      position: "Professor, texnika fanlari doktori",
-      jobTitle: "Qat'iy tartibdagi hujjatlar bilan ishlash bo‘limi boshlig'i",
-      phone: "+998 71 244-55-78",
-      email: "kasbiytalim@gmail.com",
-      image: "/yigit.jpg",
-    },
-    {
-      id: 6,
-      name: "Xudayberganov Tohir Farxadovich",
-      category: "A'zo",
-      position: "Katta o'qituvchi, filologiya fanlari nomzodi",
-      jobTitle: "Axborot kommunikatsiya texnologiyalarini joriy etish boshqarmasi boshlig'i",
-      phone: "+998 71 244-55-71",
-      email: "kasbiytalim@gmail.com",
-      image: "/tohir.jpg",
-    },
-  ];
 
-  if (loading) {
+  const { data:editorialTeam, isPending, error } = useGetFetch(
+    `${import.meta.env.VITE_BASE_URL}/tahririyat/`,
+  );
+
+
+  if (isPending) {
     return (
       <section className="relative min-h-screen w-full bg-gradient-to-b from-base-100 via-base-200 to-base-100 py-24 flex items-center justify-center">
         <div className="text-center">
@@ -122,10 +56,9 @@ function Tahririyat() {
           </div>
 
           {/* Team Grid */}
-          {editorialTeam.length > 0 ? (
+          {editorialTeam?.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {editorialTeam.map((member) => (
-                  
                   <div
                     key={member.id}
                     className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl border-2 border-gray-100 hover:border-blue-500 transition-all duration-300 hover:-translate-y-1"

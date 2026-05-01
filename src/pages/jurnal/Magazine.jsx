@@ -7,6 +7,7 @@ import {
 import { useHero } from "../../context/HeroContext";
 import SEO from "../../components/SEO";
 import { Link } from "react-router-dom";
+import useGetFetch from "../../hooks/useGetFetch";
 
 function Magazine() {
   const { setOnHero } = useHero();
@@ -20,88 +21,10 @@ function Magazine() {
   }, [setOnHero]);
 
   // Jurnallar ro'yxati (Mock data - keyinchalik API dan olinadi)
-  const magazines = [
-    {
-      id: 1,
-      title: "Kasbiy ta'lim jurnali - 2024 yil, 1-son",
-      image: "/jurnalmocup.png",
-      date: "2024-01-15",
-      views: 3250,
-      volume: "1",
-      issue: "1",
-      year: "2024",
-    },
-    {
-      id: 2,
-      title: "Kasbiy ta'lim jurnali - 2023 yil, 4-son",
-      image: "/jurnalmocup.png",
-      date: "2023-12-20",
-      views: 2890,
-      volume: "1",
-      issue: "4",
-      year: "2023",
-    },
-    {
-      id: 3,
-      title: "Kasbiy ta'lim jurnali - 2023 yil, 3-son",
-      image: "/jurnalmocup.png",
-      date: "2023-09-15",
-      views: 2540,
-      volume: "1",
-      issue: "3",
-      year: "2023",
-    },
-    {
-      id: 4,
-      title: "Kasbiy ta'lim jurnali - 2023 yil, 2-son",
-      image: "/jurnalmocup.png",
-      date: "2023-06-10",
-      views: 2240,
-      volume: "1",
-      issue: "2",
-      year: "2023",
-    },
-    {
-      id: 5,
-      title: "Kasbiy ta'lim jurnali - 2023 yil, 1-son",
-      image: "/jurnalmocup.png",
-      date: "2023-03-05",
-      views: 1980,
-      volume: "1",
-      issue: "1",
-      year: "2023",
-    },
-    {
-      id: 6,
-      title: "Kasbiy ta'lim jurnali - 2022 yil, 4-son",
-      image: "/jurnalmocup.png",
-      date: "2022-12-15",
-      views: 1720,
-      volume: "1",
-      issue: "4",
-      year: "2022",
-    },
-    {
-      id: 7,
-      title: "Kasbiy ta'lim jurnali - 2022 yil, 3-son",
-      image: "/jurnalmocup.png",
-      date: "2022-09-10",
-      views: 1560,
-      volume: "1",
-      issue: "3",
-      year: "2022",
-    },
-    {
-      id: 8,
-      title: "Kasbiy ta'lim jurnali - 2022 yil, 2-son",
-      image: "/jurnalmocup.png",
-      date: "2022-06-05",
-      views: 1420,
-      volume: "1",
-      issue: "2",
-      year: "2022",
-    },
-  ];
+   const { data:magazines, isPending, error } = useGetFetch(
+    `${import.meta.env.VITE_BASE_URL}/jurnal-sonlari/`,
+  );
+  console.log(magazines);
 
   // Sanani formatlash
   const formatDate = (dateString) => {
@@ -132,10 +55,10 @@ function Magazine() {
   };
 
   // Unique yillarni olish
-  const uniqueYears = [...new Set(magazines.map(mag => mag.year))].sort((a, b) => b - a);
+  const uniqueYears = [...new Set(magazines?.map(mag => mag.year))].sort((a, b) => b - a);
 
   // Filterlangan jurnallar
-  const filteredMagazines = magazines.filter((magazine) => {
+  const filteredMagazines = magazines?.filter((magazine) => {
     const matchesSearch = magazine.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesYear = selectedYear === "all" || magazine.year === selectedYear;
     return matchesSearch && matchesYear;
@@ -210,7 +133,7 @@ function Magazine() {
           </div>
 
           {/* Magazines Grid */}
-          {filteredMagazines.length > 0 ? (
+          {filteredMagazines?.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
               {filteredMagazines.map((magazine) => (
                 <Link

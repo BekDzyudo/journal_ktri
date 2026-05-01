@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Foydalanuvchilarini Yaratish</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid;
+        }
+        .card.user { border-left-color: #3b82f6; }
+        .card.admin { border-left-color: #8b5cf6; }
+        .card.superadmin { border-left-color: #10b981; }
+        .card-title {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge.user { background: #dbeafe; color: #1e40af; }
+        .badge.admin { background: #ede9fe; color: #6b21a8; }
+        .badge.superadmin { background: #d1fae5; color: #065f46; }
+        .credential {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .credential-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .credential-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .credential-value {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: #1f2937;
+            font-weight: 500;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+        .btn.success:hover {
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+        }
+        .status {
+            text-align: center;
+            padding: 16px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-weight: 500;
+            display: none;
+        }
+        .status.show {
+            display: block;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+        .icon {
+            font-size: 24px;
+        }
+        .info-box {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #92400e;
+        }
+        .info-box strong {
+            color: #78350f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Foydalanuvchilarini Yaratish</h1>
+        <p class="subtitle">KTRI Jurnal Platformasi uchun test hisoblar</p>
+
+        <div class="info-box">
+            <strong>⚠️ Diqqat:</strong> Bu fayl faqat test/development rejimi uchun! 
+            LocalStorage ga test foydalanuvchilarni qo'shadi. 
+            Production da ishlatmang!
+        </div>
+
+        <div class="card user">
+            <div class="card-title">
+                <span class="icon">👤</span>
+                <span>Oddiy Foydalanuvchi</span>
+                <span class="badge user">User</span>
+            </div>
+            <div class="credential">
+                <div class="credential-item" style="flex: 1;">
+                    <span class="credential-label">Email</span>
+                    <span class="credential-value">user@test.uz</span>
+                </div>
+                <div class="credential-item">
+                    <span class="credential-label">Parol</span>
+                    <span class="credential-value">12345678</span>
+                </div>
+            </div>
+            <p style="margin-top: 12px; color: #6b7280; font-size: 13px;">
+                • Faqat o'z maqolalarini ko'radi<br>
+                • Yangi maqola yuborishi mumkin<br>
+                • Profilni tahrirlashi mumkin
+            </p>
+        </div>
+
+        <div class="card admin">
+            <div class="card-title">
+                <span class="icon">📝</span>
+                <span>Taqrizchi / Admin</span>
+                <span class="badge admin">Admin</span>
+            </div>
+            <div class="credential">
+                <div class="credential-item" style="flex: 1;">
+                    <span class="credential-label">Email</span>
+                    <span class="credential-value">admin@test.uz</span>
+                </div>
+                <div class="credential-item">
+                    <span class="credential-label">Parol</span>
+                    <span class="credential-value">12345678</span>
+                </div>
+            </div>
+            <p style="margin-top: 12px; color: #6b7280; font-size: 13px;">
+                • Tayinlangan maqolalarni ko'radi<br>
+                • Maqolalarni baholashi va taqriz yuklashi mumkin<br>
+                • Baholangan maqolalar statistikasi
+            </p>
+        </div>
+
+        <div class="card superadmin">
+            <div class="card-title">
+                <span class="icon">👑</span>
+                <span>Super Administrator</span>
+                <span class="badge superadmin">SuperAdmin</span>
+            </div>
+            <div class="credential">
+                <div class="credential-item" style="flex: 1;">
+                    <span class="credential-label">Email</span>
+                    <span class="credential-value">superadmin@test.uz</span>
+                </div>
+                <div class="credential-item">
+                    <span class="credential-label">Parol</span>
+                    <span class="credential-value">12345678</span>
+                </div>
+            </div>
+            <p style="margin-top: 12px; color: #6b7280; font-size: 13px;">
+                • Barcha maqolalarni ko'radi va boshqaradi<br>
+                • Maqolalarni adminlarga tayinlaydi<br>
+                • Foydalanuvchilarga admin huquqi berishi mumkin<br>
+                • Barcha statistikalar va hisobotlar
+            </p>
+        </div>
+
+        <button class="btn" id="createBtn" onclick="createTestUsers()">
+            🚀 Test Foydalanuvchilarini Yaratish
+        </button>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        function createTestUsers() {
+            const btn = document.getElementById('createBtn');
+            const status = document.getElementById('status');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Yaratilmoqda...';
+
+            // Test foydalanuvchilari
+            const testUsers = [
+                {
+                    email: 'user@test.uz',
+                    password: '12345678',
+                    first_name: 'Ali',
+                    last_name: 'Valiyev',
+                    phone_number: '+998901234567',
+                    role: 'user',
+                    is_verified: true,
+                    date_joined: new Date().toISOString()
+                },
+                {
+                    email: 'admin@test.uz',
+                    password: '12345678',
+                    first_name: 'Sardor',
+                    last_name: 'Karimov',
+                    phone_number: '+998901234568',
+                    role: 'admin',
+                    is_verified: true,
+                    date_joined: new Date().toISOString()
+                },
+                {
+                    email: 'superadmin@test.uz',
+                    password: '12345678',
+                    first_name: 'Jamshid',
+                    last_name: 'Toshmatov',
+                    phone_number: '+998901234569',
+                    role: 'superadmin',
+                    is_verified: true,
+                    date_joined: new Date().toISOString()
+                }
+            ];
+
+            setTimeout(() => {
+                // LocalStorage ga saqlash
+                localStorage.setItem('mockUsers', JSON.stringify(testUsers));
+                
+                // Muvaffaqiyatli
+                btn.textContent = '✅ Tayyor! Login sahifasiga o\'tish uchun bosing';
+                btn.className = 'btn success';
+                btn.onclick = () => {
+                    window.location.href = '/login';
+                };
+                
+                status.className = 'status success show';
+                status.innerHTML = `
+                    <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">
+                        Test foydalanuvchilari muvaffaqiyatli yaratildi!
+                    </div>
+                    <div style="font-size: 14px; opacity: 0.8;">
+                        3 ta test hisobi LocalStorage ga qo'shildi.<br>
+                        Endi login sahifasiga o'tib, ulardan biri bilan kirish mumkin.
+                    </div>
+                `;
+
+                console.log('✅ Test foydalanuvchilari yaratildi!');
+                console.log('USER:', testUsers[0].email, '| Parol:', testUsers[0].password);
+                console.log('ADMIN:', testUsers[1].email, '| Parol:', testUsers[1].password);
+                console.log('SUPERADMIN:', testUsers[2].email, '| Parol:', testUsers[2].password);
+            }, 1000);
+        }
+
+        // Sahifa yuklanganda mavjud foydalanuvchilarni tekshirish
+        window.onload = function() {
+            const users = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+            if (users.length > 0) {
+                const status = document.getElementById('status');
+                status.className = 'status show';
+                status.style.background = '#e0e7ff';
+                status.style.color = '#3730a3';
+                status.style.border = '2px solid #6366f1';
+                status.innerHTML = `
+                    <div style="font-size: 14px;">
+                        ℹ️ LocalStorage da ${users.length} ta foydalanuvchi mavjud.<br>
+                        Yangi test foydalanuvchilarini yaratish uchun yuqoridagi tugmani bosing.
+                    </div>
+                `;
+            }
+        };
+    </script>
+</body>
+</html>

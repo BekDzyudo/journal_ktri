@@ -6,6 +6,7 @@ import {
 import { useHero } from "../../context/HeroContext";
 import SEO from "../../components/SEO";
 import { Link } from "react-router-dom";
+import useGetFetch from "../../hooks/useGetFetch";
 
 function Announcements() {
   const { setOnHero } = useHero();
@@ -17,64 +18,10 @@ function Announcements() {
   }, [setOnHero]);
 
   // E'lonlar ro'yxati (Mock data - keyinchalik API dan olinadi)
-  const announcements = [
-    {
-      id: 1,
-      title: "2024-yil uchun ilmiy maqolalar qabul qilinmoqda",
-      image: "/elonjurnal.png",
-      date: "2024-01-15",
-      views: 1250,
-    },
-    {
-      id: 2,
-      title: "Kasbiy ta'lim sohasida ilmiy konferensiya e'lon qilinadi",
-      image: "/elonjurnal.png",
-      date: "2024-01-10",
-      views: 890,
-    },
-    {
-      id: 3,
-      title: "Yangi jurnal soni nashr etildi - 2024 yil, 1-son",
-      image: "/elonjurnal.png",
-      date: "2024-01-05",
-      views: 2340,
-    },
-    {
-      id: 4,
-      title: "Maqola yuborish bo'yicha yangi talablar",
-      image: "/elonjurnal.png",
-      date: "2023-12-28",
-      views: 1560,
-    },
-    {
-      id: 5,
-      title: "Pedagogika fanlari bo'yicha maxsus son chiqariladi",
-      image: "/elonjurnal.png",
-      date: "2023-12-20",
-      views: 780,
-    },
-    {
-      id: 6,
-      title: "Xalqaro hamkorlik dasturi e'lon qilinadi",
-      image: "/elonjurnal.png",
-      date: "2023-12-15",
-      views: 1120,
-    },
-    {
-      id: 7,
-      title: "Yosh olimlar uchun grant e'lon qilindi",
-      image: "/elonjurnal.png",
-      date: "2023-12-10",
-      views: 3200,
-    },
-    {
-      id: 8,
-      title: "Tahririyat hay'ati yangi a'zolar qabul qilmoqda",
-      image: "/elonjurnal.png",
-      date: "2023-12-05",
-      views: 560,
-    },
-  ];
+   const { data:announcements, isPending, error } = useGetFetch(
+    `${import.meta.env.VITE_BASE_URL}/elonlar/`,
+  );
+  
 
   // Sanani formatlash
   const formatDate = (dateString) => {
@@ -137,7 +84,7 @@ function Announcements() {
           </div>
 
           {/* Announcements Grid */}
-          {announcements.length > 0 ? (
+          {announcements?.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
               {announcements.map((announcement) => (
                 <Link
@@ -150,8 +97,8 @@ function Announcements() {
                     <div className="p-4 pb-0">
                       <div className="relative h-56 overflow-hidden shrink-0 rounded-xl">
                         <img
-                          src={announcement.image}
-                          alt={announcement.title}
+                          src={announcement.rasm}
+                          alt={announcement.sarlavha}
                           className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -162,7 +109,7 @@ function Announcements() {
                     <div className="p-5 flex flex-col flex-1">
                       {/* Title */}
                       <h3 className="text-lg font-bold text-gray-800 mb-4 line-clamp-3 group-hover:text-blue-600 transition-colors flex-1">
-                        {announcement.title}
+                        {announcement.sarlavha}
                       </h3>
 
                       {/* Footer */}
@@ -172,7 +119,7 @@ function Announcements() {
                             <FaCalendar size={14} className="text-blue-600" />
                           </div>
                           <span className="text-sm font-medium">
-                            {formatDate(announcement.date)}
+                            {formatDate(announcement.sana)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-600">
@@ -180,7 +127,7 @@ function Announcements() {
                             <FaEye size={14} className="text-green-600" />
                           </div>
                           <span className="text-sm font-medium">
-                            {formatViews(announcement.views)}
+                            {formatViews(announcement.korishlar_soni)}
                           </span>
                         </div>
                       </div>

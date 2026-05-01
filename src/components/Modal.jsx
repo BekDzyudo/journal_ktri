@@ -5,7 +5,7 @@ function Modal({ isOpen, onClose, title, children }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-[140] overflow-y-auto">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black/50 backdrop-blur-md transition-all duration-300 animate-fade-in"
@@ -14,7 +14,7 @@ function Modal({ isOpen, onClose, title, children }) {
 
       {/* Modal */}
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-50 transform transition-all duration-300 animate-scale-in">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-[141] transform transition-all duration-300 animate-scale-in">
           {/* Close Button */}
           <button
             onClick={onClose}

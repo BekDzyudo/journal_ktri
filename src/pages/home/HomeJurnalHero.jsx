@@ -10,6 +10,7 @@ import {
   FaBrain,
   FaLandmark,
 } from "react-icons/fa";
+import useGetFetch from "../../hooks/useGetFetch";
 
 function HomeJurnalHero() {
      const heroRef = useRef(null);
