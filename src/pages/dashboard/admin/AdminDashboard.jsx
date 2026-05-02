@@ -150,9 +150,26 @@ function AdminDashboard({ userData }) {
   );
 
   return (
-    <div>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="space-y-6">
+      <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)] sm:p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-purple-600">Taqrizchi paneli</p>
+            <h2 className="mt-2 flex items-center gap-2 text-2xl font-black text-slate-950">
+              <FaFileAlt className="text-purple-600" />
+              Tayinlangan maqolalar monitoringi
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Sizga biriktirilgan maqolalar, taqriz fayllari va tahririyat bilan muloqot.
+            </p>
+          </div>
+          <span className="inline-flex w-fit items-center rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-100">
+            {filteredArticles.length} ta maqola
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatsCard
           icon={<FaNewspaper />}
           title="Jami maqolalar"
@@ -183,23 +200,26 @@ function AdminDashboard({ userData }) {
         />
       </div>
 
-      {/* Filters */}
-      <div className="bg-white p-6 rounded-xl shadow-md mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
+        <div className="mb-4">
+          <h3 className="text-base font-black text-slate-950">Qidiruv va filter</h3>
+          <p className="text-sm text-slate-500">Maqola nomi, muallif yoki status bo‘yicha ishlang.</p>
+        </div>
+        <div className="flex flex-col gap-4 md:flex-row">
           <div className="flex-1">
             <input
               type="text"
               placeholder="Maqola nomi yoki muallif bo'yicha qidirish..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input input-bordered w-full"
+              className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50"
             />
           </div>
           <div className="w-full md:w-64">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="select select-bordered w-full"
+              className="select select-bordered w-full rounded-xl border-slate-200 bg-slate-50"
             >
               <option value="all">Barcha statuslar</option>
               {uniqueStatuses.map((status) => (
@@ -212,11 +232,16 @@ function AdminDashboard({ userData }) {
         </div>
       </div>
 
-      {/* Articles Table */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      <div className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
+        <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-base font-black text-slate-950">Taqriz jadvali</h3>
+            <p className="text-sm text-slate-500">Taqriz holati va tezkor amallar.</p>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="table w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="text-left">Maqola nomi</th>
                 <th className="text-left">Mualliflar</th>
@@ -241,7 +266,7 @@ function AdminDashboard({ userData }) {
                 </tr>
               ) : (
                 filteredArticles.map((article) => (
-                  <tr key={article.id} className="hover:bg-gray-50">
+                  <tr key={article.id} className="border-slate-100 hover:bg-slate-50/80">
                     <td className="font-medium text-gray-900">{article.articleTitle}</td>
                     <td className="text-gray-600">{article.authorNames}</td>
                     <td className="text-gray-600">
@@ -266,14 +291,14 @@ function AdminDashboard({ userData }) {
                       <div className="flex items-center justify-center gap-2 flex-wrap">
                         <button
                           onClick={() => setDetailArticle(article)}
-                          className="btn btn-sm btn-ghost text-blue-600"
+                          className="btn btn-sm btn-ghost rounded-xl text-blue-600"
                           title="Ko'rish"
                         >
                           <FaEye />
                         </button>
                         <button
                           onClick={() => setChatArticle(article)}
-                          className="btn btn-sm btn-ghost text-indigo-600"
+                          className="btn btn-sm btn-ghost rounded-xl text-indigo-600"
                           title="Muhokama"
                         >
                           <FaComments />
@@ -281,7 +306,7 @@ function AdminDashboard({ userData }) {
                         {article.finalDecisionDescription && (
                           <button
                             onClick={() => setMessageArticle(article)}
-                            className="btn btn-sm btn-ghost text-emerald-600"
+                            className="btn btn-sm btn-ghost rounded-xl text-emerald-600"
                             title="Muharrir xabari"
                           >
                             <FaCommentDots />
@@ -290,7 +315,7 @@ function AdminDashboard({ userData }) {
                         {!article.reviewFile && (
                           <button
                             onClick={() => setSelectedArticle(article)}
-                            className="btn btn-sm btn-primary gap-1"
+                            className="btn btn-sm gap-1 rounded-xl bg-[#0d4ea3] text-white hover:bg-blue-700"
                             title="Taqriz yuklash"
                           >
                             <FaUpload />

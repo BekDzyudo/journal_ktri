@@ -84,9 +84,30 @@ function UserDashboard({ userData }) {
   );
 
   return (
-    <div>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="space-y-6">
+      <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)] sm:p-6">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0d4ea3]">Dashboard</p>
+            <h2 className="mt-2 flex items-center gap-2 text-2xl font-black text-slate-950">
+              <FaNewspaper className="text-[#0d4ea3]" />
+              Muallif monitoring paneli
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Maqolalaringiz holati, muharrir xabarlari va yuborilgan materiallar nazorati.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/send-article")}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0d4ea3] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700"
+          >
+            <FaPlus />
+            Yangi maqola yuborish
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatsCard
           icon={<FaNewspaper />}
           title="Jami maqolalar"
@@ -117,34 +138,28 @@ function UserDashboard({ userData }) {
         />
       </div>
 
-      {/* New Article Button */}
-      <div className="mb-6">
-        <button
-          onClick={() => navigate("/send-article")}
-          className="btn btn-primary gap-2"
-        >
-          <FaPlus />
-          Yangi maqola yuborish
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-6 rounded-xl shadow-md mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-black text-slate-950">Qidiruv va filter</h3>
+            <p className="text-sm text-slate-500">Maqola nomi, muallif yoki status bo‘yicha saralang.</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4 md:flex-row">
           <div className="flex-1">
             <input
               type="text"
               placeholder="Maqola nomi yoki muallif bo'yicha qidirish..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input input-bordered w-full"
+              className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50"
             />
           </div>
           <div className="w-full md:w-64">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="select select-bordered w-full"
+              className="select select-bordered w-full rounded-xl border-slate-200 bg-slate-50"
             >
               <option value="all">Barcha statuslar</option>
               {uniqueStatuses.map((status) => (
@@ -157,11 +172,16 @@ function UserDashboard({ userData }) {
         </div>
       </div>
 
-      {/* Articles Table */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      <div className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
+        <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-base font-black text-slate-950">Maqolalar ro'yxati</h3>
+            <p className="text-sm text-slate-500">{filteredArticles.length} ta yozuv ko‘rsatilmoqda</p>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="table w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="text-left">Maqola nomi</th>
                 <th className="text-left">Mualliflar</th>
@@ -185,7 +205,7 @@ function UserDashboard({ userData }) {
                 </tr>
               ) : (
                 filteredArticles.map((article) => (
-                  <tr key={article.id} className="hover:bg-gray-50">
+                  <tr key={article.id} className="border-slate-100 hover:bg-slate-50/80">
                     <td className="font-medium text-gray-900">{article.articleTitle}</td>
                     <td className="text-gray-600">{article.authorNames}</td>
                     <td className="text-gray-600">

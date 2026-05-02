@@ -59,21 +59,21 @@ function AdminPanel() {
         return {
           title: "Taqrizchi paneli",
           subtitle: "Maqolalarni baholang",
-          gradient: "from-purple-50 via-white to-indigo-50",
+          gradient: "bg-[#f6f8fc]",
           headerGradient: "from-purple-500 to-indigo-600"
         };
       case ROLES.SUPERADMIN:
         return {
           title: "Admin paneli",
           subtitle: "Barcha ma'lumotlarni boshqaring",
-          gradient: "from-emerald-50 via-white to-teal-50",
+          gradient: "bg-[#f6f8fc]",
           headerGradient: "from-emerald-500 to-teal-600"
         };
       default:
         return {
           title: "Muallif paneli",
           subtitle: "Maqolalaringizni boshqaring",
-          gradient: "from-slate-50 via-white to-blue-50",
+          gradient: "bg-[#f6f8fc]",
           headerGradient: "from-blue-500 to-indigo-600"
         };
     }
@@ -236,14 +236,14 @@ function AdminPanel() {
       case ROLES.ADMIN:
         return <AdminDashboard userData={profileUser} />;
       case ROLES.SUPERADMIN:
-        return <SuperAdminDashboard userData={profileUser} />;
+        return <SuperAdminDashboard userData={profileUser} view="articles" />;
       default:
         return <UserDashboard userData={profileUser} />;
     }
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${roleConfig.gradient} mt-20`}>
+    <div className={`min-h-screen ${roleConfig.gradient}`}>
       <AdminHeader
         userRole={userRole}
         userData={profileUser}
@@ -256,14 +256,22 @@ function AdminPanel() {
         onLogout={handleLogout}
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="px-4 pb-10 pt-28 sm:px-6 lg:ml-72 lg:px-8 lg:pt-24">
         {/* Dashboard Tab */}
         {activeTab === "dashboard" && renderDashboard()}
 
         {/* Profile Tab */}
         {activeTab === "profile" && (
-          <div className="bg-white rounded-xl shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Profil ma'lumotlari</h2>
+          <div className="rounded-[1.35rem] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)] sm:p-8">
+            <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0d4ea3]">Akkaunt</p>
+                <h2 className="mt-1 text-2xl font-black text-slate-950">Profil ma'lumotlari</h2>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                {profileUser?.email || "Profil"}
+              </span>
+            </div>
             
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -273,7 +281,7 @@ function AdminPanel() {
                     type="text"
                     value={profileUser?.first_name || profileUser?.ism || ""}
                     readOnly
-                    className="input input-bordered w-full bg-gray-50"
+                    className="input input-bordered w-full bg-slate-50"
                   />
                 </div>
                 <div>
@@ -282,7 +290,7 @@ function AdminPanel() {
                     type="text"
                     value={profileUser?.last_name || profileUser?.familiya || ""}
                     readOnly
-                    className="input input-bordered w-full bg-gray-50"
+                    className="input input-bordered w-full bg-slate-50"
                   />
                 </div>
                 <div>
@@ -291,7 +299,7 @@ function AdminPanel() {
                     type="email"
                     value={profileUser?.email || ""}
                     readOnly
-                    className="input input-bordered w-full bg-gray-50"
+                    className="input input-bordered w-full bg-slate-50"
                   />
                 </div>
                 <div>
@@ -300,7 +308,7 @@ function AdminPanel() {
                     type="text"
                     value={profileUser?.phone_number || profileUser?.telefon || ""}
                     readOnly
-                    className="input input-bordered w-full bg-gray-50"
+                    className="input input-bordered w-full bg-slate-50"
                   />
                 </div>
               </div>
@@ -327,17 +335,16 @@ function AdminPanel() {
 
         {/* Settings Tab */}
         {activeTab === "settings" && (
-          <div className="bg-white rounded-xl shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Sozlamalar</h2>
-            <p className="text-gray-600">Sozlamalar bo'limi ishlab chiqilmoqda...</p>
+          <div className="rounded-[1.35rem] border border-slate-200 bg-white p-8 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0d4ea3]">Konfiguratsiya</p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">Sozlamalar</h2>
+            <p className="mt-4 text-gray-600">Sozlamalar bo'limi ishlab chiqilmoqda...</p>
           </div>
         )}
 
         {/* Foydalanuvchilar — faqat SUPERADMIN uchun (dashboard bilan bir xil SuperAdminDashboard) */}
         {activeTab === "users" && userRole === ROLES.SUPERADMIN && (
-          <div className="bg-white rounded-xl shadow-md p-8">
-            <SuperAdminDashboard userData={profileUser} />
-          </div>
+          <SuperAdminDashboard userData={profileUser} view="users" />
         )}
       </main>
 

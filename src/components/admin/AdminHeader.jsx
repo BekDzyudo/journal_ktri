@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { FaUser, FaCog, FaNewspaper, FaSignOutAlt } from "react-icons/fa";
+import { FaBars, FaBell, FaCog, FaNewspaper, FaSearch, FaSignOutAlt, FaUser } from "react-icons/fa";
 import { ROLE_NAMES, ROLES } from "../../constants/roles.js";
 
 function AdminHeader({ 
@@ -20,128 +20,135 @@ function AdminHeader({
   const fullName = `${firstName} ${lastName}`.trim() || userData?.email || "";
   const roleName = ROLE_NAMES[userRole] || "Muallif";
 
+  const initials = `${firstName?.[0] || ""}${lastName?.[0] || ""}` || "U";
+  const roleBadge =
+    userRole === ROLES.SUPERADMIN ? "Administrator" : userRole === ROLES.ADMIN ? "Taqrizchi" : "Muallif";
+
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate("/")}
-              className="hover:opacity-80 transition-opacity"
-              title="Asosiy sahifaga qaytish"
+    <>
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 border-r border-slate-200 bg-white lg:flex lg:flex-col">
+        <button
+          onClick={() => navigate("/")}
+          className="flex h-18 items-center gap-3 border-b border-slate-100 px-5 text-left transition hover:bg-slate-50"
+          title="Asosiy sahifaga qaytish"
+        >
+          <img src="/new_logo_white.png" alt="KTRI" className="h-11 w-11 rounded-xl object-contain" />
+          <div>
+            <p className="text-base font-black tracking-tight text-slate-950">KTRI</p>
+            <p className="text-[11px] font-semibold text-slate-500">{roleBadge}</p>
+          </div>
+        </button>
+
+        <nav className="flex-1 space-y-1.5 px-4 py-5">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                activeTab === item.id
+                  ? "bg-[#eef4ff] text-[#0d4ea3] ring-1 ring-blue-100"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+              }`}
             >
-              <img src="/new_logo_white.png" alt="KTRI" className="h-10 w-auto" />
+              <span
+                className={`grid h-8 w-8 place-items-center rounded-lg text-sm transition ${
+                  activeTab === item.id
+                    ? "bg-white text-[#0d4ea3] shadow-sm"
+                    : "bg-slate-50 text-slate-400 group-hover:text-slate-700"
+                }`}
+              >
+                {item.icon}
+              </span>
+              {item.label}
             </button>
-            <div className="border-l border-gray-300 pl-4">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900">{roleConfig.title}</h1>
-                {userRole === ROLES.SUPERADMIN && (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full shadow-sm">
-                    ADMIN
-                  </span>
-                )}
-                {userRole === ROLES.ADMIN && (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full shadow-sm">
-                    TAQRIZCHI
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-gray-500">{roleConfig.subtitle}</p>
+          ))}
+        </nav>
+
+        <div className="border-t border-slate-100 px-5 py-4">
+          <p className="text-xs font-bold text-slate-700">ID: {firstName || fullName}</p>
+          <p className="mt-1 text-[11px] text-slate-400">© 2026 KTRI</p>
+        </div>
+      </aside>
+
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur lg:left-72">
+        <div className="flex h-18 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-4">
+            <button className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 lg:hidden">
+              <FaBars />
+            </button>
+            <div className="hidden min-w-[14rem] items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-400 md:flex lg:min-w-[22rem]">
+              <FaSearch className="mr-2 text-xs" />
+              <span className="text-sm">Qidiruv...</span>
+            </div>
+            <div className="min-w-0 md:hidden">
+              <h1 className="truncate text-lg font-black text-slate-950">{roleConfig.title}</h1>
+              <p className="truncate text-xs text-slate-500">{roleConfig.subtitle}</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-            {/* Profile Dropdown */}
+
+          <div className="flex items-center gap-3">
+            <button className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50">
+              <FaBell />
+            </button>
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-3 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 rounded-full border border-gray-200 hover:border-gray-300 transition-all hover:shadow-md"
+                className="flex items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-slate-50"
               >
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-bold text-gray-900">{fullName}</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <span className={`w-2 h-2 rounded-full ${userRole === ROLES.SUPERADMIN ? 'bg-emerald-500' : userRole === ROLES.ADMIN ? 'bg-purple-500' : 'bg-blue-500'} animate-pulse`}></span>
-                    {roleName}
-                  </p>
+                <div className="hidden text-right sm:block">
+                  <p className="text-xs font-black text-slate-950">{fullName}</p>
+                  <p className="text-[11px] font-medium text-slate-500">{roleName}</p>
                 </div>
-                <div className={`relative w-12 h-12 rounded-full bg-gradient-to-br ${roleConfig.headerGradient} flex items-center justify-center text-white font-bold text-lg shadow-lg ring-4 ring-white`}>
-                  <span className="relative z-10">{firstName?.[0]}{lastName?.[0]}</span>
-                  <div className="absolute inset-0 rounded-full bg-white opacity-0 hover:opacity-20 transition-opacity"></div>
+                <div className={`grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br ${roleConfig.headerGradient} text-sm font-bold text-white shadow-md`}>
+                  {initials}
                 </div>
               </button>
 
-              {/* Dropdown Menu */}
               {profileDropdownOpen && (
                 <>
-                  {/* Backdrop */}
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setProfileDropdownOpen(false)}
-                  ></div>
-                  
-                  {/* Menu */}
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50">
-                    {/* Profile Header */}
-                    <div className={`px-5 py-4 bg-gradient-to-r ${userRole === ROLES.SUPERADMIN ? 'from-emerald-500 to-teal-500' : userRole === ROLES.ADMIN ? 'from-purple-500 to-indigo-500' : 'from-blue-500 to-indigo-500'} text-white`}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-xl ring-2 ring-white/50">
-                          {firstName?.[0]}{lastName?.[0]}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-bold text-lg">{fullName}</p>
-                          <p className="text-xs opacity-90">{userData?.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium">
-                          {roleName}
-                        </span>
-                      </div>
+                  <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)} />
+                  <div className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                    <div className={`bg-gradient-to-r ${roleConfig.headerGradient} p-5 text-white`}>
+                      <p className="font-bold">{fullName}</p>
+                      <p className="mt-1 truncate text-xs opacity-90">{userData?.email}</p>
                     </div>
-
-                    {/* Menu Items */}
-                    <div className="py-2">
+                    <div className="p-2">
                       <button
                         onClick={() => {
-                          setActiveTab('profile');
+                          setActiveTab("profile");
                           setProfileDropdownOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-gray-700"
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                       >
                         <FaUser className="text-blue-600" />
-                        <span className="text-sm font-medium">Profil</span>
+                        Profil
                       </button>
-                      
                       <button
                         onClick={() => {
-                          setActiveTab('settings');
+                          setActiveTab("settings");
                           setProfileDropdownOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-gray-700"
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                       >
-                        <FaCog className="text-gray-600" />
-                        <span className="text-sm font-medium">Sozlamalar</span>
+                        <FaCog className="text-slate-500" />
+                        Sozlamalar
                       </button>
-
                       <button
-                        onClick={() => navigate('/')}
-                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-gray-700"
+                        onClick={() => navigate("/")}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                       >
-                        <FaNewspaper className="text-green-600" />
-                        <span className="text-sm font-medium">Asosiy sahifa</span>
+                        <FaNewspaper className="text-emerald-600" />
+                        Asosiy sahifa
                       </button>
-
-                      <div className="border-t border-gray-200 my-2"></div>
-
                       <button
                         onClick={() => {
                           onLogout();
-                          navigate('/');
+                          navigate("/");
                         }}
-                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 transition-colors text-red-600"
+                        className="mt-2 flex w-full items-center gap-3 rounded-xl border-t border-slate-100 px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"
                       >
                         <FaSignOutAlt />
-                        <span className="text-sm font-medium">Chiqish</span>
+                        Chiqish
                       </button>
                     </div>
                   </div>
@@ -151,28 +158,22 @@ function AdminHeader({
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 mt-4 border-t border-gray-200 pt-3 pb-2 overflow-x-auto">
+        <nav className="flex gap-2 overflow-x-auto border-t border-slate-100 px-4 py-2 lg:hidden">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all font-medium whitespace-nowrap ${
-                activeTab === item.id
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold ${
+                activeTab === item.id ? "bg-[#0d4ea3] text-white" : "bg-slate-50 text-slate-600"
               }`}
             >
-              <span className={activeTab === item.id ? 'text-lg' : 'text-base'}>{item.icon}</span>
-              <span className={activeTab === item.id ? 'font-semibold' : ''}>{item.label}</span>
-              {activeTab === item.id && (
-                <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-              )}
+              {item.icon}
+              {item.label}
             </button>
           ))}
-        </div>
-      </div>
-    </header>
+        </nav>
+      </header>
+    </>
   );
 }
 

@@ -9,23 +9,21 @@ import FloatingActionButton from "../components/FloatingActionButton";
 import CalendarModal from "../components/CalendarModal";
 import SEO from "../components/SEO";
 
+const HERO_PAGES = ['/', '/digital-educational-resources', '/methodological-support', '/region'];
+
 function MainLayout() {
   const location = useLocation();
-  
-  // Hero bor sahifalar ro'yxati (aniq path'lar)
-  const heroPages = ['/', '/digital-educational-resources', '/methodological-support', '/region'];
-  
+  const isAdminPath = location.pathname.startsWith("/admin");
+
   // onHero hero bor sahifalarda default true
-  const [onHero, setOnHero] = useState(heroPages.includes(location.pathname));
+  const [onHero, setOnHero] = useState(HERO_PAGES.includes(location.pathname));
 
   // pathname o'zgarganda onHero ni yangilash
   useEffect(() => {
-    const hasHero = heroPages.includes(location.pathname);
-    if (!hasHero) {
-      setOnHero(false);
-    } else {
-      setOnHero(true); // Hero bor sahifaga o'tganda darhol true
-    }
+    const t = setTimeout(() => {
+      setOnHero(HERO_PAGES.includes(location.pathname));
+    }, 0);
+    return () => clearTimeout(t);
   }, [location.pathname]);
 
   // Har safar sahifa o'zgarganda tepaga scroll qilish
@@ -44,15 +42,19 @@ function MainLayout() {
         />
         
         <div className="flex flex-col min-h-screen">
-          <header>
-            <Header />
-          </header>
-          <main className={onHero ? "" : "pt-20"}>
+          {!isAdminPath && (
+            <header>
+              <Header />
+            </header>
+          )}
+          <main className={isAdminPath || onHero ? "" : "pt-20"}>
             <Outlet />
           </main>
-          <footer>
-            <Footer/>
-          </footer>
+          {!isAdminPath && (
+            <footer>
+              <Footer/>
+            </footer>
+          )}
           <TestModeBanner />
           
           {/* Floating Action Button */}
