@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   FaNewspaper,
   FaUsers,
@@ -30,6 +30,23 @@ import {
   SUPERADMIN_STATUS_COLORS,
 } from "../../../constants/roles.js";
 import { getAccessToken } from "../../../utils/authStorage.js";
+import {
+  filterArticlesByDisplayStatus,
+  uniqueDisplayStatuses,
+} from "../../../utils/articleDashboardHelpers.js";
+
+function computeSuperAdminStats(submittedArticles, allUsers, adminUsers) {
+  return {
+    totalArticles: submittedArticles.length,
+    newMaterials: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.SUBMITTED).length,
+    assigned: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ASSIGNED).length,
+    inReview: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.IN_EDITING).length,
+    accepted: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
+    rejected: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
+    totalUsers: allUsers.filter((u) => normalizeRole(u.role) === ROLES.USER).length,
+    totalAdmins: adminUsers.length,
+  };
+}
 
 function SuperAdminDashboard({ userData }) {
   const [articles, setArticles] = useState([]);
@@ -58,22 +75,7 @@ function SuperAdminDashboard({ userData }) {
     totalAdmins: 0,
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const buildStats = (submittedArticles, allUsers, adminUsers) => ({
-    totalArticles: submittedArticles.length,
-    newMaterials: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.SUBMITTED).length,
-    assigned: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ASSIGNED).length,
-    inReview: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.IN_EDITING).length,
-    accepted: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
-    rejected: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
-    totalUsers: allUsers.filter((u) => normalizeRole(u.role) === ROLES.USER).length,
-    totalAdmins: adminUsers.length,
-  });
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const accessToken = getAccessToken();
@@ -95,14 +97,21 @@ function SuperAdminDashboard({ userData }) {
       setArticles(articlesData);
       setUsers(normalizedUsers);
       setAdmins(adminUsers);
-      setStats(buildStats(articlesData, normalizedUsers, adminUsers));
+      setStats(computeSuperAdminStats(articlesData, normalizedUsers, adminUsers));
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Ma'lumotlarni yuklashda xatolik");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      fetchData();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [fetchData]);
 
   const handleAssignToAdmin = async () => {
     if (!selectedAdmin) {
@@ -199,14 +208,16 @@ function SuperAdminDashboard({ userData }) {
     }
   };
 
-  const filteredArticles = articles.filter((article) => {
-    const matchesSearch =
-      article.articleTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.authorNames?.toLowerCase().includes(searchQuery.toLowerCase());
-    const displayStatus = SUPERADMIN_STATUS_DISPLAY[article.status] || article.status;
-    const matchesFilter = filterStatus === "all" || displayStatus === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  const filteredArticles = useMemo(
+    () =>
+      filterArticlesByDisplayStatus(
+        articles,
+        searchQuery,
+        filterStatus,
+        SUPERADMIN_STATUS_DISPLAY
+      ),
+    [articles, searchQuery, filterStatus]
+  );
 
   const filteredUsers = users.filter((user) => {
     const searchLower = userSearchQuery.toLowerCase();
@@ -229,9 +240,21 @@ function SuperAdminDashboard({ userData }) {
     );
   };
 
-  const uniqueStatuses = [
-    ...new Set(articles.map((a) => SUPERADMIN_STATUS_DISPLAY[a.status] || a.status)),
-  ];
+  const uniqueStatuses = useMemo(
+    () => uniqueDisplayStatuses(articles, SUPERADMIN_STATUS_DISPLAY),
+    [articles]
+  );
+
+  const chatUserIdentity = useMemo(
+    () => ({
+      email: userData?.email,
+      name: userData?.first_name
+        ? `${userData.first_name} ${userData?.last_name ?? ""}`.trim()
+        : userData?.email,
+      role: "superadmin",
+    }),
+    [userData]
+  );
 
   return (
     <div className="space-y-8">
@@ -618,11 +641,7 @@ function SuperAdminDashboard({ userData }) {
         isOpen={chatArticle !== null}
         onClose={() => setChatArticle(null)}
         article={chatArticle}
-        currentUser={{
-          email: userData?.email,
-          name: userData?.first_name ? `${userData.first_name} ${userData?.last_name || ""}`.trim() : userData?.email,
-          role: "superadmin",
-        }}
+        currentUser={chatUserIdentity}
       />
     </div>
   );

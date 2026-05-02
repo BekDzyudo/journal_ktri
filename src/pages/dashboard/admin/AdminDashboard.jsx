@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { FaNewspaper, FaClock, FaCheckCircle, FaUpload, FaEye, FaFileAlt, FaComments, FaCommentDots } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
 import ArticleChatModal from "../../../components/ArticleChatModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
-import { ARTICLE_STATUS, STATUS_NAMES, ADMIN_STATUS_DISPLAY, ADMIN_STATUS_COLORS } from "../../../constants/roles.js";
+import { ARTICLE_STATUS, ADMIN_STATUS_DISPLAY, ADMIN_STATUS_COLORS } from "../../../constants/roles.js";
 import { getAccessToken } from "../../../utils/authStorage.js";
+import {
+  filterArticlesByDisplayStatus,
+  uniqueDisplayStatuses,
+} from "../../../utils/articleDashboardHelpers.js";
 
 function AdminDashboard({ userData }) {
   const [articles, setArticles] = useState([]);
@@ -27,11 +31,7 @@ function AdminDashboard({ userData }) {
     pending: 0,
   });
 
-  useEffect(() => {
-    if (userData?.email) fetchArticles();
-  }, [userData?.email]);
-
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
       const accessToken = getAccessToken();
@@ -56,7 +56,16 @@ function AdminDashboard({ userData }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!userData?.email) return;
+
+    const t = setTimeout(() => {
+      fetchArticles();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [userData?.email, fetchArticles]);
 
   const handleReviewFileChange = (e) => {
     const file = e.target.files[0];
@@ -108,13 +117,11 @@ function AdminDashboard({ userData }) {
     }
   };
 
-  const filteredArticles = articles.filter(article => {
-    const matchesSearch = article.articleTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         article.authorNames?.toLowerCase().includes(searchQuery.toLowerCase());
-    const displayStatus = ADMIN_STATUS_DISPLAY[article.status] || article.status;
-    const matchesFilter = filterStatus === "all" || displayStatus === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  const filteredArticles = useMemo(
+    () =>
+      filterArticlesByDisplayStatus(articles, searchQuery, filterStatus, ADMIN_STATUS_DISPLAY),
+    [articles, searchQuery, filterStatus]
+  );
 
   // Status ni admin ko'radigan holatda qaytarish
   const getStatusDisplay = (actualStatus) => {
@@ -126,8 +133,21 @@ function AdminDashboard({ userData }) {
     return ADMIN_STATUS_COLORS[displayStatus] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  // Unique display statuses for filter
-  const uniqueStatuses = [...new Set(articles.map(a => ADMIN_STATUS_DISPLAY[a.status] || a.status))];
+  const uniqueStatuses = useMemo(
+    () => uniqueDisplayStatuses(articles, ADMIN_STATUS_DISPLAY),
+    [articles]
+  );
+
+  const chatUserIdentity = useMemo(
+    () => ({
+      email: userData?.email,
+      name: userData?.first_name
+        ? `${userData.first_name} ${userData?.last_name ?? ""}`.trim()
+        : userData?.email,
+      role: "admin",
+    }),
+    [userData]
+  );
 
   return (
     <div>
@@ -381,11 +401,7 @@ function AdminDashboard({ userData }) {
         isOpen={chatArticle !== null}
         onClose={() => setChatArticle(null)}
         article={chatArticle}
-        currentUser={{
-          email: userData?.email,
-          name: userData?.first_name ? `${userData.first_name} ${userData?.last_name || ""}`.trim() : userData?.email,
-          role: "admin",
-        }}
+        currentUser={chatUserIdentity}
       />
     </div>
   );

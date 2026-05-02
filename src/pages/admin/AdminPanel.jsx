@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi";
-import { toast } from "react-toastify";
 import useGetFetchProfile from "../../hooks/useGetFetchProfile";
 import { formatPhoneNumber } from "../../utils/phoneFormatter";
 import { getAccessToken } from "../../utils/authStorage";
@@ -150,14 +149,8 @@ function AdminPanel() {
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
-    setPasswordFormData({
-      ...passwordFormData,
-      [name]: value,
-    });
-    setPasswordFieldErrors({
-      ...passwordFieldErrors,
-      [name]: "",
-    });
+    setPasswordFormData((prev) => ({ ...prev, [name]: value }));
+    setPasswordFieldErrors((prev) => ({ ...prev, [name]: "" }));
     setUpdateError("");
   };
 
@@ -340,7 +333,7 @@ function AdminPanel() {
           </div>
         )}
 
-        {/* Users Tab (ADMIN only) - Rendered by SuperAdminDashboard */}
+        {/* Foydalanuvchilar — faqat SUPERADMIN uchun (dashboard bilan bir xil SuperAdminDashboard) */}
         {activeTab === "users" && userRole === ROLES.SUPERADMIN && (
           <div className="bg-white rounded-xl shadow-md p-8">
             <SuperAdminDashboard userData={profileUser} />

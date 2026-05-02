@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaNewspaper, FaClock, FaCheckCircle, FaTimesCircle, FaEye, FaPlus, FaCommentDots } from "react-icons/fa";
 import { toast } from "react-toastify";
@@ -6,6 +6,10 @@ import StatsCard from "../../../components/admin/StatsCard.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
 import { ARTICLE_STATUS, USER_STATUS_DISPLAY, USER_STATUS_COLORS } from "../../../constants/roles.js";
 import { getAccessToken } from "../../../utils/authStorage.js";
+import {
+  filterArticlesByDisplayStatus,
+  uniqueDisplayStatuses,
+} from "../../../utils/articleDashboardHelpers.js";
 
 function UserDashboard({ userData }) {
   const navigate = useNavigate();
@@ -14,7 +18,6 @@ function UserDashboard({ userData }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [detailArticle, setDetailArticle] = useState(null);
-  const [commentArticle, setCommentArticle] = useState(null);
   const [stats, setStats] = useState({
     total: 0,
     submitted: 0,
@@ -22,12 +25,7 @@ function UserDashboard({ userData }) {
     rejected: 0,
   });
 
-  useEffect(() => {
-    // userData hali yuklanmagan bo'lsa kuting
-    if (userData?.email) fetchArticles();
-  }, [userData?.email]);
-
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
       const accessToken = getAccessToken();
@@ -54,15 +52,21 @@ function UserDashboard({ userData }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filteredArticles = articles.filter(article => {
-    const matchesSearch = article.articleTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         article.authorNames?.toLowerCase().includes(searchQuery.toLowerCase());
-    const displayStatus = USER_STATUS_DISPLAY[article.status] || article.status;
-    const matchesFilter = filterStatus === "all" || displayStatus === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  useEffect(() => {
+    if (!userData?.email) return;
+
+    const t = setTimeout(() => {
+      fetchArticles();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [userData?.email, fetchArticles]);
+
+  const filteredArticles = useMemo(
+    () => filterArticlesByDisplayStatus(articles, searchQuery, filterStatus, USER_STATUS_DISPLAY),
+    [articles, searchQuery, filterStatus]
+  );
 
   // Status ni user ko'radigan holatda qaytarish
   const getStatusDisplay = (actualStatus) => {
@@ -74,8 +78,10 @@ function UserDashboard({ userData }) {
     return USER_STATUS_COLORS[displayStatus] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  // Unique display statuses for filter
-  const uniqueStatuses = [...new Set(articles.map(a => USER_STATUS_DISPLAY[a.status] || a.status))];
+  const uniqueStatuses = useMemo(
+    () => uniqueDisplayStatuses(articles, USER_STATUS_DISPLAY),
+    [articles]
+  );
 
   return (
     <div>
@@ -201,7 +207,7 @@ function UserDashboard({ userData }) {
                         </button>
                         {article.finalDecisionDescription && (
                           <button
-                            onClick={() => setCommentArticle(article)}
+                            onClick={() => setDetailArticle(article)}
                             className="btn btn-sm btn-ghost text-emerald-600"
                             title="Muharrir xabari"
                           >
@@ -217,16 +223,10 @@ function UserDashboard({ userData }) {
           </table>
         </div>
       </div>
-    <ArticleDetailModal
+      <ArticleDetailModal
         isOpen={detailArticle !== null}
         onClose={() => setDetailArticle(null)}
         article={detailArticle}
-        role="user"
-      />
-      <ArticleDetailModal
-        isOpen={commentArticle !== null}
-        onClose={() => setCommentArticle(null)}
-        article={commentArticle}
         role="user"
       />
     </div>
