@@ -8,18 +8,20 @@ import { getAccessToken } from '../../utils/authStorage'
 import { parseApiError } from '../../utils/apiError'
 
 const INITIAL_FORM_DATA = {
-  fullName: '',
-  email: '',
-  gender: '',
-  workplace: '',
-  position: '',
   category: '',
-  phone: '',
   articleTitle: '',
   keywords: '',
   annotation: '',
   bibliography: '',
   acceptTerms: false
+}
+
+const INITIAL_AUTHOR = {
+  fullName: '',
+  phone: '',
+  email: '',
+  workplace: '',
+  position: ''
 }
 
 const CATEGORIES = [
@@ -65,7 +67,7 @@ function SendJournal() {
   const { auth, userData } = useContext(AuthContext)
   const navigate = useNavigate()
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
-  const [coAuthors, setCoAuthors] = useState([''])
+  const [authors, setAuthors] = useState([{ ...INITIAL_AUTHOR }])
   const [file, setFile] = useState(null)
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -83,21 +85,25 @@ function SendJournal() {
     }
   }
 
-  const handleCoAuthorChange = (index, value) => {
-    setCoAuthors((prev) => prev.map((author, idx) => (idx === index ? value : author)))
-    if (errors.authorNames) {
-      setErrors((prev) => ({ ...prev, authorNames: '' }))
+  const handleAuthorChange = (index, field, value) => {
+    const errorKey = `authors.${index}.${field}`
+
+    setAuthors((prev) =>
+      prev.map((author, idx) => (idx === index ? { ...author, [field]: value } : author))
+    )
+    if (errors[errorKey]) {
+      setErrors((prev) => ({ ...prev, [errorKey]: '' }))
     }
   }
 
-  const addCoAuthor = () => {
-    setCoAuthors((prev) => [...prev, ''])
+  const addAuthor = () => {
+    setAuthors((prev) => [...prev, { ...INITIAL_AUTHOR }])
   }
 
-  const removeCoAuthor = (index) => {
-    setCoAuthors((prev) => {
+  const removeAuthor = (index) => {
+    setAuthors((prev) => {
       const next = prev.filter((_, idx) => idx !== index)
-      return next.length ? next : ['']
+      return next.length ? next : [{ ...INITIAL_AUTHOR }]
     })
   }
 
@@ -124,20 +130,20 @@ function SendJournal() {
 
   const validateForm = () => {
     const newErrors = {}
-    const normalizedCoAuthors = coAuthors.map((author) => author.trim()).filter(Boolean)
-    
-    if (!formData.fullName.trim()) newErrors.fullName = 'FISH ni kiriting'
-    if (!formData.email.trim()) {
-      newErrors.email = 'Elektron pochtani kiriting'
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Noto\'g\'ri elektron pochta formati'
-    }
-    if (!normalizedCoAuthors.length) newErrors.authorNames = 'Kamida bitta hammuallif F.I.Sh ni kiriting'
-    if (!formData.gender) newErrors.gender = 'Jinsni tanlang'
-    if (!formData.workplace.trim()) newErrors.workplace = 'Ish joyini kiriting'
-    if (!formData.position.trim()) newErrors.position = 'Lavozimni kiriting'
+
+    authors.forEach((author, index) => {
+      if (!author.fullName.trim()) newErrors[`authors.${index}.fullName`] = 'FISH ni kiriting'
+      if (!author.phone.trim()) newErrors[`authors.${index}.phone`] = 'Telefon raqamini kiriting'
+      if (!author.email.trim()) {
+        newErrors[`authors.${index}.email`] = 'Elektron pochtani kiriting'
+      } else if (!/\S+@\S+\.\S+/.test(author.email)) {
+        newErrors[`authors.${index}.email`] = 'Noto\'g\'ri elektron pochta formati'
+      }
+      if (!author.workplace.trim()) newErrors[`authors.${index}.workplace`] = 'Ish joyini kiriting'
+      if (!author.position.trim()) newErrors[`authors.${index}.position`] = 'Lavozimni kiriting'
+    })
+
     if (!formData.category) newErrors.category = 'Ruknni tanlang'
-    if (!formData.phone.trim()) newErrors.phone = 'Telefon raqamini kiriting'
     if (!formData.articleTitle.trim()) newErrors.articleTitle = 'Maqola nomini kiriting'
     if (!formData.keywords.trim()) newErrors.keywords = 'Kalit so\'zlarni kiriting'
     if (!formData.annotation.trim()) newErrors.annotation = 'Annotatsiyani kiriting'
@@ -186,8 +192,22 @@ function SendJournal() {
       Object.keys(formData).forEach(key => {
         formDataToSend.append(key, formData[key])
       })
-      const authorNames = coAuthors.map((author) => author.trim()).filter(Boolean).join(', ')
+      const normalizedAuthors = authors.map((author) => ({
+        fullName: author.fullName.trim(),
+        phone: author.phone.trim(),
+        email: author.email.trim(),
+        workplace: author.workplace.trim(),
+        position: author.position.trim()
+      }))
+      const firstAuthor = normalizedAuthors[0]
+      const authorNames = normalizedAuthors.map((author) => author.fullName).filter(Boolean).join(', ')
+      formDataToSend.append('fullName', firstAuthor.fullName)
+      formDataToSend.append('phone', firstAuthor.phone)
+      formDataToSend.append('email', firstAuthor.email)
+      formDataToSend.append('workplace', firstAuthor.workplace)
+      formDataToSend.append('position', firstAuthor.position)
       formDataToSend.append('authorNames', authorNames)
+      formDataToSend.append('authors', JSON.stringify(normalizedAuthors))
       if (file) {
         formDataToSend.append('articleFile', file)
         formDataToSend.append('fileName', file.name)
@@ -216,7 +236,7 @@ function SendJournal() {
         })
 
         setFormData(INITIAL_FORM_DATA)
-        setCoAuthors([''])
+        setAuthors([{ ...INITIAL_AUTHOR }])
         setFile(null)
         document.getElementById('fileInput').value = null
         navigate('/admin')
@@ -259,7 +279,7 @@ function SendJournal() {
             <h1 className="mx-auto mb-4 max-w-4xl bg-gradient-to-r from-[#0d4ea3] via-blue-600 to-blue-500 bg-clip-text text-3xl font-bold font-serif tracking-tight text-transparent sm:text-4xl lg:text-[2.85rem] lg:leading-[1.1]">
               Maqola yuborish
             </h1>
-            <p className="mx-auto max-w-2xl text-base text-slate-600 sm:text-lg">
+            <p className="mx-auto max-w-3xl text-base text-slate-600 sm:text-lg">
               Ilmiy maqolangizni jurnalimizda chop etish uchun arizani quyidagi qadamlarga boʻlib toʻldiring. Texnik talablar uchun o‘ngdagi blokni
               unutmang — maqolangiz faqat PDF shaklda qabul qilinadi.
             </p>
@@ -294,108 +314,145 @@ function SendJournal() {
                     </div>
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-widest text-[#0d4ea3]">1-qadam</p>
-                      <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Shaxsiy ma'lumotlar</h2>
-                      <p className="mt-1 text-sm text-slate-500">Tashkilot va aloqa uchun</p>
+                      <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Mualliflar</h2>
+                      <p className="mt-1 text-sm text-slate-500">Asosiy muallif va hammualliflar ma'lumotlari</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
-                  <div className="group">
-                    <label className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-700">
-                      <span>
-                        F.I.Sh (to'liq)
-                        <span className="ml-1 text-red-500">*</span>
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      className={inputClass(!!errors.fullName)}
-                      placeholder="Familiya Ism Sharif"
-                    />
-                    {errors.fullName && <p className="mt-1.5 text-sm text-red-600">{errors.fullName}</p>}
-                  </div>
+                <div className="space-y-5">
+                  {authors.map((author, index) => {
+                    const authorLabel = `${index + 1}-muallif`
 
-                  <div className="group">
-                    <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                      Jinsi
-                      <span className="ml-1 text-red-500">*</span>
-                    </label>
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleChange}
-                      className={selectClass(!!errors.gender)}
-                    >
-                      <option value="">Tanlang</option>
-                      <option value="male">Erkak</option>
-                      <option value="female">Ayol</option>
-                    </select>
-                    {errors.gender && <p className="mt-1.5 text-sm text-red-600">{errors.gender}</p>}
-                  </div>
+                    return (
+                      <div
+                        key={index}
+                        className="rounded-2xl border border-blue-100/90 bg-gradient-to-r from-white to-blue-50/50 p-4 shadow-sm sm:p-5"
+                      >
+                        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0d4ea3] text-sm font-bold text-white shadow-md">
+                              {index + 1}
+                            </span>
+                            <h3 className="text-base font-bold text-slate-900">{authorLabel}</h3>
+                          </div>
+                          {authors.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeAuthor(index)}
+                              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-600 transition hover:bg-red-100 sm:w-auto"
+                              aria-label={`${authorLabel}ni o'chirish`}
+                            >
+                              <FaTimes />
+                              O'chirish
+                            </button>
+                          )}
+                        </div>
 
-                  <div className="group">
-                    <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                      Telefon
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className={inputClass(!!errors.phone)}
-                      placeholder="+998 ..."
-                    />
-                    {errors.phone && <p className="mt-1.5 text-sm text-red-600">{errors.phone}</p>}
-                  </div>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-6 md:grid-cols-2">
+                          <div className="md:col-span-2">
+                            <label className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-700">
+                              <span>
+                                F.I.Sh
+                                <span className="ml-1 text-red-500">*</span>
+                              </span>
+                            </label>
+                            <input
+                              type="text"
+                              name={`authors.${index}.fullName`}
+                              value={author.fullName}
+                              onChange={(e) => handleAuthorChange(index, 'fullName', e.target.value)}
+                              className={inputClass(!!errors[`authors.${index}.fullName`])}
+                              placeholder="Familiya Ism Sharif"
+                            />
+                            {errors[`authors.${index}.fullName`] && (
+                              <p className="mt-1.5 text-sm text-red-600">{errors[`authors.${index}.fullName`]}</p>
+                            )}
+                          </div>
 
-                  <div className="group">
-                    <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                      Elektron pochta
-                      <span className="ml-1 text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className={inputClass(!!errors.email)}
-                      placeholder="misol@gmail.com"
-                    />
-                    {errors.email && <p className="mt-1.5 text-sm text-red-600">{errors.email}</p>}
-                  </div>
+                          <div>
+                            <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                              Telefon
+                              <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="tel"
+                              name={`authors.${index}.phone`}
+                              value={author.phone}
+                              onChange={(e) => handleAuthorChange(index, 'phone', e.target.value)}
+                              className={inputClass(!!errors[`authors.${index}.phone`])}
+                              placeholder="+998 ..."
+                            />
+                            {errors[`authors.${index}.phone`] && (
+                              <p className="mt-1.5 text-sm text-red-600">{errors[`authors.${index}.phone`]}</p>
+                            )}
+                          </div>
 
-                  <div className="md:col-span-2">
-                    <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                      Ish joyi (o‘qish joyi) va lavozim
-                      <span className="ml-1 text-red-500">*</span>
-                    </label>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <input
-                        type="text"
-                        name="workplace"
-                        value={formData.workplace}
-                        onChange={handleChange}
-                        className={inputClass(!!errors.workplace)}
-                        placeholder="Tashkilot yoki oliy ta'lim muassasasi"
-                      />
-                      <input
-                        type="text"
-                        name="position"
-                        value={formData.position}
-                        onChange={handleChange}
-                        className={inputClass(!!errors.position)}
-                        placeholder="Lavozimingiz"
-                      />
-                    </div>
-                    {(errors.workplace || errors.position) && (
-                      <p className="mt-1.5 text-sm text-red-600">{errors.workplace || errors.position}</p>
-                    )}
-                  </div>
+                          <div>
+                            <label className="mb-2 flex text-sm font-semibold text-slate-700">
+                              Gmail
+                              <span className="ml-1 text-red-500">*</span>
+                            </label>
+                            <input
+                              type="email"
+                              name={`authors.${index}.email`}
+                              value={author.email}
+                              onChange={(e) => handleAuthorChange(index, 'email', e.target.value)}
+                              className={inputClass(!!errors[`authors.${index}.email`])}
+                              placeholder="misol@gmail.com"
+                            />
+                            {errors[`authors.${index}.email`] && (
+                              <p className="mt-1.5 text-sm text-red-600">{errors[`authors.${index}.email`]}</p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="mb-2 flex text-sm font-semibold text-slate-700">
+                              Ish joyi
+                              <span className="ml-1 text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name={`authors.${index}.workplace`}
+                              value={author.workplace}
+                              onChange={(e) => handleAuthorChange(index, 'workplace', e.target.value)}
+                              className={inputClass(!!errors[`authors.${index}.workplace`])}
+                              placeholder="Tashkilot yoki oliy ta'lim muassasasi"
+                            />
+                            {errors[`authors.${index}.workplace`] && (
+                              <p className="mt-1.5 text-sm text-red-600">{errors[`authors.${index}.workplace`]}</p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="mb-2 flex text-sm font-semibold text-slate-700">
+                              Lavozim
+                              <span className="ml-1 text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name={`authors.${index}.position`}
+                              value={author.position}
+                              onChange={(e) => handleAuthorChange(index, 'position', e.target.value)}
+                              className={inputClass(!!errors[`authors.${index}.position`])}
+                              placeholder="Lavozimingiz"
+                            />
+                            {errors[`authors.${index}.position`] && (
+                              <p className="mt-1.5 text-sm text-red-600">{errors[`authors.${index}.position`]}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={addAuthor}
+                    className="w-full rounded-2xl border-2 border-dashed border-[#0d4ea3]/35 bg-blue-50/70 py-3 text-sm font-semibold text-[#0d4ea3] transition hover:border-[#0d4ea3] hover:bg-blue-100/80 sm:w-auto sm:px-6"
+                  >
+                    + Muallif qo'shish
+                  </button>
                 </div>
               </div>
 
@@ -414,57 +471,61 @@ function SendJournal() {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-x-6 gap-y-8">
-                  <div className="md:col-span-2 2xl:col-span-3">
+                <div className="space-y-8">
+                  <div>
                     <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                      Hammualliflar — F.I.Sh
+                      Maqola nomi
                       <span className="ml-1 text-red-500">*</span>
                     </label>
-                    <div className="space-y-3">
-                      {coAuthors.map((author, index) => (
-                        <div
-                          key={index}
-                          className="rounded-2xl border border-blue-100/90 bg-gradient-to-r from-white to-blue-50/50 p-4 shadow-sm"
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-                            <div className="flex min-h-10 shrink-0 items-center">
-                              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0d4ea3] text-sm font-bold text-white shadow-md">
-                                {index + 1}
-                              </span>
-                            </div>
-                            <input
-                              type="text"
-                              name={index === 0 ? 'authorNames' : `authorNames-${index}`}
-                              value={author}
-                              onChange={(e) => handleCoAuthorChange(index, e.target.value)}
-                              className={inputClass(!!errors.authorNames)}
-                              placeholder={`${index + 1}-hammuallif F.I.Sh`}
-                            />
-                            {coAuthors.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeCoAuthor(index)}
-                                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100"
-                                aria-label="Hammuallifni o'chirish"
-                              >
-                                <FaTimes />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={addCoAuthor}
-                        className="w-full rounded-2xl border-2 border-dashed border-[#0d4ea3]/35 bg-blue-50/70 py-3 text-sm font-semibold text-[#0d4ea3] transition hover:border-[#0d4ea3] hover:bg-blue-100/80 sm:w-auto sm:px-6"
-                      >
-                        + Yana hammuallif
-                      </button>
-                    </div>
-                    {errors.authorNames && <p className="mt-1.5 text-sm text-red-600">{errors.authorNames}</p>}
+                    <textarea
+                      name="articleTitle"
+                      value={formData.articleTitle}
+                      onChange={handleChange}
+                      rows={4}
+                      className={textareaClass(!!errors.articleTitle, 'min-h-[6.5rem] resize-y')}
+                      placeholder="Maqola nomini to'liq kiriting (bir necha qator bo'lishi mumkin)"
+                    />
+                    {errors.articleTitle && <p className="mt-1.5 text-sm text-red-600">{errors.articleTitle}</p>}
                   </div>
 
-                  <div className="md:col-span-2 2xl:col-span-1">
+                  <div>
+                    <label className="mb-2 flex text-sm font-semibold text-slate-700">
+                      Annotatsiya
+                      <span className="ml-1 text-red-500">*</span>
+                    </label>
+                    <textarea
+                      name="annotation"
+                      value={formData.annotation}
+                      onChange={handleChange}
+                      rows={10}
+                      className={textareaClass(!!errors.annotation)}
+                      placeholder="Maqola mazmuni va natijalari qisqacha"
+                    />
+                    {errors.annotation && <p className="mt-1.5 text-sm text-red-600">{errors.annotation}</p>}
+                  </div>
+
+                  <div>
+                    <label className="mb-2 flex text-sm font-semibold text-slate-700">
+                      Kalit so'zlar
+                      <span className="ml-1 text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="keywords"
+                      value={formData.keywords}
+                      onChange={handleChange}
+                      className={inputClass(!!errors.keywords)}
+                      placeholder="kasbiy ta'lim, pedagogika, innovatsiya"
+                    />
+                    <p className="mt-2 rounded-xl bg-amber-50/90 px-4 py-2 text-xs leading-relaxed text-amber-900 ring-1 ring-amber-200/80">
+                      <strong className="font-semibold">Eslatma:</strong> kalit so‘zlarni{' '}
+                      <span className="font-mono font-semibold">vergul</span> bilan ajratib yozing — masalan:{' '}
+                      <span className="font-medium">kasbiy ta'lim, pedagogika, innovatsiya</span>
+                    </p>
+                    {errors.keywords && <p className="mt-1.5 text-sm text-red-600">{errors.keywords}</p>}
+                  </div>
+
+                  <div>
                     <label className="mb-2 flex text-sm font-semibold text-slate-700">
                       Rukn
                       <span className="ml-1 text-red-500">*</span>
@@ -485,60 +546,6 @@ function SendJournal() {
                     {errors.category && <p className="mt-1.5 text-sm text-red-600">{errors.category}</p>}
                   </div>
 
-                  <div className="md:col-span-2 2xl:col-span-3">
-                    <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                      Maqola nomi
-                      <span className="ml-1 text-red-500">*</span>
-                    </label>
-                    <textarea
-                      name="articleTitle"
-                      value={formData.articleTitle}
-                      onChange={handleChange}
-                      rows={4}
-                      className={textareaClass(!!errors.articleTitle, 'min-h-[6.5rem] resize-y')}
-                      placeholder="Maqola nomini to'liq kiriting (bir necha qator bo'lishi mumkin)"
-                    />
-                    {errors.articleTitle && <p className="mt-1.5 text-sm text-red-600">{errors.articleTitle}</p>}
-                  </div>
-
-                  <div className="md:col-span-2 2xl:col-span-3">
-                    <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                      Kalit so'zlar
-                      <span className="ml-1 text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="keywords"
-                      value={formData.keywords}
-                      onChange={handleChange}
-                      className={inputClass(!!errors.keywords)}
-                      placeholder="kasbiy ta'lim, pedagogika, innovatsiya"
-                    />
-                    <p className="mt-2 rounded-xl bg-amber-50/90 px-4 py-2 text-xs leading-relaxed text-amber-900 ring-1 ring-amber-200/80">
-                      <strong className="font-semibold">Eslatma:</strong> kalit so‘zlarni{' '}
-                      <span className="font-mono font-semibold">vergul</span> bilan ajratib yozing — masalan:{' '}
-                      <span className="font-medium">kasbiy ta'lim, pedagogika, innovatsiya</span>
-                    </p>
-                    {errors.keywords && <p className="mt-1.5 text-sm text-red-600">{errors.keywords}</p>}
-                  </div>
-                </div>
-
-                <div className="mt-10 grid gap-6 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                      Annotatsiya
-                      <span className="ml-1 text-red-500">*</span>
-                    </label>
-                    <textarea
-                      name="annotation"
-                      value={formData.annotation}
-                      onChange={handleChange}
-                      rows={10}
-                      className={textareaClass(!!errors.annotation)}
-                      placeholder="Maqola mazmuni va natijalari qisqacha"
-                    />
-                    {errors.annotation && <p className="mt-1.5 text-sm text-red-600">{errors.annotation}</p>}
-                  </div>
                   <div>
                     <label className="mb-2 flex text-sm font-semibold text-slate-700">
                       Adabiyotlar ro'yxati
