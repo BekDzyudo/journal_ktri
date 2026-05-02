@@ -26,7 +26,6 @@ function MagazineDetail() {
   const { data: magazine, isPending, error } = useGetFetch(
     `${import.meta.env.VITE_BASE_URL}/jurnal-sonlari/${id}/`,
   );
-  console.log(magazine);
 
   // Sanani formatlash
   const formatDate = (dateString) => {

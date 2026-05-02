@@ -171,7 +171,7 @@ function Contact() {
     try {
       // API ga ma'lumotlarni yuborish
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/shared_app/contact/create/`,
+        `${import.meta.env.VITE_BASE_URL}/murojaat/`,
         {
           method: "POST",
           headers: {
