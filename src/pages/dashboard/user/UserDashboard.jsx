@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaNewspaper, FaClock, FaCheckCircle, FaTimesCircle, FaEye, FaPlus, FaCommentDots } from "react-icons/fa";
+import { FaNewspaper, FaClock, FaCheckCircle, FaTimesCircle, FaEye, FaPlus, FaCommentDots, FaCreditCard } from "react-icons/fa";
 import { toast } from "react-toastify";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
 import { ARTICLE_STATUS, USER_STATUS_DISPLAY, USER_STATUS_COLORS } from "../../../constants/roles.js";
-import { getAccessToken } from "../../../utils/authStorage.js";
+import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import {
   filterArticlesByDisplayStatus,
   uniqueDisplayStatuses,
@@ -28,31 +28,26 @@ function UserDashboard({ userData }) {
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
-      const accessToken = getAccessToken();
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/articles/my-articles/`, {
-        headers: { Authorization: "Bearer " + accessToken },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setArticles(data);
+      const data = await fakeArticleApi.getMyArticles(userData);
+      setArticles(data);
 
-        const statsData = {
-          total: data.length,
-          submitted: data.filter(
-            (a) => a.status === ARTICLE_STATUS.SUBMITTED || a.status === ARTICLE_STATUS.ASSIGNED
-          ).length,
-          accepted: data.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
-          rejected: data.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
-        };
-        setStats(statsData);
-      }
+      const statsData = {
+        total: data.length,
+        submitted: data.filter(
+          (a) =>
+            ![ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED].includes(a.status)
+        ).length,
+        accepted: data.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
+        rejected: data.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
+      };
+      setStats(statsData);
     } catch (error) {
       console.error("Error fetching articles:", error);
       toast.error("Maqolalarni yuklashda xatolik");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userData]);
 
   useEffect(() => {
     if (!userData?.email) return;
@@ -82,6 +77,12 @@ function UserDashboard({ userData }) {
     () => uniqueDisplayStatuses(articles, USER_STATUS_DISPLAY),
     [articles]
   );
+
+  const handlePay = async (article) => {
+    await fakeArticleApi.payArticle(article.id);
+    toast.success("PAYME test to'lovi muvaffaqiyatli bajarildi. Maqola superadminga yuborildi.");
+    fetchArticles();
+  };
 
   return (
     <div className="space-y-6">
@@ -217,7 +218,17 @@ function UserDashboard({ userData }) {
                       </span>
                     </td>
                     <td className="text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
+                        {article.status === ARTICLE_STATUS.PAYMENT_PENDING && (
+                          <button
+                            onClick={() => handlePay(article)}
+                            className="btn btn-sm rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+                            title="PAYME test sahifasi orqali to'lash"
+                          >
+                            <FaCreditCard />
+                            PAYME
+                          </button>
+                        )}
                         <button
                           onClick={() => setDetailArticle(article)}
                           className="btn btn-sm btn-ghost text-blue-600"

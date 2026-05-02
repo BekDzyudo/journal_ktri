@@ -4,8 +4,7 @@ import { FaPaperPlane, FaUser, FaPhone, FaFileUpload, FaCheckCircle, FaBook, FaT
 import { toast } from 'react-toastify'
 import { AuthContext } from '../../context/AuthContext'
 import SEO from '../../components/SEO'
-import { getAccessToken } from '../../utils/authStorage'
-import { parseApiError } from '../../utils/apiError'
+import { fakeArticleApi } from '../../utils/fakeArticleApi'
 
 const INITIAL_FORM_DATA = {
   category: '',
@@ -64,7 +63,7 @@ const textareaClass = (hasError, extra = '') =>
   }`
 
 function SendJournal() {
-  const { auth, userData } = useContext(AuthContext)
+  const { userData } = useContext(AuthContext)
   const navigate = useNavigate()
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
   const [authors, setAuthors] = useState([{ ...INITIAL_AUTHOR }])
@@ -187,62 +186,18 @@ function SendJournal() {
     setIsSubmitting(true)
 
     try {
-      // Form submission logic
-      const formDataToSend = new FormData()
-      Object.keys(formData).forEach(key => {
-        formDataToSend.append(key, formData[key])
-      })
-      const normalizedAuthors = authors.map((author) => ({
-        fullName: author.fullName.trim(),
-        phone: author.phone.trim(),
-        email: author.email.trim(),
-        workplace: author.workplace.trim(),
-        position: author.position.trim()
-      }))
-      const firstAuthor = normalizedAuthors[0]
-      const authorNames = normalizedAuthors.map((author) => author.fullName).filter(Boolean).join(', ')
-      formDataToSend.append('fullName', firstAuthor.fullName)
-      formDataToSend.append('phone', firstAuthor.phone)
-      formDataToSend.append('email', firstAuthor.email)
-      formDataToSend.append('workplace', firstAuthor.workplace)
-      formDataToSend.append('position', firstAuthor.position)
-      formDataToSend.append('authorNames', authorNames)
-      formDataToSend.append('authors', JSON.stringify(normalizedAuthors))
-      if (file) {
-        formDataToSend.append('articleFile', file)
-        formDataToSend.append('fileName', file.name)
-      }
+      await fakeArticleApi.submitArticle({ formData, authors, file, userData })
 
-      // Foydalanuvchi ma'lumotlarini qo'shish
-      if (auth && userData) {
-        formDataToSend.append('userId', userData.id || userData.email)
-      }
-
-      const accessToken = getAccessToken()
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/maqola-yuborish/`, {
-        method: 'POST',
-        headers: accessToken ? {
-          'Authorization': 'Bearer ' + accessToken,
-        } : {},
-        body: formDataToSend
+      toast.success('Maqola test API orqali superadminga yuborildi!', {
+        position: 'top-center',
+        autoClose: 3000,
       })
 
-      const data = await response.json().catch(() => ({}))
-
-      if (response.ok) {
-        toast.success('Maqola muvaffaqiyatli yuborildi!', {
-          position: 'top-center',
-          autoClose: 3000,
-        })
-
-        setFormData(INITIAL_FORM_DATA)
-        setAuthors([{ ...INITIAL_AUTHOR }])
-        setFile(null)
-        document.getElementById('fileInput').value = null
-        navigate('/admin')
-      } else {
-        throw new Error(parseApiError(data, 'Xatolik yuz berdi'))
-      }
+      setFormData(INITIAL_FORM_DATA)
+      setAuthors([{ ...INITIAL_AUTHOR }])
+      setFile(null)
+      document.getElementById('fileInput').value = null
+      navigate('/admin')
     } catch (error) {
       console.error('Error submitting article:', error)
       toast.error('Maqola yuborishda xatolik: ' + error.message, {

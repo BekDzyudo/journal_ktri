@@ -14,13 +14,11 @@ import {
   FaDownload,
   FaExternalLinkAlt,
   FaClock,
-  FaComments,
   FaCommentDots,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
-import ArticleChatModal from "../../../components/ArticleChatModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import {
   ROLES,
@@ -29,7 +27,7 @@ import {
   SUPERADMIN_STATUS_DISPLAY,
   SUPERADMIN_STATUS_COLORS,
 } from "../../../constants/roles.js";
-import { getAccessToken } from "../../../utils/authStorage.js";
+import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import {
   filterArticlesByDisplayStatus,
   uniqueDisplayStatuses,
@@ -60,7 +58,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
   const [detailArticle, setDetailArticle] = useState(null);
-  const [chatArticle, setChatArticle] = useState(null);
   const [messageArticle, setMessageArticle] = useState(null);
   const [selectedAdmin, setSelectedAdmin] = useState("");
   const [decisionDescription, setDecisionDescription] = useState("");
@@ -78,16 +75,10 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const accessToken = getAccessToken();
-      const articlesRes = await fetch(`${import.meta.env.VITE_BASE_URL}/articles/all/`, {
-        headers: { Authorization: "Bearer " + accessToken },
-      });
-      const usersRes = await fetch(`${import.meta.env.VITE_BASE_URL}/users/all/`, {
-        headers: { Authorization: "Bearer " + accessToken },
-      });
-
-      const articlesData = articlesRes.ok ? await articlesRes.json() : [];
-      const usersData = usersRes.ok ? await usersRes.json() : [];
+      const [articlesData, usersData] = await Promise.all([
+        fakeArticleApi.getArticles(),
+        fakeArticleApi.getUsers(userData),
+      ]);
       const normalizedUsers = usersData.map((u) => ({
         ...u,
         role: normalizeRole(u.role),
@@ -104,7 +95,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userData]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -120,20 +111,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     }
 
     try {
-      const accessToken = getAccessToken();
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/articles/assign/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + accessToken,
-        },
-        body: JSON.stringify({
-          articleId: selectedArticle.id,
-          adminId: selectedAdmin,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Xatolik yuz berdi");
+      await fakeArticleApi.assignReviewer(selectedArticle.id, selectedAdmin);
       toast.success("Taqrizchi muvaffaqiyatli tayinlandi!");
       setAssignModalOpen(false);
       setSelectedArticle(null);
@@ -146,26 +124,10 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   };
 
   const handleQuickDecision = async (article, decision) => {
-    const newStatus =
-      decision === "accept" ? ARTICLE_STATUS.ACCEPTED : ARTICLE_STATUS.REJECTED;
-    const label = decision === "accept" ? "Qabul qilindi" : "Rad etildi";
+    const label = decision === "accept" ? "PAYME to'loviga yuborildi" : "Rad etildi";
 
     try {
-      const accessToken = getAccessToken();
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/articles/change-status/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + accessToken,
-        },
-        body: JSON.stringify({
-          articleId: article.id,
-          status: newStatus,
-          description: decisionDescription.trim(),
-        }),
-      });
-      if (!response.ok) throw new Error("Xatolik yuz berdi");
-
+      await fakeArticleApi.setInitialDecision(article.id, decision, decisionDescription.trim());
       toast.success(`Maqola "${label}"!`);
       setDecisionModalOpen(false);
       setSelectedArticle(null);
@@ -186,19 +148,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     if (!confirm(confirmMessage)) return;
 
     try {
-      const accessToken = getAccessToken();
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/toggle-admin/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + accessToken,
-        },
-        body: JSON.stringify({
-          userId: targetUser.id,
-          role: isAdmin ? ROLES.USER : ROLES.ADMIN,
-        }),
-      });
-      if (!response.ok) throw new Error("Xatolik yuz berdi");
+      await fakeArticleApi.toggleAdminRole(targetUser);
 
       toast.success(isAdmin ? "Taqrizchi huquqi olib qo'yildi!" : "Taqrizchi huquqi berildi!");
       fetchData();
@@ -240,20 +190,25 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     );
   };
 
+  const getPaymentBadge = (article) => {
+    if (article.paymentStatus === "paid" || article.paidAt) {
+      return "bg-emerald-100 text-emerald-800 border-emerald-200";
+    }
+    if (article.status === ARTICLE_STATUS.PAYMENT_PENDING) {
+      return "bg-amber-100 text-amber-800 border-amber-200";
+    }
+    return "bg-slate-100 text-slate-600 border-slate-200";
+  };
+
+  const getPaymentLabel = (article) => {
+    if (article.paymentStatus === "paid" || article.paidAt) return "To'langan";
+    if (article.status === ARTICLE_STATUS.PAYMENT_PENDING) return "Kutilmoqda";
+    return "Ochilmadi";
+  };
+
   const uniqueStatuses = useMemo(
     () => uniqueDisplayStatuses(articles, SUPERADMIN_STATUS_DISPLAY),
     [articles]
-  );
-
-  const chatUserIdentity = useMemo(
-    () => ({
-      email: userData?.email,
-      name: userData?.first_name
-        ? `${userData.first_name} ${userData?.last_name ?? ""}`.trim()
-        : userData?.email,
-      role: "superadmin",
-    }),
-    [userData]
   );
 
   const showArticles = view !== "users";
@@ -341,6 +296,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 <th className="text-left">Yo'nalish</th>
                 <th className="text-left">Yuborilgan sana</th>
                 <th className="text-left">Status</th>
+                <th className="text-left">To'lov</th>
                 <th className="text-left">Taqrizchi</th>
                 <th className="text-left">Tayinlangan vaqti</th>
                 <th className="text-center">Amallar</th>
@@ -349,13 +305,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-8">
+                  <td colSpan="9" className="text-center py-8">
                     <span className="loading loading-spinner loading-lg"></span>
                   </td>
                 </tr>
               ) : filteredArticles.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500">
+                  <td colSpan="9" className="text-center py-8 text-gray-500">
                     Maqolalar topilmadi
                   </td>
                 </tr>
@@ -385,9 +341,19 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                         <span className="block text-xs text-purple-600 mt-1">Taqriz tayyor ✓</span>
                       )}
                     </td>
+                    <td>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getPaymentBadge(article)}`}>
+                        {getPaymentLabel(article)}
+                      </span>
+                      {article.paidAt && (
+                        <span className="mt-1 block text-[11px] text-slate-400">
+                          {new Date(article.paidAt).toLocaleDateString("uz-UZ")}
+                        </span>
+                      )}
+                    </td>
                     <td className="text-gray-600">
                       {article.assignedTo ? (
-                        <span className="text-xs">{article.assignedTo}</span>
+                        <span className="text-xs">{article.assignedToName || article.assignedTo}</span>
                       ) : (
                         <span className="text-xs text-gray-400">Tayinlanmagan</span>
                       )}
@@ -406,35 +372,42 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                         >
                           <FaEye />
                         </button>
-                        <button
-                          onClick={() => {
-                            setSelectedArticle(article);
-                            setSelectedAdmin(article.assignedTo || "");
-                            setAssignModalOpen(true);
-                          }}
-                          className="btn btn-sm rounded-xl bg-[#0d4ea3] text-white hover:bg-blue-700"
-                          title={article.assignedTo ? "Taqrizchini almashtirish" : "Taqrizchiga tayinlash"}
-                        >
-                          <FaUserShield />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedArticle(article);
-                            setDecisionDescription(article.finalDecisionDescription || "");
-                            setDecisionModalOpen(true);
-                          }}
-                          className="btn btn-sm gap-1 rounded-xl border-0 bg-amber-100 text-amber-800 hover:bg-amber-200"
-                          title="Xulosa berish"
-                        >
-                          Xulosa
-                        </button>
-                        <button
-                          onClick={() => setChatArticle(article)}
-                          className="btn btn-sm btn-ghost rounded-xl text-indigo-600"
-                          title="Muhokama"
-                        >
-                          <FaComments />
-                        </button>
+                        {article.articleFileUrl && (
+                          <a
+                            href={article.articleFileUrl}
+                            download={article.fileName}
+                            className="btn btn-sm btn-ghost rounded-xl text-slate-700"
+                            title="Maqolani yuklab olish"
+                          >
+                            <FaDownload />
+                          </a>
+                        )}
+                        {[ARTICLE_STATUS.PAID, ARTICLE_STATUS.ASSIGNED].includes(article.status) && (
+                          <button
+                            onClick={() => {
+                              setSelectedArticle(article);
+                              setSelectedAdmin(article.assignedTo || "");
+                              setAssignModalOpen(true);
+                            }}
+                            className="btn btn-sm rounded-xl bg-[#0d4ea3] text-white hover:bg-blue-700"
+                            title={article.assignedTo ? "Taqrizchini almashtirish" : "Taqrizchiga tayinlash"}
+                          >
+                            <FaUserShield />
+                          </button>
+                        )}
+                        {article.status === ARTICLE_STATUS.SUBMITTED && (
+                          <button
+                            onClick={() => {
+                              setSelectedArticle(article);
+                              setDecisionDescription(article.finalDecisionDescription || "");
+                              setDecisionModalOpen(true);
+                            }}
+                            className="btn btn-sm gap-1 rounded-xl border-0 bg-amber-100 text-amber-800 hover:bg-amber-200"
+                            title="Dastlabki xulosa berish"
+                          >
+                            Xulosa
+                          </button>
+                        )}
                         {article.finalDecisionDescription && (
                           <button
                             onClick={() => setMessageArticle(article)}
@@ -602,7 +575,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               <option value="">Taqrizchini tanlang...</option>
               {admins.map((admin) => (
                 <option key={admin.email} value={admin.email}>
-                  {admin.first_name} {admin.last_name} ({admin.email})
+                  {admin.first_name} {admin.last_name}
                 </option>
               ))}
             </select>
@@ -633,7 +606,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
           setSelectedArticle(null);
           setDecisionDescription("");
         }}
-        title="Xulosa berish"
+        title="Dastlabki xulosa berish"
       >
         <div className="space-y-4">
           <div>
@@ -671,24 +644,24 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Muallif uchun izoh / description
+              Muallif uchun izoh
             </label>
             <textarea
               value={decisionDescription}
               onChange={(e) => setDecisionDescription(e.target.value)}
               className="textarea textarea-bordered w-full h-28"
-              placeholder="Masalan: Maqolangiz qabul qilindi. Keyingi bosqich uchun tahririyat siz bilan bog'lanadi..."
+              placeholder="Masalan: Maqola dastlabki ko'rikdan o'tdi. Nashr jarayonini davom ettirish uchun PAYME orqali to'lov qiling..."
             />
           </div>
 
           <p className="text-sm text-gray-600">
-            Superadmin bu yerda adminga yubormasdan ham o'zi yakuniy xulosa berishi mumkin.
+            Qabul qilinganda muallif panelida PAYME test to'lov havolasi ochiladi. Rad etilganda jarayon yakunlanadi.
           </p>
 
           <div className="flex gap-3 pt-2">
             <button onClick={() => handleQuickDecision(selectedArticle, "accept")} className="btn btn-success flex-1 gap-2">
               <FaCheckCircle />
-              Qabul qilish
+              PAYMEga yuborish
             </button>
             <button onClick={() => handleQuickDecision(selectedArticle, "reject")} className="btn btn-error flex-1 gap-2">
               <FaTimesCircle />
@@ -700,12 +673,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
 
       <ArticleDetailModal isOpen={detailArticle !== null} onClose={() => setDetailArticle(null)} article={detailArticle} role="superadmin" />
       <ArticleDetailModal isOpen={messageArticle !== null} onClose={() => setMessageArticle(null)} article={messageArticle} role="user" />
-      <ArticleChatModal
-        isOpen={chatArticle !== null}
-        onClose={() => setChatArticle(null)}
-        article={chatArticle}
-        currentUser={chatUserIdentity}
-      />
     </div>
   );
 }

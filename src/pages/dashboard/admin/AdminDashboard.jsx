@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { FaNewspaper, FaClock, FaCheckCircle, FaUpload, FaEye, FaFileAlt, FaComments, FaCommentDots } from "react-icons/fa";
+import { FaNewspaper, FaClock, FaCheckCircle, FaUpload, FaEye, FaFileAlt, FaCommentDots } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
-import ArticleChatModal from "../../../components/ArticleChatModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import { ARTICLE_STATUS, ADMIN_STATUS_DISPLAY, ADMIN_STATUS_COLORS } from "../../../constants/roles.js";
-import { getAccessToken } from "../../../utils/authStorage.js";
+import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import {
   filterArticlesByDisplayStatus,
   uniqueDisplayStatuses,
@@ -19,10 +18,10 @@ function AdminDashboard({ userData }) {
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [detailArticle, setDetailArticle] = useState(null);
-  const [chatArticle, setChatArticle] = useState(null);
   const [messageArticle, setMessageArticle] = useState(null);
   const [reviewFile, setReviewFile] = useState(null);
   const [reviewComment, setReviewComment] = useState("");
+  const [reviewDecision, setReviewDecision] = useState("accept");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
@@ -34,29 +33,23 @@ function AdminDashboard({ userData }) {
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
-      const accessToken = getAccessToken();
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/articles/assigned/`, {
-        headers: { Authorization: "Bearer " + accessToken },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setArticles(data);
+      const data = await fakeArticleApi.getAssignedArticles(userData);
+      setArticles(data);
 
-        const statsData = {
-          total: data.length,
-          newAssigned: data.filter((a) => a.status === ARTICLE_STATUS.ASSIGNED).length,
-          reviewed: data.filter((a) => a.reviewFile).length,
-          pending: data.filter((a) => !a.reviewFile).length,
-        };
-        setStats(statsData);
-      }
+      const statsData = {
+        total: data.length,
+        newAssigned: data.filter((a) => a.status === ARTICLE_STATUS.ASSIGNED).length,
+        reviewed: data.filter((a) => a.reviewFile).length,
+        pending: data.filter((a) => !a.reviewFile).length,
+      };
+      setStats(statsData);
     } catch (error) {
       console.error("Error fetching articles:", error);
       toast.error("Maqolalarni yuklashda xatolik");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userData]);
 
   useEffect(() => {
     if (!userData?.email) return;
@@ -88,27 +81,20 @@ function AdminDashboard({ userData }) {
 
     setIsSubmittingReview(true);
     try {
-      const formData = new FormData();
-      formData.append("reviewFile", reviewFile);
-      formData.append("reviewComment", reviewComment);
-      formData.append("articleId", selectedArticle.id);
-
-      const accessToken = getAccessToken();
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/articles/submit-review/`, {
-        method: "POST",
-        headers: { Authorization: "Bearer " + accessToken },
-        body: formData,
+      await fakeArticleApi.submitReview({
+        articleId: selectedArticle.id,
+        reviewer: userData,
+        reviewFile,
+        reviewComment,
+        decision: reviewDecision,
       });
 
-      if (response.ok) {
-        toast.success("Taqriz muvaffaqiyatli yuborildi!");
-        setSelectedArticle(null);
-        setReviewFile(null);
-        setReviewComment("");
-        fetchArticles();
-      } else {
-        throw new Error("Xatolik yuz berdi");
-      }
+      toast.success("Taqriz xulosasi superadminga yuborildi!");
+      setSelectedArticle(null);
+      setReviewFile(null);
+      setReviewComment("");
+      setReviewDecision("accept");
+      fetchArticles();
     } catch (error) {
       console.error("Error submitting review:", error);
       toast.error('Taqriz yuborishda xatolik: ' + error.message);
@@ -136,17 +122,6 @@ function AdminDashboard({ userData }) {
   const uniqueStatuses = useMemo(
     () => uniqueDisplayStatuses(articles, ADMIN_STATUS_DISPLAY),
     [articles]
-  );
-
-  const chatUserIdentity = useMemo(
-    () => ({
-      email: userData?.email,
-      name: userData?.first_name
-        ? `${userData.first_name} ${userData?.last_name ?? ""}`.trim()
-        : userData?.email,
-      role: "admin",
-    }),
-    [userData]
   );
 
   return (
@@ -296,13 +271,6 @@ function AdminDashboard({ userData }) {
                         >
                           <FaEye />
                         </button>
-                        <button
-                          onClick={() => setChatArticle(article)}
-                          className="btn btn-sm btn-ghost rounded-xl text-indigo-600"
-                          title="Muhokama"
-                        >
-                          <FaComments />
-                        </button>
                         {article.finalDecisionDescription && (
                           <button
                             onClick={() => setMessageArticle(article)}
@@ -339,6 +307,7 @@ function AdminDashboard({ userData }) {
           setSelectedArticle(null);
           setReviewFile(null);
           setReviewComment('');
+          setReviewDecision("accept");
         }}
         title="Taqriz yuklash"
       >
@@ -378,12 +347,27 @@ function AdminDashboard({ userData }) {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Taqrizchi xulosasi
+            </label>
+            <select
+              value={reviewDecision}
+              onChange={(e) => setReviewDecision(e.target.value)}
+              className="select select-bordered w-full"
+            >
+              <option value="accept">Qabul qilishga tavsiya qilaman</option>
+              <option value="reject">Rad etishga tavsiya qilaman</option>
+            </select>
+          </div>
+
           <div className="flex gap-3 justify-end pt-4">
             <button
               onClick={() => {
                 setSelectedArticle(null);
                 setReviewFile(null);
                 setReviewComment('');
+                setReviewDecision("accept");
               }}
               className="btn btn-ghost"
               disabled={isSubmittingReview}
@@ -421,12 +405,6 @@ function AdminDashboard({ userData }) {
         onClose={() => setMessageArticle(null)}
         article={messageArticle}
         role="user"
-      />
-      <ArticleChatModal
-        isOpen={chatArticle !== null}
-        onClose={() => setChatArticle(null)}
-        article={chatArticle}
-        currentUser={chatUserIdentity}
       />
     </div>
   );

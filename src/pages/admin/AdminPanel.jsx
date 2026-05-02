@@ -88,6 +88,7 @@ function AdminPanel() {
 
     if (userRole === ROLES.SUPERADMIN) {
       baseItems.splice(1, 0, { id: "users", label: "Foydalanuvchilar", icon: <FaUsers /> });
+      baseItems.splice(2, 0, { id: "reviewer", label: "Taqrizchi test", icon: <FaUser /> });
     }
 
     return baseItems;
@@ -345,6 +346,17 @@ function AdminPanel() {
         {/* Foydalanuvchilar — faqat SUPERADMIN uchun (dashboard bilan bir xil SuperAdminDashboard) */}
         {activeTab === "users" && userRole === ROLES.SUPERADMIN && (
           <SuperAdminDashboard userData={profileUser} view="users" />
+        )}
+
+        {activeTab === "reviewer" && userRole === ROLES.SUPERADMIN && (
+          <AdminDashboard
+            userData={{
+              email: "reviewer1@ktri.uz",
+              first_name: "Taqrizchi",
+              last_name: "Bir",
+              role: ROLES.ADMIN,
+            }}
+          />
         )}
       </main>
 

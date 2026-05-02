@@ -2,32 +2,52 @@ import React from "react";
 import { FiX } from "react-icons/fi";
 import {
   FaFileAlt, FaUser, FaCalendar, FaTag, FaBuilding,
-  FaBriefcase, FaFileUpload, FaPhone, FaEnvelope, FaDownload, FaExternalLinkAlt,
+  FaBriefcase, FaFileUpload, FaPhone, FaEnvelope, FaDownload, FaExternalLinkAlt, FaCreditCard,
 } from "react-icons/fa";
 import { ARTICLE_STATUS } from "../constants/roles.js";
 
-// Status progress steps (user-facing pipeline)
-const STATUS_STEPS = [
-  { key: "submitted",   label: "Yuborildi",          statuses: [ARTICLE_STATUS.SUBMITTED] },
-  { key: "reviewing",   label: "Ko'rib chiqilmoqda",  statuses: [ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW] },
-  { key: "in_editing",  label: "Taqrizda",            statuses: [ARTICLE_STATUS.IN_EDITING] },
-  { key: "finalized",   label: "Yakunlandi",          statuses: [ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED] },
+const USER_STATUS_STEPS = [
+  { key: "submitted", label: "Yuborildi", statuses: [ARTICLE_STATUS.SUBMITTED] },
+  { key: "screening", label: "Dastlabki ko'rik", statuses: [ARTICLE_STATUS.PAYMENT_PENDING] },
+  { key: "finalized", label: "Yakunlandi", statuses: [ARTICLE_STATUS.PAID, ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW, ARTICLE_STATUS.IN_EDITING, ARTICLE_STATUS.REVIEW_ACCEPTED, ARTICLE_STATUS.REVIEW_REJECTED, ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED] },
+];
+
+const SUPERADMIN_STATUS_STEPS = [
+  { key: "submitted", label: "Kelib tushdi", statuses: [ARTICLE_STATUS.SUBMITTED] },
+  { key: "screening", label: "Dastlabki xulosa", statuses: [ARTICLE_STATUS.PAYMENT_PENDING] },
+  { key: "payment", label: "To'lov", statuses: [ARTICLE_STATUS.PAID] },
+  { key: "reviewing", label: "Taqrizchi", statuses: [ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW, ARTICLE_STATUS.IN_EDITING] },
+  { key: "finalized", label: "Yakuniy", statuses: [ARTICLE_STATUS.REVIEW_ACCEPTED, ARTICLE_STATUS.REVIEW_REJECTED, ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED] },
 ];
 
 function ArticleDetailModal({ isOpen, onClose, article, role }) {
   if (!isOpen || !article) return null;
   const articleFileUrl = article.articleFileUrl || article.fileUrl || article.file || article.articleFile;
+  const statusSteps = role === "superadmin" ? SUPERADMIN_STATUS_STEPS : USER_STATUS_STEPS;
+  const showTimeline = role !== "admin";
 
   // Find which step the article is currently on
   const getCurrentStep = () => {
-    for (let i = STATUS_STEPS.length - 1; i >= 0; i--) {
-      if (STATUS_STEPS[i].statuses.includes(article.status)) return i;
+    for (let i = statusSteps.length - 1; i >= 0; i--) {
+      if (statusSteps[i].statuses.includes(article.status)) return i;
     }
     return 0;
   };
   const currentStep = getCurrentStep();
+  const isRejected =
+    article.status === ARTICLE_STATUS.REJECTED ||
+    article.status === ARTICLE_STATUS.REVIEW_REJECTED ||
+    article.reviewDecision === ARTICLE_STATUS.REVIEW_REJECTED;
+  const rejectedFromStep = (() => {
+    if (!isRejected) return null;
+    if (article.reviewedAt || article.reviewDecision === ARTICLE_STATUS.REVIEW_REJECTED) return 3;
+    if (article.paidAt || article.assignedTo) return 3;
+    if (article.superAdminDecisionAt) return 1;
+    return currentStep;
+  })();
 
   const getFinalLabel = () => {
+    if (article.status === ARTICLE_STATUS.PAID) return "To'lov qilindi";
     if (article.status === ARTICLE_STATUS.ACCEPTED) return "Qabul qilindi";
     if (article.status === ARTICLE_STATUS.REJECTED) return "Rad etildi";
     if (article.status === ARTICLE_STATUS.REVISION_REQUIRED) return "Qayta ko'rib chiqish";
@@ -41,7 +61,8 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
     return "bg-gray-400 border-gray-400 text-white";
   };
 
-  const isFinalStep = (index) => index === STATUS_STEPS.length - 1;
+  const isFinalStep = (index) => index === statusSteps.length - 1;
+  const submittedDate = article.submittedDate || article.createdAt || article.submittedAt;
 
   return (
     <div className="fixed inset-0 z-[150] overflow-y-auto">
@@ -73,46 +94,60 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
               )}
             </div>
 
-            {/* Status Progress Timeline */}
-            <div className="rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-4">Maqola bosqichi</p>
-              <div className="flex items-start">
-                {STATUS_STEPS.map((step, index) => {
+            {showTimeline && (
+              <div className="rounded-xl border border-gray-200 p-4">
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-4">
+                  {role === "superadmin" ? "Superadmin jarayon bosqichlari" : "Maqola bosqichi"}
+                </p>
+                <div className="flex items-start overflow-x-auto pb-1">
+                  {statusSteps.map((step, index) => {
                   const isCompleted = index < currentStep;
                   const isCurrent   = index === currentStep;
                   const isFinal     = isFinalStep(index);
+                  const isRejectedStep = rejectedFromStep !== null && index >= rejectedFromStep;
 
                   let circleClass = "bg-white border-gray-300 text-gray-400";
-                  if (isCompleted) circleClass = "bg-green-500 border-green-500 text-white";
+                  if (isRejectedStep) circleClass = "bg-red-500 border-red-500 text-white";
+                  else if (isCompleted) circleClass = "bg-green-500 border-green-500 text-white";
                   else if (isCurrent && isFinal) circleClass = getFinalColor();
                   else if (isCurrent) circleClass = "bg-blue-500 border-blue-500 text-white";
 
                   let labelClass = "text-gray-400";
-                  if (isCompleted) labelClass = "text-green-600 font-medium";
+                  if (isRejectedStep) labelClass = "text-red-600 font-semibold";
+                  else if (isCompleted) labelClass = "text-green-600 font-medium";
                   else if (isCurrent) labelClass = isFinal
                     ? (article.status === ARTICLE_STATUS.REJECTED ? "text-red-600 font-semibold" : article.status === ARTICLE_STATUS.ACCEPTED ? "text-green-600 font-semibold" : "text-orange-600 font-semibold")
                     : "text-blue-600 font-semibold";
 
-                  const displayLabel = isCurrent && isFinal ? getFinalLabel() : step.label;
+                  const displayLabel = isRejectedStep && isFinal ? "Rad etildi" : isCurrent && isFinal ? getFinalLabel() : step.label;
 
                   return (
                     <React.Fragment key={step.key}>
                       <div className="flex flex-col items-center shrink-0" style={{ minWidth: 64 }}>
                         <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 ${circleClass}`}>
-                          {isCompleted ? "✓" : isCurrent && isFinal && article.status === ARTICLE_STATUS.REJECTED ? "✗" : index + 1}
+                          {isRejectedStep ? "✗" : isCompleted ? "✓" : index + 1}
                         </div>
                         <p className={`text-xs mt-1.5 text-center leading-tight ${labelClass}`} style={{ maxWidth: 70 }}>
                           {displayLabel}
                         </p>
                       </div>
-                      {index < STATUS_STEPS.length - 1 && (
-                        <div className={`flex-1 h-0.5 mt-4 mx-1 ${index < currentStep ? "bg-green-400" : "bg-gray-200"}`} />
+                      {index < statusSteps.length - 1 && (
+                        <div
+                          className={`flex-1 h-0.5 min-w-6 mt-4 mx-1 ${
+                            rejectedFromStep !== null && index >= rejectedFromStep
+                              ? "bg-red-400"
+                              : index < currentStep
+                                ? "bg-green-400"
+                                : "bg-gray-200"
+                          }`}
+                        />
                       )}
                     </React.Fragment>
                   );
                 })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Info grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -124,10 +159,10 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
               <InfoRow
                 icon={<FaCalendar />}
                 label="Yuborilgan sana"
-                value={new Date(article.submittedDate || article.createdAt || article.submittedAt || Date.now()).toLocaleDateString("uz-UZ")}
+                value={submittedDate ? new Date(submittedDate).toLocaleDateString("uz-UZ") : "-"}
               />
               {role === "superadmin" && article.assignedTo && (
-                <InfoRow icon={<FaUser />} label="Tayinlangan taqrizchi" value={article.assignedTo} />
+                <InfoRow icon={<FaUser />} label="Tayinlangan taqrizchi" value={article.assignedToName || article.assignedTo} />
               )}
             </div>
 
@@ -136,6 +171,30 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
               <Section title="Kalit so'zlar">
                 <p className="text-gray-700 text-sm">{article.keywords}</p>
               </Section>
+            )}
+
+            {role === "user" && article.status === ARTICLE_STATUS.PAYMENT_PENDING && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-center gap-2 text-amber-900">
+                  <FaCreditCard />
+                  <p className="font-semibold">To'lov bosqichi ochildi</p>
+                </div>
+                <p className="mt-2 text-sm text-amber-800">
+                  Maqolangiz dastlabki ko'rikdan o'tdi. Paneldagi PAYME tugmasi orqali test to'lovni amalga oshiring.
+                </p>
+              </div>
+            )}
+
+            {role === "user" && article.publicationInfo && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                  Nashr ma'lumotlari
+                </p>
+                <p className="mt-2 text-sm text-emerald-900">
+                  Maqolangiz <strong>{article.publicationInfo.journal}</strong>ning{" "}
+                  <strong>{article.publicationInfo.issue}</strong>da chop etilishi rejalashtirilgan.
+                </p>
+              </div>
             )}
 
             {/* Annotation */}
@@ -155,7 +214,7 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
                 </div>
               </div>
             )}
-            {role === "user" && article.fileName && articleFileUrl && (
+            {(role === "user" || role === "superadmin") && article.fileName && articleFileUrl && (
               <div className="flex flex-wrap gap-2">
                 <a
                   href={articleFileUrl}
