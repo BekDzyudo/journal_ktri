@@ -120,7 +120,7 @@ function Register() {
         }),
       });
 
-      let data;
+      let data;      
       try {
         data = await response.json();
       } catch {
