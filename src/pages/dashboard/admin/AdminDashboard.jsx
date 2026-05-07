@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { FaNewspaper, FaClock, FaCheckCircle, FaUpload, FaEye, FaFileAlt, FaCommentDots } from "react-icons/fa";
+import {
+  FaNewspaper,
+  FaClock,
+  FaCheckCircle,
+  FaUpload,
+  FaEye,
+  FaFileAlt,
+  FaCommentDots,
+  FaSearch,
+  FaSyncAlt,
+  FaCalendarAlt,
+  FaArrowRight,
+  FaLayerGroup,
+} from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
@@ -10,6 +23,32 @@ import {
   filterArticlesByDisplayStatus,
   uniqueDisplayStatuses,
 } from "../../../utils/articleDashboardHelpers.js";
+
+const UZ_DAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
+const UZ_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateUz(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}, ${UZ_DAYS[d.getDay()]} holatiga ko'ra`;
+}
+
+function SectionHeader({ icon, title, color = "bg-purple-500", iconColor = "text-purple-600" }) {
+  return (
+    <div className="mb-4 flex items-center gap-2.5">
+      <div className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${color} bg-opacity-15`}>
+        <span className={`text-xs ${iconColor}`}>{icon}</span>
+      </div>
+      <h3 className="text-sm font-black uppercase tracking-[0.08em] text-slate-700">{title}</h3>
+      <div className="ml-1 h-px flex-1 bg-slate-100" />
+    </div>
+  );
+}
 
 function AdminDashboard({ userData }) {
   const [articles, setArticles] = useState([]);
@@ -23,6 +62,7 @@ function AdminDashboard({ userData }) {
   const [reviewComment, setReviewComment] = useState("");
   const [reviewDecision, setReviewDecision] = useState("accept");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [stats, setStats] = useState({
     total: 0,
     newAssigned: 0,
@@ -53,7 +93,6 @@ function AdminDashboard({ userData }) {
 
   useEffect(() => {
     if (!userData?.email) return;
-
     const t = setTimeout(() => {
       fetchArticles();
     }, 0);
@@ -63,11 +102,11 @@ function AdminDashboard({ userData }) {
   const handleReviewFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const fileExtension = file.name.split('.').pop().toLowerCase();
-      if (fileExtension === 'doc' || fileExtension === 'docx' || fileExtension === 'pdf') {
+      const fileExtension = file.name.split(".").pop().toLowerCase();
+      if (["doc", "docx", "pdf"].includes(fileExtension)) {
         setReviewFile(file);
       } else {
-        toast.error('Faqat .doc, .docx yoki .pdf formatdagi fayllarni yuklash mumkin');
+        toast.error("Faqat .doc, .docx yoki .pdf formatdagi fayllarni yuklash mumkin");
         e.target.value = null;
       }
     }
@@ -75,7 +114,7 @@ function AdminDashboard({ userData }) {
 
   const handleSubmitReview = async () => {
     if (!reviewFile) {
-      toast.error('Taqriz faylini yuklang');
+      toast.error("Taqriz faylini yuklang");
       return;
     }
 
@@ -97,26 +136,22 @@ function AdminDashboard({ userData }) {
       fetchArticles();
     } catch (error) {
       console.error("Error submitting review:", error);
-      toast.error('Taqriz yuborishda xatolik: ' + error.message);
+      toast.error("Taqriz yuborishda xatolik: " + error.message);
     } finally {
       setIsSubmittingReview(false);
     }
   };
 
   const filteredArticles = useMemo(
-    () =>
-      filterArticlesByDisplayStatus(articles, searchQuery, filterStatus, ADMIN_STATUS_DISPLAY),
+    () => filterArticlesByDisplayStatus(articles, searchQuery, filterStatus, ADMIN_STATUS_DISPLAY),
     [articles, searchQuery, filterStatus]
   );
 
-  // Status ni admin ko'radigan holatda qaytarish
-  const getStatusDisplay = (actualStatus) => {
-    return ADMIN_STATUS_DISPLAY[actualStatus] || actualStatus;
-  };
+  const getStatusDisplay = (actualStatus) => ADMIN_STATUS_DISPLAY[actualStatus] || actualStatus;
 
   const getStatusColor = (actualStatus) => {
     const displayStatus = ADMIN_STATUS_DISPLAY[actualStatus] || actualStatus;
-    return ADMIN_STATUS_COLORS[displayStatus] || 'bg-gray-100 text-gray-800 border-gray-200';
+    return ADMIN_STATUS_COLORS[displayStatus] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   const uniqueStatuses = useMemo(
@@ -126,75 +161,160 @@ function AdminDashboard({ userData }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)] sm:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      {/* Dashboard Header */}
+      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-purple-600">Taqrizchi paneli</p>
-            <h2 className="mt-2 flex items-center gap-2 text-2xl font-black text-slate-950">
-              <FaFileAlt className="text-purple-600" />
-              Tayinlangan maqolalar monitoringi
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Sizga biriktirilgan maqolalar, taqriz fayllari va tahririyat bilan muloqot.
-            </p>
+            <div className="flex items-center gap-2.5">
+              <div className="grid h-8 w-8 place-items-center rounded-lg bg-purple-600">
+                <FaFileAlt className="text-white text-sm" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900">Taqrizchi Paneli</h2>
+            </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+                <FaCalendarAlt className="text-slate-400 text-xs" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-transparent text-sm font-semibold text-slate-700 outline-none"
+                />
+              </div>
+              <span className="text-sm text-slate-500">{formatDateUz(selectedDate)}</span>
+            </div>
           </div>
-          <span className="inline-flex w-fit items-center rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-100">
-            {filteredArticles.length} ta maqola
-          </span>
+
+          <div className="flex shrink-0 gap-2">
+            <button
+              onClick={() => setSelectedDate(getTodayStr())}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <FaCalendarAlt className="text-slate-400 text-xs" />
+              Bugun
+            </button>
+            <button
+              onClick={fetchArticles}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <FaSyncAlt className="text-slate-400 text-xs" />
+              Yangilash
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard
-          icon={<FaNewspaper />}
-          title="Jami maqolalar"
-          value={stats.total}
-          gradient="from-purple-50 to-purple-100"
-          iconBg="bg-gradient-to-br from-purple-500 to-purple-600"
+      {/* Stats Section */}
+      <div>
+        <SectionHeader
+          icon={<FaLayerGroup />}
+          title="Taqriz monitoringi"
+          color="bg-purple-500"
+          iconColor="text-purple-600"
         />
-        <StatsCard
-          icon={<FaClock />}
-          title="Yangi kelgan"
-          value={stats.newAssigned}
-          gradient="from-cyan-50 to-cyan-100"
-          iconBg="bg-gradient-to-br from-cyan-500 to-cyan-600"
-        />
-        <StatsCard
-          icon={<FaCheckCircle />}
-          title="Taqrizlangan"
-          value={stats.reviewed}
-          gradient="from-green-50 to-green-100"
-          iconBg="bg-gradient-to-br from-green-500 to-green-600"
-        />
-        <StatsCard
-          icon={<FaFileAlt />}
-          title="Kutilmoqda"
-          value={stats.pending}
-          gradient="from-yellow-50 to-yellow-100"
-          iconBg="bg-gradient-to-br from-yellow-500 to-yellow-600"
-        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatsCard
+            icon={<FaNewspaper />}
+            iconColor="text-purple-500"
+            title="Jami tayinlangan"
+            value={stats.total}
+            badge="Jami"
+            badgeColor="text-purple-500"
+            barColor="bg-purple-500"
+            progress={100}
+            footer={
+              <span className="flex items-center gap-1.5">
+                <FaArrowRight className="text-[9px]" />
+                Barcha maqolalar
+              </span>
+            }
+          />
+          <StatsCard
+            icon={<FaClock />}
+            iconColor="text-cyan-500"
+            title="Yangi kelgan"
+            value={stats.newAssigned}
+            total={stats.total}
+            badge="Yangi"
+            badgeColor="text-cyan-500"
+            barColor="bg-cyan-400"
+            footer={
+              <span className="flex items-center gap-1.5">
+                <FaArrowRight className="text-[9px]" />
+                Ko'rib chiqish kerak
+              </span>
+            }
+          />
+          <StatsCard
+            icon={<FaCheckCircle />}
+            iconColor="text-green-500"
+            title="Taqrizlangan"
+            value={stats.reviewed}
+            total={stats.total}
+            badge="Yuborildi"
+            badgeColor="text-green-500"
+            barColor="bg-green-500"
+            footer={
+              <span className="flex items-center gap-1.5">
+                <FaArrowRight className="text-[9px]" />
+                Taqriz yuborilgan
+              </span>
+            }
+          />
+          <StatsCard
+            icon={<FaFileAlt />}
+            iconColor="text-amber-500"
+            title="Kutilmoqda"
+            value={stats.pending}
+            total={stats.total}
+            badge="Pending"
+            badgeColor="text-amber-500"
+            barColor="bg-amber-400"
+            footer={
+              <span className="flex items-center gap-1.5">
+                <FaArrowRight className="text-[9px]" />
+                Taqriz kerak
+              </span>
+            }
+          />
+        </div>
       </div>
 
-      <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
-        <div className="mb-4">
-          <h3 className="text-base font-black text-slate-950">Qidiruv va filter</h3>
-          <p className="text-sm text-slate-500">Maqola nomi, muallif yoki status bo‘yicha ishlang.</p>
+      {/* Articles Table */}
+      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="border-b border-slate-100 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <FaFileAlt className="text-purple-500" />
+                <h2 className="text-base font-black text-slate-900">Taqriz jadvali</h2>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Sizga biriktirilgan maqolalar va taqriz holati.
+              </p>
+            </div>
+            <span className="inline-flex w-fit items-center rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-100">
+              {filteredArticles.length} ta maqola
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 md:flex-row">
-          <div className="flex-1">
+
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 md:flex-row">
+          <div className="relative flex-1">
+            <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
             <input
               type="text"
               placeholder="Maqola nomi yoki muallif bo'yicha qidirish..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50"
+              className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50 pl-8 text-sm"
             />
           </div>
-          <div className="w-full md:w-64">
+          <div className="w-full md:w-56">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="select select-bordered w-full rounded-xl border-slate-200 bg-slate-50"
+              className="select select-bordered w-full rounded-xl border-slate-200 bg-slate-50 text-sm"
             >
               <option value="all">Barcha statuslar</option>
               {uniqueStatuses.map((status) => (
@@ -205,88 +325,91 @@ function AdminDashboard({ userData }) {
             </select>
           </div>
         </div>
-      </div>
 
-      <div className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
-        <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-base font-black text-slate-950">Taqriz jadvali</h3>
-            <p className="text-sm text-slate-500">Taqriz holati va tezkor amallar.</p>
-          </div>
-        </div>
         <div className="overflow-x-auto">
           <table className="table w-full">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-400">
               <tr>
                 <th className="text-left">Maqola nomi</th>
                 <th className="text-left">Mualliflar</th>
                 <th className="text-left">Tayinlangan vaqti</th>
                 <th className="text-left">Status</th>
-                <th className="text-left">Taqriz</th>
+                <th className="text-left">Taqriz holati</th>
                 <th className="text-center">Amallar</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-8">
-                    <span className="loading loading-spinner loading-lg"></span>
+                  <td colSpan="6" className="py-12 text-center">
+                    <span className="loading loading-spinner loading-lg text-purple-500"></span>
                   </td>
                 </tr>
               ) : filteredArticles.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-8 text-gray-500">
-                    Sizga tayinlangan maqolalar yo'q
+                  <td colSpan="6" className="py-12 text-center">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <FaFileAlt className="text-3xl opacity-30" />
+                      <p className="text-sm">Sizga tayinlangan maqolalar yo'q</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredArticles.map((article) => (
-                  <tr key={article.id} className="border-slate-100 hover:bg-slate-50/80">
-                    <td className="font-medium text-gray-900">{article.articleTitle}</td>
-                    <td className="text-gray-600">{article.authorNames}</td>
-                    <td className="text-gray-600">
-                      {new Date(article.assignedAt || article.createdAt).toLocaleDateString('uz-UZ')}
+                  <tr key={article.id} className="border-slate-50 transition hover:bg-slate-50/70">
+                    <td className="max-w-[200px]">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {article.articleTitle}
+                      </p>
+                    </td>
+                    <td className="text-sm text-slate-500">{article.authorNames}</td>
+                    <td className="text-xs text-slate-500">
+                      {new Date(article.assignedAt || article.createdAt).toLocaleDateString("uz-UZ")}
                     </td>
                     <td>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(article.status)}`}>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getStatusColor(article.status)}`}
+                      >
                         {getStatusDisplay(article.status)}
                       </span>
                     </td>
                     <td>
                       {article.reviewFile ? (
-                        <span className="flex items-center gap-1 text-green-600">
-                          <FaCheckCircle />
-                          <span className="text-xs">Yuklangan</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-semibold text-green-600">
+                          <FaCheckCircle className="text-[10px]" />
+                          Yuklangan
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-400">Yuklanmagan</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-400">
+                          Yuklanmagan
+                        </span>
                       )}
                     </td>
-                    <td className="text-center">
-                      <div className="flex items-center justify-center gap-2 flex-wrap">
+                    <td>
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => setDetailArticle(article)}
-                          className="btn btn-sm btn-ghost rounded-xl text-blue-600"
+                          className="grid h-8 w-8 place-items-center rounded-lg text-blue-500 transition hover:bg-blue-50"
                           title="Ko'rish"
                         >
-                          <FaEye />
+                          <FaEye className="text-sm" />
                         </button>
                         {article.finalDecisionDescription && (
                           <button
                             onClick={() => setMessageArticle(article)}
-                            className="btn btn-sm btn-ghost rounded-xl text-emerald-600"
+                            className="grid h-8 w-8 place-items-center rounded-lg text-emerald-500 transition hover:bg-emerald-50"
                             title="Muharrir xabari"
                           >
-                            <FaCommentDots />
+                            <FaCommentDots className="text-sm" />
                           </button>
                         )}
                         {!article.reviewFile && (
                           <button
                             onClick={() => setSelectedArticle(article)}
-                            className="btn btn-sm gap-1 rounded-xl bg-[#0d4ea3] text-white hover:bg-blue-700"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-purple-700"
                             title="Taqriz yuklash"
                           >
-                            <FaUpload />
+                            <FaUpload className="text-[10px]" />
                             Taqriz
                           </button>
                         )}
@@ -306,7 +429,7 @@ function AdminDashboard({ userData }) {
         onClose={() => {
           setSelectedArticle(null);
           setReviewFile(null);
-          setReviewComment('');
+          setReviewComment("");
           setReviewDecision("accept");
         }}
         title="Taqriz yuklash"
@@ -366,7 +489,7 @@ function AdminDashboard({ userData }) {
               onClick={() => {
                 setSelectedArticle(null);
                 setReviewFile(null);
-                setReviewComment('');
+                setReviewComment("");
                 setReviewDecision("accept");
               }}
               className="btn btn-ghost"
@@ -394,6 +517,7 @@ function AdminDashboard({ userData }) {
           </div>
         </div>
       </Modal>
+
       <ArticleDetailModal
         isOpen={detailArticle !== null}
         onClose={() => setDetailArticle(null)}

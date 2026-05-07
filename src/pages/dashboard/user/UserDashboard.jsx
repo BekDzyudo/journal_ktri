@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaNewspaper, FaClock, FaCheckCircle, FaTimesCircle, FaEye, FaPlus, FaCommentDots, FaCreditCard } from "react-icons/fa";
+import {
+  FaNewspaper,
+  FaClock,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaEye,
+  FaPlus,
+  FaCommentDots,
+  FaCreditCard,
+  FaSearch,
+  FaSyncAlt,
+  FaCalendarAlt,
+  FaArrowRight,
+  FaLayerGroup,
+} from "react-icons/fa";
 import { toast } from "react-toastify";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
@@ -11,6 +25,32 @@ import {
   uniqueDisplayStatuses,
 } from "../../../utils/articleDashboardHelpers.js";
 
+const UZ_DAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
+const UZ_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatDateUz(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}, ${UZ_DAYS[d.getDay()]} holatiga ko'ra`;
+}
+
+function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-blue-600" }) {
+  return (
+    <div className="mb-4 flex items-center gap-2.5">
+      <div className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${color} bg-opacity-15`}>
+        <span className={`text-xs ${iconColor}`}>{icon}</span>
+      </div>
+      <h3 className="text-sm font-black uppercase tracking-[0.08em] text-slate-700">{title}</h3>
+      <div className="ml-1 h-px flex-1 bg-slate-100" />
+    </div>
+  );
+}
+
 function UserDashboard({ userData }) {
   const navigate = useNavigate();
   const [articles, setArticles] = useState([]);
@@ -18,6 +58,7 @@ function UserDashboard({ userData }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [detailArticle, setDetailArticle] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [stats, setStats] = useState({
     total: 0,
     submitted: 0,
@@ -51,7 +92,6 @@ function UserDashboard({ userData }) {
 
   useEffect(() => {
     if (!userData?.email) return;
-
     const t = setTimeout(() => {
       fetchArticles();
     }, 0);
@@ -63,14 +103,11 @@ function UserDashboard({ userData }) {
     [articles, searchQuery, filterStatus]
   );
 
-  // Status ni user ko'radigan holatda qaytarish
-  const getStatusDisplay = (actualStatus) => {
-    return USER_STATUS_DISPLAY[actualStatus] || actualStatus;
-  };
+  const getStatusDisplay = (actualStatus) => USER_STATUS_DISPLAY[actualStatus] || actualStatus;
 
   const getStatusColor = (actualStatus) => {
     const displayStatus = USER_STATUS_DISPLAY[actualStatus] || actualStatus;
-    return USER_STATUS_COLORS[displayStatus] || 'bg-gray-100 text-gray-800 border-gray-200';
+    return USER_STATUS_COLORS[displayStatus] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   const uniqueStatuses = useMemo(
@@ -86,81 +123,164 @@ function UserDashboard({ userData }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)] sm:p-6">
-        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+      {/* Dashboard Header */}
+      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0d4ea3]">Dashboard</p>
-            <h2 className="mt-2 flex items-center gap-2 text-2xl font-black text-slate-950">
-              <FaNewspaper className="text-[#0d4ea3]" />
-              Muallif monitoring paneli
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Maqolalaringiz holati, muharrir xabarlari va yuborilgan materiallar nazorati.
-            </p>
+            <div className="flex items-center gap-2.5">
+              <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-600">
+                <FaNewspaper className="text-white text-sm" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900">Muallif Paneli</h2>
+            </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+                <FaCalendarAlt className="text-slate-400 text-xs" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-transparent text-sm font-semibold text-slate-700 outline-none"
+                />
+              </div>
+              <span className="text-sm text-slate-500">{formatDateUz(selectedDate)}</span>
+            </div>
           </div>
-          <button
-            onClick={() => navigate("/send-article")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0d4ea3] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700"
-          >
-            <FaPlus />
-            Yangi maqola yuborish
-          </button>
+
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedDate(getTodayStr())}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <FaCalendarAlt className="text-slate-400 text-xs" />
+              Bugun
+            </button>
+            <button
+              onClick={fetchArticles}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <FaSyncAlt className="text-slate-400 text-xs" />
+              Yangilash
+            </button>
+            <button
+              onClick={() => navigate("/send-article")}
+              className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <FaPlus className="text-xs" />
+              Yangi maqola
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard
-          icon={<FaNewspaper />}
-          title="Jami maqolalar"
-          value={stats.total}
-          gradient="from-blue-50 to-blue-100"
-          iconBg="bg-gradient-to-br from-blue-500 to-blue-600"
+      {/* Stats Section */}
+      <div>
+        <SectionHeader
+          icon={<FaLayerGroup />}
+          title="Maqolalar monitoringi"
+          color="bg-blue-500"
+          iconColor="text-blue-600"
         />
-        <StatsCard
-          icon={<FaClock />}
-          title="Jarayonda"
-          value={stats.submitted}
-          gradient="from-yellow-50 to-yellow-100"
-          iconBg="bg-gradient-to-br from-yellow-500 to-yellow-600"
-        />
-        <StatsCard
-          icon={<FaCheckCircle />}
-          title="Qabul qilindi"
-          value={stats.accepted}
-          gradient="from-green-50 to-green-100"
-          iconBg="bg-gradient-to-br from-green-500 to-green-600"
-        />
-        <StatsCard
-          icon={<FaTimesCircle />}
-          title="Rad etildi"
-          value={stats.rejected}
-          gradient="from-red-50 to-red-100"
-          iconBg="bg-gradient-to-br from-red-500 to-red-600"
-        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatsCard
+            icon={<FaNewspaper />}
+            iconColor="text-blue-500"
+            title="Jami maqolalar"
+            value={stats.total}
+            badge="Hammasi"
+            badgeColor="text-blue-500"
+            barColor="bg-blue-500"
+            progress={100}
+            footer={
+              <span className="flex items-center gap-1.5">
+                <FaArrowRight className="text-[9px]" />
+                Barcha maqolalar
+              </span>
+            }
+          />
+          <StatsCard
+            icon={<FaClock />}
+            iconColor="text-amber-500"
+            title="Jarayonda"
+            value={stats.submitted}
+            total={stats.total}
+            badge="Kutilmoqda"
+            badgeColor="text-amber-500"
+            barColor="bg-amber-400"
+            footer={
+              <span className="flex items-center gap-1.5">
+                <FaArrowRight className="text-[9px]" />
+                Ko'rib chiqilmoqda
+              </span>
+            }
+          />
+          <StatsCard
+            icon={<FaCheckCircle />}
+            iconColor="text-green-500"
+            title="Qabul qilindi"
+            value={stats.accepted}
+            total={stats.total}
+            badge="Tasdiqlandi"
+            badgeColor="text-green-500"
+            barColor="bg-green-500"
+            footer={
+              <span className="flex items-center gap-1.5">
+                <FaArrowRight className="text-[9px]" />
+                Tasdiqlangan
+              </span>
+            }
+          />
+          <StatsCard
+            icon={<FaTimesCircle />}
+            iconColor="text-red-400"
+            title="Rad etildi"
+            value={stats.rejected}
+            total={stats.total}
+            badge="Qaytarildi"
+            badgeColor="text-red-400"
+            barColor="bg-red-400"
+            footer={
+              <span className="flex items-center gap-1.5">
+                <FaArrowRight className="text-[9px]" />
+                Bekor qilingan
+              </span>
+            }
+          />
+        </div>
       </div>
 
-      <div className="rounded-[1.35rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-black text-slate-950">Qidiruv va filter</h3>
-            <p className="text-sm text-slate-500">Maqola nomi, muallif yoki status bo‘yicha saralang.</p>
+      {/* Articles Table */}
+      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="border-b border-slate-100 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <FaNewspaper className="text-blue-500" />
+                <h2 className="text-base font-black text-slate-900">Maqolalar ro'yxati</h2>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {filteredArticles.length} ta yozuv ko'rsatilmoqda
+              </p>
+            </div>
           </div>
         </div>
-        <div className="flex flex-col gap-4 md:flex-row">
-          <div className="flex-1">
+
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 md:flex-row">
+          <div className="relative flex-1">
+            <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
             <input
               type="text"
               placeholder="Maqola nomi yoki muallif bo'yicha qidirish..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50"
+              className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50 pl-8 text-sm"
             />
           </div>
-          <div className="w-full md:w-64">
+          <div className="w-full md:w-56">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="select select-bordered w-full rounded-xl border-slate-200 bg-slate-50"
+              className="select select-bordered w-full rounded-xl border-slate-200 bg-slate-50 text-sm"
             >
               <option value="all">Barcha statuslar</option>
               {uniqueStatuses.map((status) => (
@@ -171,18 +291,10 @@ function UserDashboard({ userData }) {
             </select>
           </div>
         </div>
-      </div>
 
-      <div className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)]">
-        <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-base font-black text-slate-950">Maqolalar ro'yxati</h3>
-            <p className="text-sm text-slate-500">{filteredArticles.length} ta yozuv ko‘rsatilmoqda</p>
-          </div>
-        </div>
         <div className="overflow-x-auto">
           <table className="table w-full">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-400">
               <tr>
                 <th className="text-left">Maqola nomi</th>
                 <th className="text-left">Mualliflar</th>
@@ -194,55 +306,71 @@ function UserDashboard({ userData }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-8">
-                    <span className="loading loading-spinner loading-lg"></span>
+                  <td colSpan="5" className="py-12 text-center">
+                    <span className="loading loading-spinner loading-lg text-blue-500"></span>
                   </td>
                 </tr>
               ) : filteredArticles.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-8 text-gray-500">
-                    Maqolalar topilmadi
+                  <td colSpan="5" className="py-12 text-center">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <FaNewspaper className="text-3xl opacity-30" />
+                      <p className="text-sm">Maqolalar topilmadi</p>
+                      <button
+                        onClick={() => navigate("/send-article")}
+                        className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700"
+                      >
+                        <FaPlus className="text-[10px]" />
+                        Birinchi maqolani yuborish
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredArticles.map((article) => (
-                  <tr key={article.id} className="border-slate-100 hover:bg-slate-50/80">
-                    <td className="font-medium text-gray-900">{article.articleTitle}</td>
-                    <td className="text-gray-600">{article.authorNames}</td>
-                    <td className="text-gray-600">
-                      {new Date(article.createdAt || article.submittedAt).toLocaleDateString('uz-UZ')}
+                  <tr key={article.id} className="border-slate-50 transition hover:bg-slate-50/70">
+                    <td className="max-w-[200px]">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {article.articleTitle}
+                      </p>
+                    </td>
+                    <td className="text-sm text-slate-500">{article.authorNames}</td>
+                    <td className="text-xs text-slate-500">
+                      {new Date(article.createdAt || article.submittedAt).toLocaleDateString("uz-UZ")}
                     </td>
                     <td>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(article.status)}`}>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getStatusColor(article.status)}`}
+                      >
                         {getStatusDisplay(article.status)}
                       </span>
                     </td>
-                    <td className="text-center">
-                      <div className="flex items-center justify-center gap-2 flex-wrap">
+                    <td>
+                      <div className="flex items-center justify-center gap-1">
                         {article.status === ARTICLE_STATUS.PAYMENT_PENDING && (
                           <button
                             onClick={() => handlePay(article)}
-                            className="btn btn-sm rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
-                            title="PAYME test sahifasi orqali to'lash"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
+                            title="PAYME orqali to'lash"
                           >
-                            <FaCreditCard />
+                            <FaCreditCard className="text-[10px]" />
                             PAYME
                           </button>
                         )}
                         <button
                           onClick={() => setDetailArticle(article)}
-                          className="btn btn-sm btn-ghost text-blue-600"
+                          className="grid h-8 w-8 place-items-center rounded-lg text-blue-500 transition hover:bg-blue-50"
                           title="Ko'rish"
                         >
-                          <FaEye />
+                          <FaEye className="text-sm" />
                         </button>
                         {article.finalDecisionDescription && (
                           <button
                             onClick={() => setDetailArticle(article)}
-                            className="btn btn-sm btn-ghost text-emerald-600"
+                            className="grid h-8 w-8 place-items-center rounded-lg text-emerald-500 transition hover:bg-emerald-50"
                             title="Muharrir xabari"
                           >
-                            <FaCommentDots />
+                            <FaCommentDots className="text-sm" />
                           </button>
                         )}
                       </div>
@@ -254,6 +382,7 @@ function UserDashboard({ userData }) {
           </table>
         </div>
       </div>
+
       <ArticleDetailModal
         isOpen={detailArticle !== null}
         onClose={() => setDetailArticle(null)}
