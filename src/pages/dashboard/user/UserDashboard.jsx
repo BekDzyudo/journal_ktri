@@ -1,20 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaNewspaper,
-  FaClock,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaEye,
-  FaPlus,
-  FaCommentDots,
-  FaCreditCard,
-  FaSearch,
-  FaSyncAlt,
-  FaCalendarAlt,
-  FaArrowRight,
-  FaLayerGroup,
+  FaNewspaper, FaClock, FaCheckCircle, FaTimesCircle,
+  FaEye, FaPlus, FaCreditCard,
+  FaSearch, FaSyncAlt, FaCalendarAlt, FaArrowRight, FaLayerGroup,
 } from "react-icons/fa";
+import { useNotifications } from "../../../context/NotificationContext.jsx";
 import { toast } from "react-toastify";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
@@ -22,21 +13,13 @@ import { ARTICLE_STATUS, USER_STATUS_DISPLAY, USER_STATUS_COLORS } from "../../.
 import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import {
   filterArticlesByDisplayStatus,
+  filterArticlesByDateRange,
   uniqueDisplayStatuses,
 } from "../../../utils/articleDashboardHelpers.js";
-
-const UZ_DAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
-const UZ_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
 
 function getTodayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function formatDateUz(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "";
-  return `${d.getDate()} ${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}, ${UZ_DAYS[d.getDay()]} holatiga ko'ra`;
 }
 
 function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-blue-600" }) {
@@ -53,35 +36,20 @@ function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-b
 
 function UserDashboard({ userData }) {
   const navigate = useNavigate();
+  const { refresh: refreshNotifications } = useNotifications();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [detailArticle, setDetailArticle] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(getTodayStr());
-  const [stats, setStats] = useState({
-    total: 0,
-    submitted: 0,
-    accepted: 0,
-    rejected: 0,
-  });
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fakeArticleApi.getMyArticles(userData);
       setArticles(data);
-
-      const statsData = {
-        total: data.length,
-        submitted: data.filter(
-          (a) =>
-            ![ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED].includes(a.status)
-        ).length,
-        accepted: data.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
-        rejected: data.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
-      };
-      setStats(statsData);
     } catch (error) {
       console.error("Error fetching articles:", error);
       toast.error("Maqolalarni yuklashda xatolik");
@@ -98,9 +66,24 @@ function UserDashboard({ userData }) {
     return () => clearTimeout(t);
   }, [userData?.email, fetchArticles]);
 
+  const dateFilteredArticles = useMemo(
+    () => filterArticlesByDateRange(articles, dateFrom, dateTo),
+    [articles, dateFrom, dateTo]
+  );
+
+  const dashboardStats = useMemo(() => ({
+    total: dateFilteredArticles.length,
+    submitted: dateFilteredArticles.filter(
+      (a) =>
+        ![ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED].includes(a.status)
+    ).length,
+    accepted: dateFilteredArticles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
+    rejected: dateFilteredArticles.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
+  }), [dateFilteredArticles]);
+
   const filteredArticles = useMemo(
-    () => filterArticlesByDisplayStatus(articles, searchQuery, filterStatus, USER_STATUS_DISPLAY),
-    [articles, searchQuery, filterStatus]
+    () => filterArticlesByDisplayStatus(dateFilteredArticles, searchQuery, filterStatus, USER_STATUS_DISPLAY),
+    [dateFilteredArticles, searchQuery, filterStatus]
   );
 
   const getStatusDisplay = (actualStatus) => USER_STATUS_DISPLAY[actualStatus] || actualStatus;
@@ -111,13 +94,38 @@ function UserDashboard({ userData }) {
   };
 
   const uniqueStatuses = useMemo(
-    () => uniqueDisplayStatuses(articles, USER_STATUS_DISPLAY),
-    [articles]
+    () => uniqueDisplayStatuses(dateFilteredArticles, USER_STATUS_DISPLAY),
+    [dateFilteredArticles]
   );
+
+  useEffect(() => {
+    const handleOpenArticle = async (event) => {
+      const articleId = event.detail?.articleId;
+      if (!articleId) return;
+      let article = articles.find((a) => a.id === articleId);
+      if (!article && userData?.email) {
+        const latest = await fakeArticleApi.getMyArticles(userData);
+        setArticles(latest);
+        article = latest.find((a) => a.id === articleId);
+      }
+      if (!article) return;
+
+      setDetailArticle(article);
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-article-row="${articleId}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    };
+
+    window.addEventListener("ktri:open-article", handleOpenArticle);
+    return () => window.removeEventListener("ktri:open-article", handleOpenArticle);
+  }, [articles, userData]);
 
   const handlePay = async (article) => {
     await fakeArticleApi.payArticle(article.id);
-    toast.success("PAYME test to'lovi muvaffaqiyatli bajarildi. Maqola superadminga yuborildi.");
+    toast.success("CLICK test to'lovi muvaffaqiyatli bajarildi. Maqola superadminga yuborildi.");
+    refreshNotifications();
     fetchArticles();
   };
 
@@ -134,27 +142,52 @@ function UserDashboard({ userData }) {
               <h2 className="text-2xl font-black text-slate-900">Muallif Paneli</h2>
             </div>
             <div className="mt-2.5 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
                 <FaCalendarAlt className="text-slate-400 text-xs" />
+                <span className="text-xs font-semibold text-slate-500">Dan</span>
                 <input
                   type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="bg-transparent text-sm font-semibold text-slate-700 outline-none"
+                />
+                <span className="text-xs font-semibold text-slate-500">Gacha</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
                   className="bg-transparent text-sm font-semibold text-slate-700 outline-none"
                 />
               </div>
-              <span className="text-sm text-slate-500">{formatDateUz(selectedDate)}</span>
+              <span className="text-sm text-slate-500">
+                {dateFrom || dateTo ? "Tanlangan sana oralig'i bo'yicha" : "Barcha sanalar bo'yicha"}
+              </span>
             </div>
           </div>
 
           <div className="flex shrink-0 flex-wrap gap-2">
             <button
-              onClick={() => setSelectedDate(getTodayStr())}
+              onClick={() => {
+                const today = getTodayStr();
+                setDateFrom(today);
+                setDateTo(today);
+              }}
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               <FaCalendarAlt className="text-slate-400 text-xs" />
               Bugun
             </button>
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                Tozalash
+              </button>
+            )}
             <button
               onClick={fetchArticles}
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -186,7 +219,7 @@ function UserDashboard({ userData }) {
             icon={<FaNewspaper />}
             iconColor="text-blue-500"
             title="Jami maqolalar"
-            value={stats.total}
+            value={dashboardStats.total}
             badge="Hammasi"
             badgeColor="text-blue-500"
             barColor="bg-blue-500"
@@ -202,8 +235,8 @@ function UserDashboard({ userData }) {
             icon={<FaClock />}
             iconColor="text-amber-500"
             title="Jarayonda"
-            value={stats.submitted}
-            total={stats.total}
+            value={dashboardStats.submitted}
+            total={dashboardStats.total}
             badge="Kutilmoqda"
             badgeColor="text-amber-500"
             barColor="bg-amber-400"
@@ -218,8 +251,8 @@ function UserDashboard({ userData }) {
             icon={<FaCheckCircle />}
             iconColor="text-green-500"
             title="Qabul qilindi"
-            value={stats.accepted}
-            total={stats.total}
+            value={dashboardStats.accepted}
+            total={dashboardStats.total}
             badge="Tasdiqlandi"
             badgeColor="text-green-500"
             barColor="bg-green-500"
@@ -234,8 +267,8 @@ function UserDashboard({ userData }) {
             icon={<FaTimesCircle />}
             iconColor="text-red-400"
             title="Rad etildi"
-            value={stats.rejected}
-            total={stats.total}
+            value={dashboardStats.rejected}
+            total={dashboardStats.total}
             badge="Qaytarildi"
             badgeColor="text-red-400"
             barColor="bg-red-400"
@@ -328,7 +361,11 @@ function UserDashboard({ userData }) {
                 </tr>
               ) : (
                 filteredArticles.map((article) => (
-                  <tr key={article.id} className="border-slate-50 transition hover:bg-slate-50/70">
+                  <tr
+                    key={article.id}
+                    data-article-row={article.id}
+                    className="border-slate-50 transition hover:bg-slate-50/70"
+                  >
                     <td className="max-w-[200px]">
                       <p className="truncate text-sm font-semibold text-slate-900">
                         {article.articleTitle}
@@ -351,10 +388,10 @@ function UserDashboard({ userData }) {
                           <button
                             onClick={() => handlePay(article)}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
-                            title="PAYME orqali to'lash"
+                            title="CLICK orqali to'lash"
                           >
                             <FaCreditCard className="text-[10px]" />
-                            PAYME
+                            CLICK
                           </button>
                         )}
                         <button
@@ -364,15 +401,6 @@ function UserDashboard({ userData }) {
                         >
                           <FaEye className="text-sm" />
                         </button>
-                        {article.finalDecisionDescription && (
-                          <button
-                            onClick={() => setDetailArticle(article)}
-                            className="grid h-8 w-8 place-items-center rounded-lg text-emerald-500 transition hover:bg-emerald-50"
-                            title="Muharrir xabari"
-                          >
-                            <FaCommentDots className="text-sm" />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>

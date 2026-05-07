@@ -1,46 +1,26 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  FaNewspaper,
-  FaUsers,
-  FaUserShield,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaEye,
-  FaUserTimes,
-  FaSearch,
-  FaTag,
-  FaFileUpload,
-  FaFileAlt,
-  FaDownload,
-  FaExternalLinkAlt,
-  FaClock,
-  FaCommentDots,
-  FaSyncAlt,
-  FaCalendarAlt,
-  FaArrowRight,
-  FaThLarge,
-  FaLayerGroup,
-  FaUserFriends,
+  FaNewspaper, FaUsers, FaUserShield, FaCheckCircle, FaTimesCircle,
+  FaEye, FaUserTimes, FaSearch, FaTag, FaFileUpload, FaFileAlt,
+  FaDownload, FaExternalLinkAlt, FaClock,
+  FaSyncAlt, FaCalendarAlt, FaArrowRight, FaThLarge, FaLayerGroup,
+  FaUserFriends, FaGavel,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import {
-  ROLES,
-  normalizeRole,
-  ARTICLE_STATUS,
-  SUPERADMIN_STATUS_DISPLAY,
-  SUPERADMIN_STATUS_COLORS,
+  ROLES, normalizeRole, ARTICLE_STATUS,
+  SUPERADMIN_STATUS_DISPLAY, SUPERADMIN_STATUS_COLORS,
 } from "../../../constants/roles.js";
 import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import {
   filterArticlesByDisplayStatus,
+  filterArticlesByDateRange,
   uniqueDisplayStatuses,
 } from "../../../utils/articleDashboardHelpers.js";
-
-const UZ_DAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
-const UZ_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+import { useNotifications } from "../../../context/NotificationContext.jsx";
 
 function getTodayStr() {
   const d = new Date();
@@ -48,18 +28,6 @@ function getTodayStr() {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function formatDateUz(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "";
-  return `${d.getDate()} ${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}, ${UZ_DAYS[d.getDay()]} holatiga ko'ra`;
-}
-
-function formatDateShort(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "";
-  return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
 function computeSuperAdminStats(submittedArticles, allUsers, adminUsers) {
@@ -88,6 +56,8 @@ function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-b
 }
 
 function SuperAdminDashboard({ userData, view = "articles" }) {
+  const { refresh: refreshNotifications } = useNotifications();
+
   const [articles, setArticles] = useState([]);
   const [users, setUsers] = useState([]);
   const [admins, setAdmins] = useState([]);
@@ -98,21 +68,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
+  const [finalDecisionModalOpen, setFinalDecisionModalOpen] = useState(false);
+  const [finalDecisionDescription, setFinalDecisionDescription] = useState("");
   const [detailArticle, setDetailArticle] = useState(null);
-  const [messageArticle, setMessageArticle] = useState(null);
   const [selectedAdmin, setSelectedAdmin] = useState("");
   const [decisionDescription, setDecisionDescription] = useState("");
-  const [selectedDate, setSelectedDate] = useState(getTodayStr());
-  const [stats, setStats] = useState({
-    totalArticles: 0,
-    newMaterials: 0,
-    assigned: 0,
-    inReview: 0,
-    accepted: 0,
-    rejected: 0,
-    totalUsers: 0,
-    totalAdmins: 0,
-  });
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -130,7 +92,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       setArticles(articlesData);
       setUsers(normalizedUsers);
       setAdmins(adminUsers);
-      setStats(computeSuperAdminStats(articlesData, normalizedUsers, adminUsers));
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Ma'lumotlarni yuklashda xatolik");
@@ -151,10 +112,10 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       toast.error("Taqrizchini tanlang");
       return;
     }
-
     try {
       await fakeArticleApi.assignReviewer(selectedArticle.id, selectedAdmin);
       toast.success("Taqrizchi muvaffaqiyatli tayinlandi!");
+      refreshNotifications();
       setAssignModalOpen(false);
       setSelectedArticle(null);
       setSelectedAdmin("");
@@ -166,17 +127,33 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   };
 
   const handleQuickDecision = async (article, decision) => {
-    const label = decision === "accept" ? "PAYME to'loviga yuborildi" : "Rad etildi";
-
+    const label = decision === "accept" ? "CLICK to'loviga yuborildi" : "Rad etildi";
     try {
       await fakeArticleApi.setInitialDecision(article.id, decision, decisionDescription.trim());
       toast.success(`Maqola "${label}"!`);
+      refreshNotifications();
       setDecisionModalOpen(false);
       setSelectedArticle(null);
       setDecisionDescription("");
       fetchData();
     } catch (error) {
       console.error("Error making decision:", error);
+      toast.error("Xatolik: " + error.message);
+    }
+  };
+
+  const handleFinalDecision = async (article, decision) => {
+    const label = decision === "accept" ? "Qabul qilindi" : "Rad etildi";
+    try {
+      await fakeArticleApi.setFinalDecision(article.id, decision, finalDecisionDescription.trim());
+      toast.success(`Maqola yakuniy "${label}"!`);
+      refreshNotifications();
+      setFinalDecisionModalOpen(false);
+      setSelectedArticle(null);
+      setFinalDecisionDescription("");
+      fetchData();
+    } catch (error) {
+      console.error("Error final decision:", error);
       toast.error("Xatolik: " + error.message);
     }
   };
@@ -192,6 +169,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     try {
       await fakeArticleApi.toggleAdminRole(targetUser);
       toast.success(isAdmin ? "Taqrizchi huquqi olib qo'yildi!" : "Taqrizchi huquqi berildi!");
+      refreshNotifications();
       fetchData();
     } catch (error) {
       console.error("Error toggling admin role:", error);
@@ -199,15 +177,25 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     }
   };
 
+  const dateFilteredArticles = useMemo(
+    () => filterArticlesByDateRange(articles, dateFrom, dateTo),
+    [articles, dateFrom, dateTo]
+  );
+
+  const dashboardStats = useMemo(
+    () => computeSuperAdminStats(dateFilteredArticles, users, admins),
+    [dateFilteredArticles, users, admins]
+  );
+
   const filteredArticles = useMemo(
     () =>
       filterArticlesByDisplayStatus(
-        articles,
+        dateFilteredArticles,
         searchQuery,
         filterStatus,
         SUPERADMIN_STATUS_DISPLAY
       ),
-    [articles, searchQuery, filterStatus]
+    [dateFilteredArticles, searchQuery, filterStatus]
   );
 
   const filteredUsers = users.filter((user) => {
@@ -248,9 +236,33 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   };
 
   const uniqueStatuses = useMemo(
-    () => uniqueDisplayStatuses(articles, SUPERADMIN_STATUS_DISPLAY),
-    [articles]
+    () => uniqueDisplayStatuses(dateFilteredArticles, SUPERADMIN_STATUS_DISPLAY),
+    [dateFilteredArticles]
   );
+
+  useEffect(() => {
+    const handleOpenArticle = async (event) => {
+      const articleId = event.detail?.articleId;
+      if (!articleId) return;
+      let article = articles.find((a) => a.id === articleId);
+      if (!article) {
+        const latest = await fakeArticleApi.getArticles();
+        setArticles(latest);
+        article = latest.find((a) => a.id === articleId);
+      }
+      if (!article) return;
+
+      setDetailArticle(article);
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-article-row="${articleId}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    };
+
+    window.addEventListener("ktri:open-article", handleOpenArticle);
+    return () => window.removeEventListener("ktri:open-article", handleOpenArticle);
+  }, [articles]);
 
   const showArticles = view !== "users";
   const showUsers = view !== "articles";
@@ -268,29 +280,52 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               <h2 className="text-2xl font-black text-slate-900">Monitoring Paneli</h2>
             </div>
             <div className="mt-2.5 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
                 <FaCalendarAlt className="text-slate-400 text-xs" />
+                <span className="text-xs font-semibold text-slate-500">Dan</span>
                 <input
                   type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="bg-transparent text-sm font-semibold text-slate-700 outline-none"
+                />
+                <span className="text-xs font-semibold text-slate-500">Gacha</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
                   className="bg-transparent text-sm font-semibold text-slate-700 outline-none"
                 />
               </div>
               <span className="text-sm text-slate-500">
-                {formatDateUz(selectedDate)}
+                {dateFrom || dateTo ? "Tanlangan sana oralig'i bo'yicha" : "Barcha sanalar bo'yicha"}
               </span>
             </div>
           </div>
 
           <div className="flex shrink-0 gap-2">
             <button
-              onClick={() => setSelectedDate(getTodayStr())}
+              onClick={() => {
+                const today = getTodayStr();
+                setDateFrom(today);
+                setDateTo(today);
+              }}
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               <FaCalendarAlt className="text-slate-400 text-xs" />
               Bugun
             </button>
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                Tozalash
+              </button>
+            )}
             <button
               onClick={fetchData}
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -317,7 +352,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaNewspaper />}
                 iconColor="text-emerald-500"
                 title="Jami maqolalar"
-                value={stats.totalArticles}
+                value={dashboardStats.totalArticles}
                 badge="Jami"
                 badgeColor="text-emerald-500"
                 barColor="bg-emerald-500"
@@ -333,8 +368,8 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaClock />}
                 iconColor="text-amber-500"
                 title="Yangi materiallar"
-                value={stats.newMaterials}
-                total={stats.totalArticles}
+                value={dashboardStats.newMaterials}
+                total={dashboardStats.totalArticles}
                 badge="Yangi"
                 badgeColor="text-amber-500"
                 barColor="bg-amber-400"
@@ -349,8 +384,8 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaUserShield />}
                 iconColor="text-indigo-500"
                 title="Tayinlanganlar"
-                value={stats.assigned}
-                total={stats.totalArticles}
+                value={dashboardStats.assigned}
+                total={dashboardStats.totalArticles}
                 badge="Tayinlangan"
                 badgeColor="text-indigo-500"
                 barColor="bg-indigo-500"
@@ -365,8 +400,8 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaFileAlt />}
                 iconColor="text-violet-500"
                 title="Taqriz kelgan"
-                value={stats.inReview}
-                total={stats.totalArticles}
+                value={dashboardStats.inReview}
+                total={dashboardStats.totalArticles}
                 badge="Taqrizda"
                 badgeColor="text-violet-500"
                 barColor="bg-violet-500"
@@ -393,8 +428,8 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaCheckCircle />}
                 iconColor="text-green-500"
                 title="Qabul qilindi"
-                value={stats.accepted}
-                total={stats.totalArticles}
+                value={dashboardStats.accepted}
+                total={dashboardStats.totalArticles}
                 badge="Tasdiqlandi"
                 badgeColor="text-green-500"
                 barColor="bg-green-500"
@@ -409,8 +444,8 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaTimesCircle />}
                 iconColor="text-red-400"
                 title="Rad etildi"
-                value={stats.rejected}
-                total={stats.totalArticles}
+                value={dashboardStats.rejected}
+                total={dashboardStats.totalArticles}
                 badge="Rad etildi"
                 badgeColor="text-red-400"
                 barColor="bg-red-400"
@@ -425,7 +460,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaUsers />}
                 iconColor="text-blue-500"
                 title="Jami foydalanuvchilar"
-                value={stats.totalUsers}
+                value={dashboardStats.totalUsers}
                 badge="Muallif"
                 badgeColor="text-blue-500"
                 barColor="bg-blue-500"
@@ -441,7 +476,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaUserShield />}
                 iconColor="text-purple-500"
                 title="Taqrizchilar"
-                value={stats.totalAdmins}
+                value={dashboardStats.totalAdmins}
                 badge="Taqrizchi"
                 badgeColor="text-purple-500"
                 barColor="bg-purple-500"
@@ -538,6 +573,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                     filteredArticles.map((article) => (
                       <tr
                         key={article.id}
+                        data-article-row={article.id}
                         className={`border-slate-50 transition hover:bg-slate-50/70 ${
                           article.status === ARTICLE_STATUS.IN_EDITING ? "bg-violet-50/40" : ""
                         }`}
@@ -639,13 +675,18 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                                 Xulosa
                               </button>
                             )}
-                            {article.finalDecisionDescription && (
+                            {article.status === ARTICLE_STATUS.IN_EDITING && (
                               <button
-                                onClick={() => setMessageArticle(article)}
-                                className="grid h-8 w-8 place-items-center rounded-lg text-emerald-500 transition hover:bg-emerald-50"
-                                title="Muharrir xabari"
+                                onClick={() => {
+                                  setSelectedArticle(article);
+                                  setFinalDecisionDescription("");
+                                  setFinalDecisionModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-indigo-700"
+                                title="Taqrizchi xulosasiga asosan yakuniy qaror"
                               >
-                                <FaCommentDots className="text-sm" />
+                                <FaGavel className="text-[10px]" />
+                                Qaror
                               </button>
                             )}
                           </div>
@@ -675,7 +716,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaUsers />}
                 iconColor="text-blue-500"
                 title="Jami mualliflar"
-                value={stats.totalUsers}
+                value={dashboardStats.totalUsers}
                 badge="Muallif"
                 badgeColor="text-blue-500"
                 barColor="bg-blue-500"
@@ -691,7 +732,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaUserShield />}
                 iconColor="text-purple-500"
                 title="Taqrizchilar"
-                value={stats.totalAdmins}
+                value={dashboardStats.totalAdmins}
                 badge="Taqrizchi"
                 badgeColor="text-purple-500"
                 barColor="bg-purple-500"
@@ -721,10 +762,10 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 </div>
                 <div className="flex gap-2">
                   <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-100">
-                    {stats.totalUsers} muallif
+                    {dashboardStats.totalUsers} muallif
                   </span>
                   <span className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-100">
-                    {stats.totalAdmins} taqrizchi
+                    {dashboardStats.totalAdmins} taqrizchi
                   </span>
                 </div>
               </div>
@@ -775,7 +816,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                       <tr key={user.email} className="border-slate-50 transition hover:bg-slate-50/70">
                         <td>
                           <div className="flex items-center gap-2.5">
-                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-xs font-bold text-slate-600">
+                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-linear-to-br from-slate-100 to-slate-200 text-xs font-bold text-slate-600">
                               {(user.first_name?.[0] || "").toUpperCase()}{(user.last_name?.[0] || "").toUpperCase()}
                             </div>
                             <span className="text-sm font-semibold text-slate-900">
@@ -955,7 +996,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
           </div>
 
           <p className="text-sm text-gray-600">
-            Qabul qilinganda muallif panelida PAYME test to'lov havolasi ochiladi. Rad etilganda jarayon yakunlanadi.
+            Qabul qilinganda muallif panelida CLICK test to'lov tugmasi ochiladi. Rad etilganda jarayon yakunlanadi.
           </p>
 
           <div className="flex gap-3 pt-2">
@@ -964,7 +1005,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               className="btn btn-success flex-1 gap-2"
             >
               <FaCheckCircle />
-              PAYMEga yuborish
+              CLICKga yuborish
             </button>
             <button
               onClick={() => handleQuickDecision(selectedArticle, "reject")}
@@ -977,17 +1018,91 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
         </div>
       </Modal>
 
+      {/* Final Decision Modal — taqrizchi xulosasi kelgandan keyin */}
+      <Modal
+        isOpen={finalDecisionModalOpen}
+        onClose={() => {
+          setFinalDecisionModalOpen(false);
+          setSelectedArticle(null);
+          setFinalDecisionDescription("");
+        }}
+        title="Yakuniy qaror"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Maqola</p>
+            <p className="mt-1 font-semibold text-slate-800">{selectedArticle?.articleTitle}</p>
+          </div>
+
+          {/* Taqrizchi xulosasi */}
+          {selectedArticle?.reviewConclusion && (
+            <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <FaFileAlt className="text-purple-600" />
+                <p className="font-semibold text-purple-900 text-sm">Taqrizchi xulosasi</p>
+                <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  selectedArticle.reviewDecision === "review_accepted"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}>
+                  {selectedArticle.reviewDecision === "review_accepted" ? "✓ Qabul tavsiya" : "✗ Rad tavsiya"}
+                </span>
+              </div>
+              <p className="text-sm text-gray-700 bg-white rounded-lg p-3 border border-purple-100 leading-relaxed">
+                {selectedArticle.reviewConclusion}
+              </p>
+              {selectedArticle.reviewFile && (
+                <div className="flex items-center gap-2 text-xs text-purple-600">
+                  <FaFileUpload className="text-[10px]" />
+                  {selectedArticle.reviewFile}
+                  {selectedArticle.reviewFileUrl && (
+                    <a href={selectedArticle.reviewFileUrl} download className="ml-1 underline hover:text-purple-800">
+                      Yuklab olish
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+              Muallif uchun xabar <span className="text-slate-400">(ixtiyoriy)</span>
+            </label>
+            <textarea
+              value={finalDecisionDescription}
+              onChange={(e) => setFinalDecisionDescription(e.target.value)}
+              className="textarea textarea-bordered w-full h-24 text-sm"
+              placeholder="Muallif panelida ko'rinadi. Bo'sh qoldirilsa, standart matn ishlatiladi."
+            />
+          </div>
+
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            Yakuniy qarordan so'ng muallif SMS va bildirishnoma oladi. Bu qaror qaytarib bo'lmaydi.
+          </p>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={() => handleFinalDecision(selectedArticle, "accept")}
+              className="btn btn-success flex-1 gap-2"
+            >
+              <FaCheckCircle />Qabul qilish
+            </button>
+            <button
+              onClick={() => handleFinalDecision(selectedArticle, "reject")}
+              className="btn btn-error flex-1 gap-2"
+            >
+              <FaTimesCircle />Rad etish
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <ArticleDetailModal
         isOpen={detailArticle !== null}
         onClose={() => setDetailArticle(null)}
         article={detailArticle}
         role="superadmin"
-      />
-      <ArticleDetailModal
-        isOpen={messageArticle !== null}
-        onClose={() => setMessageArticle(null)}
-        article={messageArticle}
-        role="user"
       />
     </div>
   );

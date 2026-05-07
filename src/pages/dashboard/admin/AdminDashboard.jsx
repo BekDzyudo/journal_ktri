@@ -1,17 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  FaNewspaper,
-  FaClock,
-  FaCheckCircle,
-  FaUpload,
-  FaEye,
-  FaFileAlt,
-  FaCommentDots,
-  FaSearch,
-  FaSyncAlt,
-  FaCalendarAlt,
-  FaArrowRight,
-  FaLayerGroup,
+  FaNewspaper, FaClock, FaCheckCircle, FaUpload, FaEye,
+  FaFileAlt, FaSearch, FaSyncAlt, FaCalendarAlt,
+  FaArrowRight, FaLayerGroup, FaUserSecret,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
@@ -21,23 +12,15 @@ import { ARTICLE_STATUS, ADMIN_STATUS_DISPLAY, ADMIN_STATUS_COLORS } from "../..
 import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import {
   filterArticlesByDisplayStatus,
+  filterArticlesByDateRange,
   uniqueDisplayStatuses,
 } from "../../../utils/articleDashboardHelpers.js";
-
-const UZ_DAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
-const UZ_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+import { useNotifications } from "../../../context/NotificationContext.jsx";
 
 function getTodayStr() {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
-
-function formatDateUz(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "";
-  return `${d.getDate()} ${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}, ${UZ_DAYS[d.getDay()]} holatiga ko'ra`;
-}
-
 function SectionHeader({ icon, title, color = "bg-purple-500", iconColor = "text-purple-600" }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
@@ -51,40 +34,29 @@ function SectionHeader({ icon, title, color = "bg-purple-500", iconColor = "text
 }
 
 function AdminDashboard({ userData }) {
-  const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [selectedArticle, setSelectedArticle] = useState(null);
-  const [detailArticle, setDetailArticle] = useState(null);
-  const [messageArticle, setMessageArticle] = useState(null);
-  const [reviewFile, setReviewFile] = useState(null);
-  const [reviewComment, setReviewComment] = useState("");
-  const [reviewDecision, setReviewDecision] = useState("accept");
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(getTodayStr());
-  const [stats, setStats] = useState({
-    total: 0,
-    newAssigned: 0,
-    reviewed: 0,
-    pending: 0,
-  });
+  const { refresh: refreshNotifications } = useNotifications();
+
+  const [articles,          setArticles]          = useState([]);
+  const [loading,           setLoading]           = useState(true);
+  const [searchQuery,       setSearchQuery]       = useState("");
+  const [filterStatus,      setFilterStatus]      = useState("all");
+  const [selectedArticle,   setSelectedArticle]   = useState(null);
+  const [detailArticle,     setDetailArticle]     = useState(null);
+  const [reviewFile,        setReviewFile]        = useState(null);
+  const [reviewComment,     setReviewComment]     = useState("");
+  const [reviewConclusion,  setReviewConclusion]  = useState("");
+  const [reviewDecision,    setReviewDecision]    = useState("accept");
+  const [isSubmittingReview,setIsSubmittingReview]= useState(false);
+  const [dateFrom,          setDateFrom]          = useState("");
+  const [dateTo,            setDateTo]            = useState("");
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fakeArticleApi.getAssignedArticles(userData);
       setArticles(data);
-
-      const statsData = {
-        total: data.length,
-        newAssigned: data.filter((a) => a.status === ARTICLE_STATUS.ASSIGNED).length,
-        reviewed: data.filter((a) => a.reviewFile).length,
-        pending: data.filter((a) => !a.reviewFile).length,
-      };
-      setStats(statsData);
-    } catch (error) {
-      console.error("Error fetching articles:", error);
+    } catch (err) {
+      console.error(err);
       toast.error("Maqolalarni yuklashda xatolik");
     } finally {
       setLoading(false);
@@ -93,22 +65,19 @@ function AdminDashboard({ userData }) {
 
   useEffect(() => {
     if (!userData?.email) return;
-    const t = setTimeout(() => {
-      fetchArticles();
-    }, 0);
+    const t = setTimeout(fetchArticles, 0);
     return () => clearTimeout(t);
   }, [userData?.email, fetchArticles]);
 
   const handleReviewFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const fileExtension = file.name.split(".").pop().toLowerCase();
-      if (["doc", "docx", "pdf"].includes(fileExtension)) {
-        setReviewFile(file);
-      } else {
-        toast.error("Faqat .doc, .docx yoki .pdf formatdagi fayllarni yuklash mumkin");
-        e.target.value = null;
-      }
+    if (!file) return;
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (["doc", "docx", "pdf"].includes(ext)) {
+      setReviewFile(file);
+    } else {
+      toast.error("Faqat .doc, .docx yoki .pdf formatdagi fayllarni yuklash mumkin");
+      e.target.value = null;
     }
   };
 
@@ -117,51 +86,103 @@ function AdminDashboard({ userData }) {
       toast.error("Taqriz faylini yuklang");
       return;
     }
+    if (reviewConclusion.trim().length < 20) {
+      toast.error("Xulosa matni kamida 20 ta belgidan iborat bo'lishi kerak");
+      return;
+    }
 
     setIsSubmittingReview(true);
     try {
       await fakeArticleApi.submitReview({
-        articleId: selectedArticle.id,
-        reviewer: userData,
+        articleId:       selectedArticle.id,
+        reviewer:        userData,
         reviewFile,
-        reviewComment,
-        decision: reviewDecision,
+        reviewComment:   reviewComment,
+        reviewConclusion: reviewConclusion,
+        decision:        reviewDecision,
       });
 
       toast.success("Taqriz xulosasi superadminga yuborildi!");
-      setSelectedArticle(null);
-      setReviewFile(null);
-      setReviewComment("");
-      setReviewDecision("accept");
+      refreshNotifications();
+      closeReviewModal();
       fetchArticles();
-    } catch (error) {
-      console.error("Error submitting review:", error);
-      toast.error("Taqriz yuborishda xatolik: " + error.message);
+    } catch (err) {
+      console.error(err);
+      toast.error("Taqriz yuborishda xatolik: " + err.message);
     } finally {
       setIsSubmittingReview(false);
     }
   };
 
-  const filteredArticles = useMemo(
-    () => filterArticlesByDisplayStatus(articles, searchQuery, filterStatus, ADMIN_STATUS_DISPLAY),
-    [articles, searchQuery, filterStatus]
+  const closeReviewModal = () => {
+    setSelectedArticle(null);
+    setReviewFile(null);
+    setReviewComment("");
+    setReviewConclusion("");
+    setReviewDecision("accept");
+  };
+
+  const dateFilteredArticles = useMemo(
+    () => filterArticlesByDateRange(articles, dateFrom, dateTo),
+    [articles, dateFrom, dateTo]
   );
 
-  const getStatusDisplay = (actualStatus) => ADMIN_STATUS_DISPLAY[actualStatus] || actualStatus;
+  const dashboardStats = useMemo(() => ({
+    total: dateFilteredArticles.length,
+    newAssigned: dateFilteredArticles.filter((a) => a.status === ARTICLE_STATUS.ASSIGNED).length,
+    reviewed: dateFilteredArticles.filter((a) => a.reviewFile).length,
+    pending: dateFilteredArticles.filter((a) => !a.reviewFile).length,
+  }), [dateFilteredArticles]);
 
-  const getStatusColor = (actualStatus) => {
-    const displayStatus = ADMIN_STATUS_DISPLAY[actualStatus] || actualStatus;
-    return ADMIN_STATUS_COLORS[displayStatus] || "bg-gray-100 text-gray-800 border-gray-200";
+  const filteredArticles = useMemo(
+    () => filterArticlesByDisplayStatus(dateFilteredArticles, searchQuery, filterStatus, ADMIN_STATUS_DISPLAY),
+    [dateFilteredArticles, searchQuery, filterStatus]
+  );
+
+  const getStatusDisplay = (s) => ADMIN_STATUS_DISPLAY[s] || s;
+  const getStatusColor   = (s) => {
+    const d = ADMIN_STATUS_DISPLAY[s] || s;
+    return ADMIN_STATUS_COLORS[d] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   const uniqueStatuses = useMemo(
-    () => uniqueDisplayStatuses(articles, ADMIN_STATUS_DISPLAY),
-    [articles]
+    () => uniqueDisplayStatuses(dateFilteredArticles, ADMIN_STATUS_DISPLAY),
+    [dateFilteredArticles]
   );
+
+  useEffect(() => {
+    const handleOpenArticle = async (event) => {
+      const articleId = event.detail?.articleId;
+      if (!articleId) return;
+      let article = articles.find((a) => a.id === articleId);
+      if (!article && userData?.email) {
+        const latest = await fakeArticleApi.getAssignedArticles(userData);
+        setArticles(latest);
+        article = latest.find((a) => a.id === articleId);
+      }
+      if (!article) return;
+
+      setDetailArticle(article);
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-article-row="${articleId}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    };
+
+    window.addEventListener("ktri:open-article", handleOpenArticle);
+    return () => window.removeEventListener("ktri:open-article", handleOpenArticle);
+  }, [articles, userData]);
+
+  const reviewChecklist = [
+    { label: "Taqriz fayli", done: Boolean(reviewFile) },
+    { label: "Xulosa matni", done: reviewConclusion.trim().length >= 20 },
+    { label: "Tavsiya", done: Boolean(reviewDecision) },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Header */}
+      {/* Header */}
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -172,115 +193,84 @@ function AdminDashboard({ userData }) {
               <h2 className="text-2xl font-black text-slate-900">Taqrizchi Paneli</h2>
             </div>
             <div className="mt-2.5 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
                 <FaCalendarAlt className="text-slate-400 text-xs" />
+                <span className="text-xs font-semibold text-slate-500">Dan</span>
                 <input
                   type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="bg-transparent text-sm font-semibold text-slate-700 outline-none"
+                />
+                <span className="text-xs font-semibold text-slate-500">Gacha</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
                   className="bg-transparent text-sm font-semibold text-slate-700 outline-none"
                 />
               </div>
-              <span className="text-sm text-slate-500">{formatDateUz(selectedDate)}</span>
+              <span className="text-sm text-slate-500">
+                {dateFrom || dateTo ? "Tanlangan sana oralig'i bo'yicha" : "Barcha sanalar bo'yicha"}
+              </span>
             </div>
           </div>
-
           <div className="flex shrink-0 gap-2">
             <button
-              onClick={() => setSelectedDate(getTodayStr())}
+              onClick={() => {
+                const today = getTodayStr();
+                setDateFrom(today);
+                setDateTo(today);
+              }}
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              <FaCalendarAlt className="text-slate-400 text-xs" />
-              Bugun
+              <FaCalendarAlt className="text-slate-400 text-xs" />Bugun
             </button>
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                Tozalash
+              </button>
+            )}
             <button
               onClick={fetchArticles}
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              <FaSyncAlt className="text-slate-400 text-xs" />
-              Yangilash
+              <FaSyncAlt className="text-slate-400 text-xs" />Yangilash
             </button>
           </div>
         </div>
       </div>
 
-      {/* Stats Section */}
+      {/* Blind review banner */}
+      <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-3">
+        <FaUserSecret className="shrink-0 text-indigo-400 text-lg" />
+        <p className="text-sm text-indigo-700">
+          <strong>Yopiq taqriz rejimi:</strong> Muallif ma'lumotlari maxfiy saqlanmoqda. Siz faqat maqola mazmunini ko'rasiz.
+        </p>
+      </div>
+
+      {/* Stats */}
       <div>
-        <SectionHeader
-          icon={<FaLayerGroup />}
-          title="Taqriz monitoringi"
-          color="bg-purple-500"
-          iconColor="text-purple-600"
-        />
+        <SectionHeader icon={<FaLayerGroup />} title="Taqriz monitoringi" color="bg-purple-500" iconColor="text-purple-600" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatsCard
-            icon={<FaNewspaper />}
-            iconColor="text-purple-500"
-            title="Jami tayinlangan"
-            value={stats.total}
-            badge="Jami"
-            badgeColor="text-purple-500"
-            barColor="bg-purple-500"
-            progress={100}
-            footer={
-              <span className="flex items-center gap-1.5">
-                <FaArrowRight className="text-[9px]" />
-                Barcha maqolalar
-              </span>
-            }
-          />
-          <StatsCard
-            icon={<FaClock />}
-            iconColor="text-cyan-500"
-            title="Yangi kelgan"
-            value={stats.newAssigned}
-            total={stats.total}
-            badge="Yangi"
-            badgeColor="text-cyan-500"
-            barColor="bg-cyan-400"
-            footer={
-              <span className="flex items-center gap-1.5">
-                <FaArrowRight className="text-[9px]" />
-                Ko'rib chiqish kerak
-              </span>
-            }
-          />
-          <StatsCard
-            icon={<FaCheckCircle />}
-            iconColor="text-green-500"
-            title="Taqrizlangan"
-            value={stats.reviewed}
-            total={stats.total}
-            badge="Yuborildi"
-            badgeColor="text-green-500"
-            barColor="bg-green-500"
-            footer={
-              <span className="flex items-center gap-1.5">
-                <FaArrowRight className="text-[9px]" />
-                Taqriz yuborilgan
-              </span>
-            }
-          />
-          <StatsCard
-            icon={<FaFileAlt />}
-            iconColor="text-amber-500"
-            title="Kutilmoqda"
-            value={stats.pending}
-            total={stats.total}
-            badge="Pending"
-            badgeColor="text-amber-500"
-            barColor="bg-amber-400"
-            footer={
-              <span className="flex items-center gap-1.5">
-                <FaArrowRight className="text-[9px]" />
-                Taqriz kerak
-              </span>
-            }
-          />
+          <StatsCard icon={<FaNewspaper />}   iconColor="text-purple-500" title="Jami tayinlangan" value={dashboardStats.total}       badge="Jami"      badgeColor="text-purple-500" barColor="bg-purple-500" progress={100}
+            footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Barcha maqolalar</span>} />
+          <StatsCard icon={<FaClock />}        iconColor="text-cyan-500"   title="Yangi kelgan"    value={dashboardStats.newAssigned} total={dashboardStats.total} badge="Yangi"   badgeColor="text-cyan-500"   barColor="bg-cyan-400"
+            footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Ko'rib chiqish kerak</span>} />
+          <StatsCard icon={<FaCheckCircle />}  iconColor="text-green-500"  title="Taqrizlangan"   value={dashboardStats.reviewed}    total={dashboardStats.total} badge="Yuborildi" badgeColor="text-green-500" barColor="bg-green-500"
+            footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Xulosa yuborilgan</span>} />
+          <StatsCard icon={<FaFileAlt />}      iconColor="text-amber-500"  title="Kutilmoqda"     value={dashboardStats.pending}     total={dashboardStats.total} badge="Pending"  badgeColor="text-amber-500"  barColor="bg-amber-400"
+            footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Taqriz kerak</span>} />
         </div>
       </div>
 
-      {/* Articles Table */}
+      {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -289,9 +279,7 @@ function AdminDashboard({ userData }) {
                 <FaFileAlt className="text-purple-500" />
                 <h2 className="text-base font-black text-slate-900">Taqriz jadvali</h2>
               </div>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Sizga biriktirilgan maqolalar va taqriz holati.
-              </p>
+              <p className="mt-0.5 text-xs text-slate-500">Maqola nomi va annotatsiyasi ko'rsatiladi — muallif ma'lumotlari yashirilgan.</p>
             </div>
             <span className="inline-flex w-fit items-center rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-100">
               {filteredArticles.length} ta maqola
@@ -304,7 +292,7 @@ function AdminDashboard({ userData }) {
             <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
             <input
               type="text"
-              placeholder="Maqola nomi yoki muallif bo'yicha qidirish..."
+              placeholder="Maqola nomi bo'yicha qidirish..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50 pl-8 text-sm"
@@ -317,11 +305,7 @@ function AdminDashboard({ userData }) {
               className="select select-bordered w-full rounded-xl border-slate-200 bg-slate-50 text-sm"
             >
               <option value="all">Barcha statuslar</option>
-              {uniqueStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
+              {uniqueStatuses.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         </div>
@@ -331,8 +315,8 @@ function AdminDashboard({ userData }) {
             <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-400">
               <tr>
                 <th className="text-left">Maqola nomi</th>
-                <th className="text-left">Mualliflar</th>
-                <th className="text-left">Tayinlangan vaqti</th>
+                <th className="text-left">Yo'nalish</th>
+                <th className="text-left">Tayinlangan</th>
                 <th className="text-left">Status</th>
                 <th className="text-left">Taqriz holati</th>
                 <th className="text-center">Amallar</th>
@@ -340,48 +324,45 @@ function AdminDashboard({ userData }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="6" className="py-12 text-center">
-                    <span className="loading loading-spinner loading-lg text-purple-500"></span>
-                  </td>
-                </tr>
+                <tr><td colSpan="6" className="py-12 text-center"><span className="loading loading-spinner loading-lg text-purple-500"></span></td></tr>
               ) : filteredArticles.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="py-12 text-center">
-                    <div className="flex flex-col items-center gap-2 text-slate-400">
-                      <FaFileAlt className="text-3xl opacity-30" />
-                      <p className="text-sm">Sizga tayinlangan maqolalar yo'q</p>
-                    </div>
-                  </td>
-                </tr>
+                <tr><td colSpan="6" className="py-12 text-center">
+                  <div className="flex flex-col items-center gap-2 text-slate-400">
+                    <FaFileAlt className="text-3xl opacity-30" />
+                    <p className="text-sm">Sizga tayinlangan maqolalar yo'q</p>
+                  </div>
+                </td></tr>
               ) : (
                 filteredArticles.map((article) => (
-                  <tr key={article.id} className="border-slate-50 transition hover:bg-slate-50/70">
-                    <td className="max-w-[200px]">
-                      <p className="truncate text-sm font-semibold text-slate-900">
-                        {article.articleTitle}
+                  <tr
+                    key={article.id}
+                    data-article-row={article.id}
+                    className="border-slate-50 transition hover:bg-slate-50/70"
+                  >
+                    <td className="max-w-[220px]">
+                      <p className="truncate text-sm font-semibold text-slate-900">{article.articleTitle}</p>
+                      {/* Muallif ko'rsatilmaydi — blind review */}
+                      <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                        <FaUserSecret className="text-[10px]" />Anonim muallif
                       </p>
                     </td>
-                    <td className="text-sm text-slate-500">{article.authorNames}</td>
+                    <td className="text-xs text-slate-500">{article.category || "—"}</td>
                     <td className="text-xs text-slate-500">
-                      {new Date(article.assignedAt || article.createdAt).toLocaleDateString("uz-UZ")}
+                      {article.assignedAt ? new Date(article.assignedAt).toLocaleDateString("uz-UZ") : "—"}
                     </td>
                     <td>
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getStatusColor(article.status)}`}
-                      >
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getStatusColor(article.status)}`}>
                         {getStatusDisplay(article.status)}
                       </span>
                     </td>
                     <td>
                       {article.reviewFile ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-semibold text-green-600">
-                          <FaCheckCircle className="text-[10px]" />
-                          Yuklangan
+                          <FaCheckCircle className="text-[10px]" />Yuborildi
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-400">
-                          Yuklanmagan
+                          Kutilmoqda
                         </span>
                       )}
                     </td>
@@ -394,23 +375,13 @@ function AdminDashboard({ userData }) {
                         >
                           <FaEye className="text-sm" />
                         </button>
-                        {article.finalDecisionDescription && (
-                          <button
-                            onClick={() => setMessageArticle(article)}
-                            className="grid h-8 w-8 place-items-center rounded-lg text-emerald-500 transition hover:bg-emerald-50"
-                            title="Muharrir xabari"
-                          >
-                            <FaCommentDots className="text-sm" />
-                          </button>
-                        )}
                         {!article.reviewFile && (
                           <button
                             onClick={() => setSelectedArticle(article)}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-purple-700"
                             title="Taqriz yuklash"
                           >
-                            <FaUpload className="text-[10px]" />
-                            Taqriz
+                            <FaUpload className="text-[10px]" />Taqriz
                           </button>
                         )}
                       </div>
@@ -426,23 +397,45 @@ function AdminDashboard({ userData }) {
       {/* Review Modal */}
       <Modal
         isOpen={selectedArticle !== null}
-        onClose={() => {
-          setSelectedArticle(null);
-          setReviewFile(null);
-          setReviewComment("");
-          setReviewDecision("accept");
-        }}
-        title="Taqriz yuklash"
+        onClose={closeReviewModal}
+        title="Taqriz xulosasi yuborish"
       >
         <div className="space-y-4">
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-1">Maqola:</h3>
-            <p className="text-gray-600">{selectedArticle?.articleTitle}</p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Maqola sarlavhasi:</p>
+            <p className="mt-0.5 font-semibold text-slate-800">{selectedArticle?.articleTitle}</p>
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-indigo-500">
+              <FaUserSecret />Muallif ma'lumotlari yashirilgan (yopiq taqriz)
+            </p>
           </div>
 
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              To'ldirilishi kerak bo'lgan punktlar
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {reviewChecklist.map((item) => (
+                <div
+                  key={item.label}
+                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-semibold ${
+                    item.done
+                      ? "border-green-100 bg-green-50 text-green-700"
+                      : "border-red-100 bg-red-50 text-red-700"
+                  }`}
+                >
+                  <span className="grid h-4 w-4 place-items-center rounded-full bg-white text-[10px]">
+                    {item.done ? "✓" : "!"}
+                  </span>
+                  {item.label}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Taqriz fayli */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Taqriz fayli (doc, docx, pdf)
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+              Taqriz fayli <span className="text-red-500">*</span> (.doc, .docx, .pdf)
             </label>
             <input
               type="file"
@@ -451,85 +444,98 @@ function AdminDashboard({ userData }) {
               className="file-input file-input-bordered w-full"
             />
             {reviewFile && (
-              <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
-                <FaCheckCircle />
-                {reviewFile.name}
+              <p className="mt-1.5 flex items-center gap-1 text-sm text-green-600">
+                <FaCheckCircle className="text-xs" />{reviewFile.name}
               </p>
             )}
           </div>
 
+          {/* Xulosa matni — superadminga ko'rsatiladi */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Izoh (ixtiyoriy)
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+              Xulosa matni <span className="text-red-500">*</span>
+              <span className="ml-1.5 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-normal text-amber-600">
+                Superadminga ko'rinadi
+              </span>
+            </label>
+            <textarea
+              value={reviewConclusion}
+              onChange={(e) => setReviewConclusion(e.target.value)}
+              className={`textarea textarea-bordered w-full h-24 text-sm ${
+                reviewConclusion.trim().length > 0 && reviewConclusion.trim().length < 20
+                  ? "textarea-warning"
+                  : ""
+              }`}
+              placeholder="Maqolaning asosiy kamchiliklari yoki afzalliklari haqida batafsil xulosa yozing. Bu matn superadmin qaror chiqarishda asos bo'ladi..."
+            />
+            <p className="mt-1 text-[11px] text-slate-400">Minimal 20 ta belgi. Rad etishda sabab ko'rsatish majburiy.</p>
+          </div>
+
+          {/* Qo'shimcha izoh */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-600">
+              Qo'shimcha izoh <span className="text-slate-400">(ixtiyoriy)</span>
             </label>
             <textarea
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
-              className="textarea textarea-bordered w-full h-24"
-              placeholder="Taqriz bo'yicha izohlar..."
+              className="textarea textarea-bordered w-full h-16 text-sm"
+              placeholder="Texnik mulohazalar, formatlash, adabiyotlar haqida..."
             />
           </div>
 
+          {/* Tavsiya */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Taqrizchi xulosasi
-            </label>
-            <select
-              value={reviewDecision}
-              onChange={(e) => setReviewDecision(e.target.value)}
-              className="select select-bordered w-full"
-            >
-              <option value="accept">Qabul qilishga tavsiya qilaman</option>
-              <option value="reject">Rad etishga tavsiya qilaman</option>
-            </select>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Taqrizchi tavsiyasi</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setReviewDecision("accept")}
+                className={`rounded-xl border-2 px-4 py-3 text-sm font-bold transition ${
+                  reviewDecision === "accept"
+                    ? "border-green-500 bg-green-50 text-green-700"
+                    : "border-slate-200 bg-white text-slate-500 hover:border-green-300"
+                }`}
+              >
+                ✓ Qabul tavsiya
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewDecision("reject")}
+                className={`rounded-xl border-2 px-4 py-3 text-sm font-bold transition ${
+                  reviewDecision === "reject"
+                    ? "border-red-500 bg-red-50 text-red-700"
+                    : "border-slate-200 bg-white text-slate-500 hover:border-red-300"
+                }`}
+              >
+                ✗ Rad tavsiya
+              </button>
+            </div>
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              Bu tavsiya — yakuniy qaror superadminda qoladi.
+            </p>
           </div>
 
-          <div className="flex gap-3 justify-end pt-4">
-            <button
-              onClick={() => {
-                setSelectedArticle(null);
-                setReviewFile(null);
-                setReviewComment("");
-                setReviewDecision("accept");
-              }}
-              className="btn btn-ghost"
-              disabled={isSubmittingReview}
-            >
+          <div className="flex gap-3 justify-end pt-2">
+            <button onClick={closeReviewModal} className="btn btn-ghost" disabled={isSubmittingReview}>
               Bekor qilish
             </button>
             <button
               onClick={handleSubmitReview}
-              className="btn btn-primary"
-              disabled={!reviewFile || isSubmittingReview}
+              className="btn btn-primary gap-2"
+              disabled={!reviewFile || reviewConclusion.trim().length < 20 || isSubmittingReview}
             >
               {isSubmittingReview ? (
-                <>
-                  <span className="loading loading-spinner loading-sm"></span>
-                  Yuklanmoqda...
-                </>
+                <><span className="loading loading-spinner loading-sm"></span>Yuklanmoqda...</>
               ) : (
-                <>
-                  <FaUpload />
-                  Yuborish
-                </>
+                <><FaUpload />Superadminga yuborish</>
               )}
             </button>
           </div>
         </div>
       </Modal>
 
-      <ArticleDetailModal
-        isOpen={detailArticle !== null}
-        onClose={() => setDetailArticle(null)}
-        article={detailArticle}
-        role="admin"
-      />
-      <ArticleDetailModal
-        isOpen={messageArticle !== null}
-        onClose={() => setMessageArticle(null)}
-        article={messageArticle}
-        role="user"
-      />
+      <ArticleDetailModal isOpen={detailArticle !== null} onClose={() => setDetailArticle(null)} article={detailArticle} role="admin" />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import UserDashboard from "../dashboard/user/UserDashboard.jsx";
 import AdminDashboard from "../dashboard/admin/AdminDashboard.jsx";
 import SuperAdminDashboard from "../dashboard/superadmin/SuperAdminDashboard.jsx";
 import Modal from "../../components/Modal.jsx";
+import { NotificationProvider } from "../../context/NotificationContext.jsx";
 
 function AdminPanel() {
   const { auth, userData, logout, userRole: contextUserRole } = useContext(AuthContext);
@@ -243,7 +244,22 @@ function AdminPanel() {
     }
   };
 
+  const reviewerTestUser = useMemo(() => ({
+    email: "reviewer1@ktri.uz",
+    first_name: "Taqrizchi",
+    last_name: "Bir",
+    role: ROLES.ADMIN,
+  }), []);
+
+  const notificationUser = activeTab === "reviewer" && userRole === ROLES.SUPERADMIN
+    ? reviewerTestUser
+    : profileUser;
+  const notificationRole = activeTab === "reviewer" && userRole === ROLES.SUPERADMIN
+    ? ROLES.ADMIN
+    : userRole;
+
   return (
+    <NotificationProvider userData={notificationUser} userRole={notificationRole}>
     <div className={`min-h-screen ${roleConfig.gradient}`}>
       <AdminHeader
         userRole={userRole}
@@ -349,18 +365,12 @@ function AdminPanel() {
         )}
 
         {activeTab === "reviewer" && userRole === ROLES.SUPERADMIN && (
-          <AdminDashboard
-            userData={{
-              email: "reviewer1@ktri.uz",
-              first_name: "Taqrizchi",
-              last_name: "Bir",
-              role: ROLES.ADMIN,
-            }}
-          />
+          <AdminDashboard userData={reviewerTestUser} />
         )}
       </main>
 
       {/* Edit Profile Modal */}
+
       <Modal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
@@ -539,6 +549,7 @@ function AdminPanel() {
         </form>
       </Modal>
     </div>
+    </NotificationProvider>
   );
 }
 

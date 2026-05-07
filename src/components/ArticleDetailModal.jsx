@@ -9,7 +9,9 @@ import { ARTICLE_STATUS } from "../constants/roles.js";
 const USER_STATUS_STEPS = [
   { key: "submitted", label: "Yuborildi", statuses: [ARTICLE_STATUS.SUBMITTED] },
   { key: "screening", label: "Dastlabki ko'rik", statuses: [ARTICLE_STATUS.PAYMENT_PENDING] },
-  { key: "finalized", label: "Yakunlandi", statuses: [ARTICLE_STATUS.PAID, ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW, ARTICLE_STATUS.IN_EDITING, ARTICLE_STATUS.REVIEW_ACCEPTED, ARTICLE_STATUS.REVIEW_REJECTED, ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED] },
+  { key: "payment", label: "To'lov", statuses: [ARTICLE_STATUS.PAID] },
+  { key: "reviewing", label: "Taqriz", statuses: [ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW, ARTICLE_STATUS.IN_EDITING, ARTICLE_STATUS.REVIEW_ACCEPTED, ARTICLE_STATUS.REVIEW_REJECTED] },
+  { key: "finalized", label: "Yakunlandi", statuses: [ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED] },
 ];
 
 const SUPERADMIN_STATUS_STEPS = [
@@ -40,8 +42,8 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
     article.reviewDecision === ARTICLE_STATUS.REVIEW_REJECTED;
   const rejectedFromStep = (() => {
     if (!isRejected) return null;
-    if (article.reviewedAt || article.reviewDecision === ARTICLE_STATUS.REVIEW_REJECTED) return 3;
-    if (article.paidAt || article.assignedTo) return 3;
+    if (article.reviewedAt || article.reviewDecision === ARTICLE_STATUS.REVIEW_REJECTED) return role === "superadmin" ? 3 : 4;
+    if (article.paidAt || article.assignedTo) return role === "superadmin" ? 3 : 4;
     if (article.superAdminDecisionAt) return 1;
     return currentStep;
   })();
@@ -65,12 +67,12 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
   const submittedDate = article.submittedDate || article.createdAt || article.submittedAt;
 
   return (
-    <div className="fixed inset-0 z-[150] overflow-y-auto">
+    <div className="fixed inset-0 z-150 overflow-y-auto">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       <div className="flex min-h-screen items-start justify-center p-4 pt-8 pb-8">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-[151]">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-151">
 
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -180,7 +182,7 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
                   <p className="font-semibold">To'lov bosqichi ochildi</p>
                 </div>
                 <p className="mt-2 text-sm text-amber-800">
-                  Maqolangiz dastlabki ko'rikdan o'tdi. Paneldagi PAYME tugmasi orqali test to'lovni amalga oshiring.
+                  Maqolangiz dastlabki ko'rikdan o'tdi. Paneldagi <strong>CLICK</strong> tugmasi orqali test to'lovni amalga oshiring.
                 </p>
               </div>
             )}
@@ -295,9 +297,17 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
                     </a>
                   </div>
                 )}
-                {article.reviewComment && (
+                {article.reviewConclusion && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Taqrizchi izohi:</p>
+                    <p className="text-xs font-semibold text-purple-700 mb-1">Xulosa matni (superadminga):</p>
+                    <p className="text-sm text-gray-800 bg-white rounded-lg p-3 border border-purple-200 leading-relaxed">
+                      {article.reviewConclusion}
+                    </p>
+                  </div>
+                )}
+                {article.reviewComment && article.reviewComment !== article.reviewConclusion && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Qo'shimcha izoh:</p>
                     <p className="text-sm text-gray-700 bg-white rounded-lg p-3 border border-purple-100">
                       {article.reviewComment}
                     </p>
@@ -306,7 +316,7 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
                 {article.reviewedAt && (
                   <p className="text-xs text-gray-400">
                     Taqriz yuborilgan: {new Date(article.reviewedAt).toLocaleDateString("uz-UZ")}
-                    {article.reviewedBy && ` · Taqrizchi: ${article.reviewedBy}`}
+                    {role === "superadmin" && article.reviewedByName && ` · Taqrizchi: ${article.reviewedByName}`}
                   </p>
                 )}
               </div>
