@@ -10,6 +10,8 @@ const ROLE_ALIASES = {
   user: ROLES.USER,
   muallif: ROLES.USER,
   MUALLIF: ROLES.USER,
+  FOYDALANUVCHI: ROLES.USER,
+  foydalanuvchi: ROLES.USER,
   admin: ROLES.ADMIN,
   taqrizchi: ROLES.ADMIN,
   TAQRIZCHI: ROLES.ADMIN,

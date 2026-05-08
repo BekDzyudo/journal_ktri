@@ -1,10 +1,11 @@
-import React, { useState, useContext } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaPaperPlane, FaUser, FaPhone, FaFileUpload, FaCheckCircle, FaBook, FaTimes, FaFilePdf, FaGraduationCap, FaLightbulb } from 'react-icons/fa'
+import { FaPaperPlane, FaUser, FaFileUpload, FaCheckCircle, FaBook, FaTimes, FaFilePdf, FaGraduationCap, FaLightbulb, FaFileAlt } from 'react-icons/fa'
 import { toast } from 'react-toastify'
-import { AuthContext } from '../../context/AuthContext'
 import SEO from '../../components/SEO'
-import { fakeArticleApi } from '../../utils/fakeArticleApi'
+import { getAccessToken } from '../../utils/authStorage'
+import { parseApiError } from '../../utils/apiError'
+import useRuknlar from '../../hooks/useRuknlar'
 
 const INITIAL_FORM_DATA = {
   category: '',
@@ -22,20 +23,6 @@ const INITIAL_AUTHOR = {
   workplace: '',
   position: ''
 }
-
-const CATEGORIES = [
-  'Umumiy pedagogika, pedagogika tarixi va ta\'lim',
-  'Ta\'lim va tarbiya nazariyasi va metodikasi',
-  'Inklyuziv ta\'lim',
-  'Xalqaro tadqiqotlar',
-  'Maktab ta\'limini tashkil etish',
-  'Malaka oshirish va qayta tayyorlash',
-  'Ta\'lim menejmenti va boshqaruv',
-  'Ustoz-shogird',
-  'Kasbga yo\'naltirish',
-  'Psixologik xizmat',
-  'Ta\'lim uzluksizligi va islohotlar'
-]
 
 /** Platforma uchun asosiy ko‘k — Login, Contact va boshqalar bilan mos */
 const FORM_FOCUS_NORMAL =
@@ -63,8 +50,8 @@ const textareaClass = (hasError, extra = '') =>
   }`
 
 function SendJournal() {
-  const { userData } = useContext(AuthContext)
   const navigate = useNavigate()
+  const { ruknlar, isPending: ruknlarLoading, error: ruknlarError } = useRuknlar()
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
   const [authors, setAuthors] = useState([{ ...INITIAL_AUTHOR }])
   const [file, setFile] = useState(null)
@@ -110,13 +97,18 @@ function SendJournal() {
     const selectedFile = e.target.files[0]
     if (selectedFile) {
       const fileExtension = selectedFile.name.split('.').pop().toLowerCase()
-      if (fileExtension === 'pdf') {
+      const isDoc =
+        fileExtension === 'doc' ||
+        selectedFile.type === 'application/msword' ||
+        selectedFile.type === 'application/vnd.ms-word'
+
+      if (isDoc) {
         setFile(selectedFile)
         if (errors.file) {
           setErrors(prev => ({ ...prev, file: '' }))
         }
       } else {
-        setErrors(prev => ({ ...prev, file: 'Faqat .pdf formatdagi faylni yuklash mumkin' }))
+        setErrors(prev => ({ ...prev, file: 'Faqat .doc (Word 97–2003) formatdagi faylni yuklash mumkin' }))
         e.target.value = null
       }
     }
@@ -124,7 +116,8 @@ function SendJournal() {
 
   const removeFile = () => {
     setFile(null)
-    document.getElementById('fileInput').value = null
+    const el = document.getElementById('fileInput')
+    if (el) el.value = null
   }
 
   const validateForm = () => {
@@ -146,7 +139,6 @@ function SendJournal() {
     if (!formData.articleTitle.trim()) newErrors.articleTitle = 'Maqola nomini kiriting'
     if (!formData.keywords.trim()) newErrors.keywords = 'Kalit so\'zlarni kiriting'
     if (!formData.annotation.trim()) newErrors.annotation = 'Annotatsiyani kiriting'
-    if (!formData.bibliography.trim()) newErrors.bibliography = 'Adabiyotlar ro\'yxatini kiriting'
     if (!file) newErrors.file = 'Maqola faylini yuklang'
     if (!formData.acceptTerms) newErrors.acceptTerms = 'Oferta shartlarini qabul qilishingiz kerak'
 
@@ -183,24 +175,73 @@ function SendJournal() {
       return
     }
 
+    const accessToken = getAccessToken()
+    if (!accessToken) {
+      toast.error('Maqola yuborish uchun avval tizimga kiring.', { position: 'top-center' })
+      navigate('/login', { state: { from: '/send-article' } })
+      return
+    }
+
+    const rukn = parseInt(formData.category, 10)
+    const validIds = new Set(ruknlar.map((r) => r.id))
+    if (!Number.isFinite(rukn) || !validIds.has(rukn)) {
+      toast.error('Ruknni tanlang.', { position: 'top-center' })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      await fakeArticleApi.submitArticle({ formData, authors, file, userData })
+      const apiForm = new FormData()
+      apiForm.append('sarlavha', formData.articleTitle.trim())
+      apiForm.append('rukn', String(rukn))
+      apiForm.append('kalit_sozlar', formData.keywords.trim())
+      apiForm.append('annotatsiya', formData.annotation.trim())
+      apiForm.append('fayl', file, file.name)
 
-      toast.success('Maqola test API orqali superadminga yuborildi!', {
+      const mualliflar = authors.map((a) => ({
+        ism_familya: a.fullName.trim(),
+        telefon: a.phone.trim(),
+        email: a.email.trim(),
+        tashkilot: a.workplace.trim(),
+        lavozim: a.position.trim(),
+      }))
+      apiForm.append('mualliflar', JSON.stringify(mualliflar))
+
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/maqola-yuborish/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: apiForm,
+      })
+
+      let data = null
+      try {
+        data = await response.json()
+      } catch {
+        data = null
+      }
+
+      if (!response.ok) {
+        const msg = parseApiError(data, `Yuborish muvaffaqiyatsiz (${response.status})`)
+        throw new Error(msg)
+      }
+
+      toast.success("Maqola muvaffaqiyatli yuborildi. Holatni panelingizda kuzating.", {
         position: 'top-center',
-        autoClose: 3000,
+        autoClose: 4000,
       })
 
       setFormData(INITIAL_FORM_DATA)
       setAuthors([{ ...INITIAL_AUTHOR }])
       setFile(null)
-      document.getElementById('fileInput').value = null
-      navigate('/admin')
+      const inputEl = document.getElementById('fileInput')
+      if (inputEl) inputEl.value = null
+      navigate('/dashboard')
     } catch (error) {
       console.error('Error submitting article:', error)
-      toast.error('Maqola yuborishda xatolik: ' + error.message, {
+      toast.error(error.message || 'Maqola yuborishda xatolik yuz berdi', {
         position: 'top-center',
         autoClose: 5000,
       })
@@ -235,8 +276,8 @@ function SendJournal() {
               Maqola yuborish
             </h1>
             <p className="mx-auto max-w-3xl text-base text-slate-600 sm:text-lg">
-              Ilmiy maqolangizni jurnalimizda chop etish uchun arizani quyidagi qadamlarga boʻlib toʻldiring. Texnik talablar uchun o‘ngdagi blokni
-              unutmang — maqolangiz faqat PDF shaklda qabul qilinadi.
+              Ilmiy maqolangizni jurnalimizda chop etish uchun arizani quyidagi qadamlarga boʻlib toʻldiring. Fayl{' '}
+              <strong className="font-semibold text-slate-800">.doc</strong> formatida yuboriladi; texnik talablar uchun o‘ngdagi blokni unutmang.
             </p>
             <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-3 text-sm">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-slate-700 shadow-md backdrop-blur-md">
@@ -245,7 +286,7 @@ function SendJournal() {
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-slate-700 shadow-md backdrop-blur-md">
                 <FaLightbulb className="text-amber-500" />
-                PDF tasdiqlangan format
+                Word .doc format
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-slate-700 shadow-md backdrop-blur-md">
                 <FaCheckCircle className="text-emerald-600" />
@@ -485,16 +526,24 @@ function SendJournal() {
                       Rukn
                       <span className="ml-1 text-red-500">*</span>
                     </label>
+                    {ruknlarError && (
+                      <p className="mb-2 text-sm text-red-600">
+                        Ruknlarni yuklashda xatolik. Sahifani yangilab ko‘ring.
+                      </p>
+                    )}
                     <select
                       name="category"
                       value={formData.category}
                       onChange={handleChange}
+                      disabled={ruknlarLoading || !!ruknlarError || ruknlar.length === 0}
                       className={selectClass(!!errors.category)}
                     >
-                      <option value="">Tanlang</option>
-                      {CATEGORIES.map((cat, index) => (
-                        <option key={index} value={cat}>
-                          {cat}
+                      <option value="">
+                        {ruknlarLoading ? 'Ruknlar yuklanmoqda...' : 'Tanlang'}
+                      </option>
+                      {ruknlar.map((r) => (
+                        <option key={r.id} value={String(r.id)}>
+                          {r.kod ? `${r.kod}. ` : ''}{r.nom}
                         </option>
                       ))}
                     </select>
@@ -503,33 +552,30 @@ function SendJournal() {
 
                   <div>
                     <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                      Adabiyotlar ro'yxati
-                      <span className="ml-1 text-red-500">*</span>
+                      Adabiyotlar ro‘yxati
+                      <span className="ml-2 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">ixtiyoriy</span>
                     </label>
                     <textarea
                       name="bibliography"
                       value={formData.bibliography}
                       onChange={handleChange}
                       rows={10}
-                      className={textareaClass(!!errors.bibliography)}
-                      placeholder="APA yoki boshqa standartda ro'yxat"
+                      className={textareaClass(false)}
+                      placeholder="APA yoki boshqa standartda ro'yxat (hozircha API orqali yuborilmaydi)"
                     />
-                    {errors.bibliography && (
-                      <p className="mt-1.5 text-sm text-red-600">{errors.bibliography}</p>
-                    )}
                   </div>
                 </div>
 
-                {/* PDF */}
+                {/* Maqola fayli .doc */}
                 <div className="mt-10">
                   <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                    Maqola fayli (faqat PDF)
+                    Maqola fayli (faqat .doc)
                     <span className="ml-1 text-red-500">*</span>
                   </label>
                   <input
                     type="file"
                     id="fileInput"
-                    accept=".pdf,application/pdf"
+                    accept=".doc,application/msword"
                     onChange={handleFileChange}
                     className="hidden"
                   />
@@ -544,11 +590,11 @@ function SendJournal() {
                     }`}
                   >
                     <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg">
-                        <FaFilePdf className="text-2xl" />
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg">
+                        <FaFileAlt className="text-2xl" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-lg font-bold text-slate-800">{file ? file.name : 'PDF faylni bu yerga torting yoki tanlang'}</p>
+                        <p className="text-lg font-bold text-slate-800">{file ? file.name : '.doc faylni bu yerga torting yoki tanlang'}</p>
                         <p className="mt-1 text-sm text-slate-500">
                           Maksimal hajmdan oldin server cheklovi mavjud bo‘lishi mumkin — agar muammo chiqsa bizga yozing.
                         </p>

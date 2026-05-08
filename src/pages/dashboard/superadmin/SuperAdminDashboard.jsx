@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
   FaNewspaper, FaUsers, FaUserShield, FaCheckCircle, FaTimesCircle,
   FaEye, FaUserTimes, FaSearch, FaTag, FaFileUpload, FaFileAlt,
   FaDownload, FaExternalLinkAlt, FaClock,
   FaSyncAlt, FaCalendarAlt, FaArrowRight, FaThLarge, FaLayerGroup,
-  FaUserFriends, FaGavel,
+  FaUserFriends, FaGavel, FaUserCog,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
@@ -15,6 +15,11 @@ import {
   SUPERADMIN_STATUS_DISPLAY, SUPERADMIN_STATUS_COLORS,
 } from "../../../constants/roles.js";
 import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
+import { fetchWithAuth } from "../../../utils/authenticatedFetch.js";
+import { normalizeMaqolalarList } from "../../../utils/maqolaApi.js";
+import { parseApiError } from "../../../utils/apiError.js";
+import { getAccessToken } from "../../../utils/authStorage.js";
+import { AuthContext } from "../../../context/AuthContext.jsx";
 import {
   filterArticlesByDisplayStatus,
   filterArticlesByDateRange,
@@ -30,7 +35,10 @@ function getTodayStr() {
   return `${y}-${m}-${day}`;
 }
 
-function computeSuperAdminStats(submittedArticles, allUsers, adminUsers) {
+function computeSuperAdminStats(submittedArticles, allUsers) {
+  const authors = allUsers.filter((u) => normalizeRole(u.role) === ROLES.USER);
+  const reviewers = allUsers.filter((u) => normalizeRole(u.role) === ROLES.ADMIN);
+  const staffAdmins = allUsers.filter((u) => normalizeRole(u.role) === ROLES.SUPERADMIN);
   return {
     totalArticles: submittedArticles.length,
     newMaterials: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.SUBMITTED).length,
@@ -38,8 +46,174 @@ function computeSuperAdminStats(submittedArticles, allUsers, adminUsers) {
     inReview: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.IN_EDITING).length,
     accepted: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
     rejected: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
-    totalUsers: allUsers.filter((u) => normalizeRole(u.role) === ROLES.USER).length,
-    totalAdmins: adminUsers.length,
+    totalAuthors: authors.length,
+    totalReviewers: reviewers.length,
+    totalStaffAdmins: staffAdmins.length,
+    totalAllUsers: allUsers.length,
+    totalUsers: authors.length,
+    totalAdmins: reviewers.length,
+  };
+}
+
+function pickStatsNumber(source, keys, fallback = 0) {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value !== undefined && value !== null && value !== "") {
+      const numberValue = Number(value);
+      if (Number.isFinite(numberValue)) return numberValue;
+    }
+  }
+  return fallback;
+}
+
+function normalizeStatistikaPayload(raw, fallbackStats) {
+  const maq =
+    raw?.maqolalar && typeof raw.maqolalar === "object" && !Array.isArray(raw.maqolalar)
+      ? raw.maqolalar
+      : null;
+  const usersBlock =
+    raw?.foydalanuvchilar &&
+    typeof raw.foydalanuvchilar === "object" &&
+    !Array.isArray(raw.foydalanuvchilar)
+      ? raw.foydalanuvchilar
+      : null;
+
+  /** Admin API: { maqolalar: { jami, yangi, ... }, foydalanuvchilar: { mualliflar, taqrizchilar } } */
+  if (maq || usersBlock) {
+    return {
+      totalArticles: pickStatsNumber(
+        maq || {},
+        ["jami", "totalArticles", "total_articles", "jami_maqolalar"],
+        fallbackStats.totalArticles
+      ),
+      newMaterials: pickStatsNumber(
+        maq || {},
+        ["yangi", "newMaterials", "new_materials", "yangi_maqolalar", "submitted"],
+        fallbackStats.newMaterials
+      ),
+      assigned: pickStatsNumber(
+        maq || {},
+        ["tayinlangan", "assigned", "tayinlanganlar", "taqrizchiga_tayinlangan"],
+        fallbackStats.assigned
+      ),
+      inReview: pickStatsNumber(
+        maq || {},
+        ["taqrizda", "in_review", "inReview", "taqriz_kelgan", "taqriz_kelib_tushgan"],
+        maq ? 0 : fallbackStats.inReview
+      ),
+      accepted: pickStatsNumber(
+        maq || {},
+        ["qabul_qilingan", "accepted", "tasdiqlangan", "qabul_qilindi"],
+        fallbackStats.accepted
+      ),
+      rejected: pickStatsNumber(
+        maq || {},
+        ["rad_etilgan", "rejected", "rad_qilingan", "bekor_qilingan"],
+        fallbackStats.rejected
+      ),
+      totalUsers: pickStatsNumber(
+        usersBlock || {},
+        ["mualliflar"],
+        fallbackStats.totalUsers
+      ),
+      totalAdmins: pickStatsNumber(
+        usersBlock || {},
+        ["taqrizchilar"],
+        fallbackStats.totalAdmins
+      ),
+      totalAuthors: pickStatsNumber(
+        usersBlock || {},
+        ["mualliflar"],
+        fallbackStats.totalAuthors ?? fallbackStats.totalUsers
+      ),
+      totalReviewers: pickStatsNumber(
+        usersBlock || {},
+        ["taqrizchilar"],
+        fallbackStats.totalReviewers ?? fallbackStats.totalAdmins
+      ),
+      totalStaffAdmins: pickStatsNumber(
+        usersBlock || {},
+        ["adminlar"],
+        fallbackStats.totalStaffAdmins
+      ),
+      totalAllUsers: pickStatsNumber(
+        usersBlock || {},
+        ["jami", "jami_foydalanuvchilar", "jami_userlar", "total_users", "total"],
+        fallbackStats.totalAllUsers
+      ),
+    };
+  }
+
+  const source =
+    raw?.statistika && typeof raw.statistika === "object"
+      ? raw.statistika
+      : raw?.data && typeof raw.data === "object" && !Array.isArray(raw.data)
+        ? raw.data
+        : raw?.results && typeof raw.results === "object" && !Array.isArray(raw.results)
+          ? raw.results
+          : raw || {};
+
+  return {
+    totalArticles: pickStatsNumber(
+      source,
+      ["totalArticles", "total_articles", "jami_maqolalar", "jami"],
+      fallbackStats.totalArticles
+    ),
+    newMaterials: pickStatsNumber(
+      source,
+      ["newMaterials", "new_materials", "yangi_materiallar", "yangi_maqolalar", "yangi", "submitted"],
+      fallbackStats.newMaterials
+    ),
+    assigned: pickStatsNumber(
+      source,
+      ["assigned", "tayinlangan", "tayinlanganlar", "taqrizchiga_tayinlangan"],
+      fallbackStats.assigned
+    ),
+    inReview: pickStatsNumber(
+      source,
+      ["inReview", "in_review", "taqrizda", "taqriz_kelgan", "taqriz_kelib_tushgan"],
+      fallbackStats.inReview
+    ),
+    accepted: pickStatsNumber(
+      source,
+      ["accepted", "qabul_qilingan", "qabul_qilindi", "tasdiqlangan"],
+      fallbackStats.accepted
+    ),
+    rejected: pickStatsNumber(
+      source,
+      ["rejected", "rad_etilgan", "rad_qilingan", "bekor_qilingan"],
+      fallbackStats.rejected
+    ),
+    totalUsers: pickStatsNumber(
+      source,
+      ["mualliflar", "totalUsers", "total_users"],
+      fallbackStats.totalUsers
+    ),
+    totalAdmins: pickStatsNumber(
+      source,
+      ["taqrizchilar", "totalAdmins", "total_admins"],
+      fallbackStats.totalAdmins
+    ),
+    totalAuthors: pickStatsNumber(
+      source,
+      ["mualliflar", "totalAuthors"],
+      fallbackStats.totalAuthors ?? fallbackStats.totalUsers
+    ),
+    totalReviewers: pickStatsNumber(
+      source,
+      ["taqrizchilar", "totalReviewers"],
+      fallbackStats.totalReviewers ?? fallbackStats.totalAdmins
+    ),
+    totalStaffAdmins: pickStatsNumber(
+      source,
+      ["adminlar", "totalStaffAdmins"],
+      fallbackStats.totalStaffAdmins
+    ),
+    totalAllUsers: pickStatsNumber(
+      source,
+      ["jami", "jami_foydalanuvchilar", "jami_userlar", "totalAllUsers", "jami_foydalanuvchi"],
+      fallbackStats.totalAllUsers
+    ),
   };
 }
 
@@ -57,13 +231,122 @@ function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-b
 
 function SuperAdminDashboard({ userData, view = "articles" }) {
   const { refresh: refreshNotifications } = useNotifications();
+  const { refresh: refreshAccessToken } = useContext(AuthContext);
+
+  const loadArticlesFromApi = useCallback(async () => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base) {
+      throw new Error("VITE_BASE_URL sozlanmagan");
+    }
+
+    const res = await fetchWithAuth(
+      `${base}/admin/maqolalar/`,
+      { method: "GET" },
+      getAccessToken,
+      refreshAccessToken
+    );
+    const text = await res.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+
+    if (!res.ok) {
+      throw new Error(parseApiError(json, `${res.status} ${res.statusText || ""}`.trim()));
+    }
+
+    return normalizeMaqolalarList(json);
+  }, [refreshAccessToken]);
+
+  const loadUsersFromApi = useCallback(async () => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base) return [];
+
+    const res = await fetchWithAuth(
+      `${base}/admin/foydalanuvchilar/`,
+      { method: "GET" },
+      getAccessToken,
+      refreshAccessToken
+    );
+    const text = await res.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+
+    if (!res.ok) {
+      throw new Error(parseApiError(json, `${res.status} ${res.statusText || ""}`.trim()));
+    }
+
+    const list = Array.isArray(json)
+      ? json
+      : Array.isArray(json?.results)
+        ? json.results
+        : Array.isArray(json?.data)
+          ? json.data
+          : [];
+
+    return list.map((u) => {
+      const rawRol = u.rol ?? u.role ?? "";
+      const role = u.is_superuser ? ROLES.SUPERADMIN : normalizeRole(rawRol);
+      return {
+        ...u,
+        id: u.id ?? u.pk,
+        first_name: u.ism ?? u.first_name ?? "",
+        last_name: u.familiya ?? u.last_name ?? "",
+        email: u.email ?? "",
+        phone_number: u.telefon ?? u.phone_number ?? u.telefon_raqam ?? "",
+        role,
+      };
+    });
+  }, [refreshAccessToken]);
+
+  const loadStatsFromApi = useCallback(async () => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base) return null;
+
+    try {
+      const res = await fetchWithAuth(
+        `${base}/admin/statistika/`,
+        { method: "GET" },
+        getAccessToken,
+        refreshAccessToken
+      );
+      const text = await res.text();
+      let json = null;
+      try {
+        json = text ? JSON.parse(text) : null;
+      } catch {
+        json = null;
+      }
+
+      if (!res.ok) {
+        console.warn(
+          "[admin/statistika/] xatolik:",
+          parseApiError(json, `${res.status} ${res.statusText || ""}`.trim())
+        );
+        return null;
+      }
+
+      return json;
+    } catch (err) {
+      console.warn("[admin/statistika/] so'rov xatoligi:", err?.message);
+      return null;
+    }
+  }, [refreshAccessToken]);
 
   const [articles, setArticles] = useState([]);
+  const [statsData, setStatsData] = useState(null);
   const [users, setUsers] = useState([]);
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -79,26 +362,28 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [articlesData, usersData] = await Promise.all([
-        fakeArticleApi.getArticles(),
-        fakeArticleApi.getUsers(userData),
+      const [articlesData, statsApiData, usersData] = await Promise.all([
+        loadArticlesFromApi(),
+        loadStatsFromApi(),
+        loadUsersFromApi(),
       ]);
-      const normalizedUsers = usersData.map((u) => ({
-        ...u,
-        role: normalizeRole(u.role),
-      }));
+      const normalizedUsers = usersData;
       const adminUsers = normalizedUsers.filter((u) => u.role === ROLES.ADMIN);
 
       setArticles(articlesData);
+      setStatsData(statsApiData);
       setUsers(normalizedUsers);
       setAdmins(adminUsers);
     } catch (error) {
       console.error("Error fetching data:", error);
-      toast.error("Ma'lumotlarni yuklashda xatolik");
+      toast.error(
+        "Ma'lumotlarni yuklashda xatolik" +
+          (error?.message ? `: ${error.message}` : "")
+      );
     } finally {
       setLoading(false);
     }
-  }, [userData]);
+  }, [userData, loadArticlesFromApi, loadStatsFromApi, loadUsersFromApi]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -182,10 +467,21 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     [articles, dateFrom, dateTo]
   );
 
-  const dashboardStats = useMemo(
-    () => computeSuperAdminStats(dateFilteredArticles, users, admins),
-    [dateFilteredArticles, users, admins]
+  const fallbackStats = useMemo(
+    () => computeSuperAdminStats(dateFilteredArticles, users),
+    [dateFilteredArticles, users]
   );
+
+  const dashboardStats = useMemo(
+    () => normalizeStatistikaPayload(statsData, fallbackStats),
+    [statsData, fallbackStats]
+  );
+
+  useEffect(() => {
+    console.log("[statistika] API (statsData)", statsData);
+    console.log("[statistika] fallback (maqola/ro'yxatdan)", fallbackStats);
+    console.log("[statistika] panel (kartalar uchun)", dashboardStats);
+  }, [statsData, fallbackStats, dashboardStats]);
 
   const filteredArticles = useMemo(
     () =>
@@ -198,15 +494,27 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     [dateFilteredArticles, searchQuery, filterStatus]
   );
 
-  const filteredUsers = users.filter((user) => {
-    const searchLower = userSearchQuery.toLowerCase();
-    return (
-      user.first_name?.toLowerCase().includes(searchLower) ||
-      user.last_name?.toLowerCase().includes(searchLower) ||
-      user.email?.toLowerCase().includes(searchLower) ||
-      (user.phone_number && user.phone_number.includes(searchLower))
-    );
-  });
+  const filteredUsers = useMemo(() => {
+    const searchLower = userSearchQuery.trim().toLowerCase();
+    return users.filter((user) => {
+      const matchesSearch =
+        !searchLower ||
+        user.first_name?.toLowerCase().includes(searchLower) ||
+        user.last_name?.toLowerCase().includes(searchLower) ||
+        user.full_name?.toLowerCase().includes(searchLower) ||
+        user.email?.toLowerCase().includes(searchLower) ||
+        (user.phone_number && user.phone_number.toLowerCase().includes(searchLower));
+
+      if (!matchesSearch) return false;
+
+      const r = normalizeRole(user.role);
+      if (userRoleFilter === "all") return true;
+      if (userRoleFilter === "author") return r === ROLES.USER;
+      if (userRoleFilter === "reviewer") return r === ROLES.ADMIN;
+      if (userRoleFilter === "superadmin") return r === ROLES.SUPERADMIN;
+      return true;
+    });
+  }, [users, userSearchQuery, userRoleFilter]);
 
   const getStatusDisplay = (actualStatus) =>
     SUPERADMIN_STATUS_DISPLAY[actualStatus] || actualStatus;
@@ -244,25 +552,29 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     const handleOpenArticle = async (event) => {
       const articleId = event.detail?.articleId;
       if (!articleId) return;
-      let article = articles.find((a) => a.id === articleId);
+      let article = articles.find(
+        (a) => a.id === articleId || String(a.id) === String(articleId)
+      );
       if (!article) {
-        const latest = await fakeArticleApi.getArticles();
+        const latest = await loadArticlesFromApi();
         setArticles(latest);
-        article = latest.find((a) => a.id === articleId);
+        article = latest.find(
+          (a) => a.id === articleId || String(a.id) === String(articleId)
+        );
       }
       if (!article) return;
 
       setDetailArticle(article);
       requestAnimationFrame(() => {
         document
-          .querySelector(`[data-article-row="${articleId}"]`)
+          .querySelector(`[data-article-row="${article.id}"]`)
           ?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     };
 
     window.addEventListener("ktri:open-article", handleOpenArticle);
     return () => window.removeEventListener("ktri:open-article", handleOpenArticle);
-  }, [articles]);
+  }, [articles, loadArticlesFromApi]);
 
   const showArticles = view !== "users";
   const showUsers = view !== "articles";
@@ -423,7 +735,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               color="bg-green-500"
               iconColor="text-green-600"
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <StatsCard
                 icon={<FaCheckCircle />}
                 iconColor="text-green-500"
@@ -459,32 +771,16 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               <StatsCard
                 icon={<FaUsers />}
                 iconColor="text-blue-500"
-                title="Jami foydalanuvchilar"
-                value={dashboardStats.totalUsers}
+                title="Mualliflar"
+                value={dashboardStats.totalAuthors}
                 badge="Muallif"
                 badgeColor="text-blue-500"
                 barColor="bg-blue-500"
-                progress={70}
+                progress={100}
                 footer={
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
-                    Ro'yxatni ko'rish
-                  </span>
-                }
-              />
-              <StatsCard
-                icon={<FaUserShield />}
-                iconColor="text-purple-500"
-                title="Taqrizchilar"
-                value={dashboardStats.totalAdmins}
-                badge="Taqrizchi"
-                badgeColor="text-purple-500"
-                barColor="bg-purple-500"
-                progress={50}
-                footer={
-                  <span className="flex items-center gap-1.5">
-                    <FaArrowRight className="text-[9px]" />
-                    Boshqarish
+                    Statistika (API)
                   </span>
                 }
               />
@@ -543,6 +839,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               <table className="table w-full">
                 <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-400">
                   <tr>
+                    <th className="w-12 text-center">#</th>
                     <th className="text-left">Maqola nomi</th>
                     <th className="text-left">Mualliflar</th>
                     <th className="text-left">Yo'nalish</th>
@@ -556,13 +853,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="8" className="py-12 text-center">
+                      <td colSpan="9" className="py-12 text-center">
                         <span className="loading loading-spinner loading-lg text-emerald-500"></span>
                       </td>
                     </tr>
                   ) : filteredArticles.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="py-12 text-center">
+                      <td colSpan="9" className="py-12 text-center">
                         <div className="flex flex-col items-center gap-2 text-slate-400">
                           <FaNewspaper className="text-3xl opacity-30" />
                           <p className="text-sm">Maqolalar topilmadi</p>
@@ -570,7 +867,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredArticles.map((article) => (
+                    filteredArticles.map((article, idx) => (
                       <tr
                         key={article.id}
                         data-article-row={article.id}
@@ -578,6 +875,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                           article.status === ARTICLE_STATUS.IN_EDITING ? "bg-violet-50/40" : ""
                         }`}
                       >
+                        <td className="text-center text-sm font-bold tabular-nums text-slate-500">{idx + 1}</td>
                         <td className="max-w-[180px]">
                           <p className="truncate text-sm font-semibold text-slate-900">
                             {article.articleTitle}
@@ -711,16 +1009,16 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               color="bg-blue-500"
               iconColor="text-blue-600"
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatsCard
                 icon={<FaUsers />}
                 iconColor="text-blue-500"
-                title="Jami mualliflar"
-                value={dashboardStats.totalUsers}
+                title="Mualliflar"
+                value={dashboardStats.totalAuthors}
                 badge="Muallif"
                 badgeColor="text-blue-500"
                 barColor="bg-blue-500"
-                progress={70}
+                progress={100}
                 footer={
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
@@ -732,15 +1030,47 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaUserShield />}
                 iconColor="text-purple-500"
                 title="Taqrizchilar"
-                value={dashboardStats.totalAdmins}
+                value={dashboardStats.totalReviewers}
                 badge="Taqrizchi"
                 badgeColor="text-purple-500"
                 barColor="bg-purple-500"
-                progress={50}
+                progress={100}
                 footer={
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
                     Boshqarish
+                  </span>
+                }
+              />
+              <StatsCard
+                icon={<FaUserCog />}
+                iconColor="text-amber-600"
+                title="Adminlar"
+                value={dashboardStats.totalStaffAdmins}
+                badge="Admin"
+                badgeColor="text-amber-600"
+                barColor="bg-amber-500"
+                progress={100}
+                footer={
+                  <span className="flex items-center gap-1.5">
+                    <FaArrowRight className="text-[9px]" />
+                    Tizim adminlari
+                  </span>
+                }
+              />
+              <StatsCard
+                icon={<FaUserFriends />}
+                iconColor="text-teal-600"
+                title="Jami foydalanuvchilar"
+                value={dashboardStats.totalAllUsers}
+                badge="Jami"
+                badgeColor="text-teal-600"
+                barColor="bg-teal-500"
+                progress={100}
+                footer={
+                  <span className="flex items-center gap-1.5">
+                    <FaArrowRight className="text-[9px]" />
+                    Barcha akkauntlar
                   </span>
                 }
               />
@@ -760,19 +1090,25 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                     Mualliflar va taqrizchilar rollarini nazorat qilish.
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-100">
-                    {dashboardStats.totalUsers} muallif
+                    {dashboardStats.totalAuthors} muallif
                   </span>
                   <span className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-100">
-                    {dashboardStats.totalAdmins} taqrizchi
+                    {dashboardStats.totalReviewers} taqrizchi
+                  </span>
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-100">
+                    {dashboardStats.totalStaffAdmins} admin
+                  </span>
+                  <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 ring-1 ring-teal-100">
+                    {dashboardStats.totalAllUsers} jami
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="border-b border-slate-100 p-4">
-              <div className="relative">
+            <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
                 <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
                 <input
                   type="text"
@@ -782,12 +1118,28 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                   className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50 pl-8 text-sm"
                 />
               </div>
+              <div className="flex w-full flex-col gap-2 sm:w-56 sm:shrink-0">
+                <select
+                  value={userRoleFilter}
+                  onChange={(e) => setUserRoleFilter(e.target.value)}
+                  className="select select-bordered w-full rounded-xl border-slate-200 bg-slate-50 text-sm"
+                >
+                  <option value="all">Barcha rollar</option>
+                  <option value="author">Muallif</option>
+                  <option value="reviewer">Taqrizchi</option>
+                  <option value="superadmin">Admin / superuser</option>
+                </select>
+                <span className="text-center text-[11px] font-semibold text-slate-500 sm:text-right">
+                  Ko&apos;rsatilmoqda: {filteredUsers.length} ta
+                </span>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="table w-full">
                 <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-400">
                   <tr>
+                    <th className="w-12 text-center">#</th>
                     <th className="text-left">Ism Familiya</th>
                     <th className="text-left">Email</th>
                     <th className="text-left">Telefon</th>
@@ -798,13 +1150,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="5" className="py-12 text-center">
+                      <td colSpan="6" className="py-12 text-center">
                         <span className="loading loading-spinner loading-lg text-blue-500"></span>
                       </td>
                     </tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="py-12 text-center">
+                      <td colSpan="6" className="py-12 text-center">
                         <div className="flex flex-col items-center gap-2 text-slate-400">
                           <FaUsers className="text-3xl opacity-30" />
                           <p className="text-sm">Foydalanuvchilar topilmadi</p>
@@ -812,8 +1164,9 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((user) => (
-                      <tr key={user.email} className="border-slate-50 transition hover:bg-slate-50/70">
+                    filteredUsers.map((user, idx) => (
+                      <tr key={user.id ?? user.email} className="border-slate-50 transition hover:bg-slate-50/70">
+                        <td className="text-center text-sm font-bold tabular-nums text-slate-500">{idx + 1}</td>
                         <td>
                           <div className="flex items-center gap-2.5">
                             <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-linear-to-br from-slate-100 to-slate-200 text-xs font-bold text-slate-600">

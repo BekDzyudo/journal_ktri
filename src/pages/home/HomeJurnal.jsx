@@ -15,8 +15,10 @@ import {
 import HomeJurnalHero from "./HomeJurnalHero";
 import SEO from "../../components/SEO";
 import { Link } from "react-router-dom";
+import useRuknlar from "../../hooks/useRuknlar";
 
 function HomeJurnal() {
+  const { ruknlar, isPending: ruknlarLoading, error: ruknlarError } = useRuknlar();
   const [activeCard, setActiveCard] = useState(1);
   const [currentDatabaseIndex, setCurrentDatabaseIndex] = useState(0);
 
@@ -441,29 +443,37 @@ function HomeJurnal() {
             <h2 className="text-4xl font-bold text-gray-700 mb-6 font-serif">
               Ruknlar
             </h2>
-            
-            <div className="grid md:grid-cols-2 gap-4">
-              {[
-                "Umumiy pedagogika, pedagogika tarixi va ta'lim",
-                "Ta'lim va tarbiya nazariyasi va metodikasi",
-                "Inklyuziv ta'lim",
-                "Xalqaro tadqiqotlar",
-                "Kasbiy ta'limni tashkil etish",
-                "Malaka oshirish va qayta tayyorlash",
-                "Ta'lim menejmenti va boshqaruv",
-                "Ustoz-shogird",
-                "Kasbga yo'naltirish",
-                "Psixologik xizmat",
-                "Ta'lim uzluksizligi va islohotlar"
-              ].map((rukn, index) => (
-                <div key={index} className="bg-linear-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-l-4 border-info hover:shadow-lg transition-shadow">
-                  <div className="flex items-start gap-3">
-                    <span className="font-bold text-info text-2xl shrink-0">{index + 1}.</span>
-                    <p className="text-gray-800 text-[17px] font-medium pt-1">{rukn}</p>
+
+            {ruknlarLoading && (
+              <div className="flex justify-center py-12">
+                <span className="loading loading-spinner loading-lg text-info" />
+              </div>
+            )}
+            {ruknlarError && !ruknlarLoading && (
+              <p className="text-red-600">
+                Ruknlarni yuklashda xatolik yuz berdi. Keyinroq qayta urinib ko‘ring.
+              </p>
+            )}
+            {!ruknlarLoading && !ruknlarError && ruknlar.length === 0 && (
+              <p className="text-gray-600">Hozircha ruknlar ro‘yxati bo‘sh.</p>
+            )}
+            {!ruknlarLoading && !ruknlarError && ruknlar.length > 0 && (
+              <div className="grid md:grid-cols-2 gap-4">
+                {ruknlar.map((r, index) => (
+                  <div
+                    key={r.id}
+                    className="bg-linear-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-l-4 border-info hover:shadow-lg transition-shadow"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="font-bold text-info text-2xl shrink-0">
+                        {r.kod || String(index + 1)}.
+                      </span>
+                      <p className="text-gray-800 text-[17px] font-medium pt-1">{r.nom}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
