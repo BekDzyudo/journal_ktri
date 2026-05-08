@@ -273,7 +273,7 @@ function AdminPanel() {
         onLogout={handleLogout}
       />
 
-      <main className="px-4 pb-10 pt-28 sm:px-6 lg:ml-72 lg:px-8 lg:pt-24">
+      <main className="px-4 pb-10 sm:pb-20 pt-28 sm:px-6 lg:ml-72 lg:px-8 lg:pt-24">
         {/* Dashboard Tab */}
         {activeTab === "dashboard" && renderDashboard()}
 
