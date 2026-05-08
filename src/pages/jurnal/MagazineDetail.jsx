@@ -13,6 +13,13 @@ import {
 import { useHero } from "../../context/HeroContext";
 import SEO from "../../components/SEO";
 import useGetFetch from "../../hooks/useGetFetch";
+import DOMPurify from "dompurify";
+
+/** API dan kelgan HTML (masalan &lt;p&gt;...&lt;/p&gt;) dan meta uchun qisqa matn */
+function stripHtmlToPlainText(html) {
+  if (html == null || typeof html !== "string") return "";
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
 
 function MagazineDetail() {
   const { id } = useParams();
@@ -26,7 +33,6 @@ function MagazineDetail() {
   const { data: magazine, isPending, error } = useGetFetch(
     `${import.meta.env.VITE_BASE_URL}/jurnal-sonlari/${id}/`,
   );
-
   // Sanani formatlash
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -139,7 +145,7 @@ function MagazineDetail() {
     <>
       <SEO
         title={`${magazine.title} - KTRI`}
-        description={magazine.description}
+        description={stripHtmlToPlainText(magazine.description)}
         keywords={`ilmiy jurnal, ${magazine.year} yil, ${magazine.issue}-son, kasbiy ta'lim, KTRI jurnal`}
       />
 
@@ -201,14 +207,14 @@ function MagazineDetail() {
 
                 {/* Jurnal haqida */}
                 <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-2xl shadow-lg border-2 border-blue-100 p-6 lg:p-8">
-                  <div className="space-y-5">
-                    <p className="text-gray-800 text-base lg:text-lg leading-relaxed">
-                      O'zbekiston Respublikasi Prezidentining 2021-yil 25-yanvardagi <span className="font-semibold">"Maktabgacha va maktab ta'limi sohasidagi ilmiy-tadqiqot faoliyatini qo'llab quvvatlash hamda uzluksiz kasbiy rivojlantirish tizimini joriy qilish chora-tadbirlari to'g'risida"</span> <span className="font-bold text-blue-700">PQ-4963-son qarori</span> bilan 2021-yil <span className="font-semibold">A.Avloniy nomidagi pedagogik mahorat milliy institutida</span> <span className="font-bold text-[#0d4ea3]">"Maktab ta'limi: muammolar, izlanishlar, yechimlar"</span> nomli ilmiy-nazariy va o'quv-uslubiy jurnali ta'sis etilgan.
-                    </p>
-                    <p className="text-gray-800 text-base lg:text-lg leading-relaxed">
-                      2024-yil 11-sentyabrda Oʻzbekiston Respublikasi Prezidenti Administratsiya huzuridagi Ommaviy axborot kommunikatsiyalar agentligi tomonidan institut jurnalini <span className="font-bold text-[#0d4ea3]">"Maktab taʻlimi: muammolar, izlanishlar, yechimlar"</span> nomiga oʻzgarganligi haqida Ommaviy Axborot vositasi davlat roʻyxatidan oʻtkazilganligi toʻg'risidagi <span className="font-bold text-blue-700">№ 392864 raqamli guvohnoma</span>, shuningdek, 2024-yil 10-iyun sanasida Oʻzbekiston Respublikasi Milliy kutubxonasi tomonidan <span className="font-bold">373.3/.5 UO'K indeksi</span>, 2024-yil 13-sentyabrda "Maktab taʻlimi: muammolar, izlanishlar, yechimlar" jurnali uchun <span className="font-bold text-blue-700">3060-4788 raqamli ISSN</span> olindi. Jurnal O'zbekiston Respublikasi Oliy attestatsiya komissiyasining pedagogik texnologiyalar va psixologik tadqiqotlar bo'yicha ekspert kengashi tavsiyasi (29.10.2024-y., №10); OAK tartib qoida komissiya qarori (30.10.2024-y., № 10/24); OAK Rayosatining qarori (31.10.2024-y.,) №363/5)ga ko'ra <span className="font-bold text-green-700">"Oliy attestatsiya komissiyasining dissertatsiyalar asosiy ilmiy natijalarini chop etish tavsiya etilgan ilmiy nashrlar ro'yxati"ga kiritildi.</span>
-                    </p>
-                  </div>
+                  <div
+                    className="prose prose-lg max-w-none text-gray-800 leading-relaxed [&_a]:text-blue-600 [&_a]:underline [&_p:first-child]:mt-0 [&_p:last-child]:mb-0"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(magazine.description || "", {
+                        USE_PROFILES: { html: true },
+                      }),
+                    }}
+                  />
                 </div>
 
                 {/* Download Button */}
