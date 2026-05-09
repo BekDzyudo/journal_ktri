@@ -341,7 +341,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
   const { refresh: refreshAccessToken } = useContext(AuthContext);
   const { refresh: refreshNotifications } = useNotifications();
   const [articles, setArticles] = useState([]);
-  const [profilePayload, setProfilePayload] = useState(initialProfilePayload);
+  const [profilePayload, setProfilePayload] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -350,21 +350,14 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
   const [stats, setStats] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
 
-  useEffect(() => {
-    if (initialProfilePayload) {
-      setProfilePayload(initialProfilePayload);
-      setArticles(normalizeMaqolalarList(initialProfilePayload));
-      setLoading(false);
-    }
-  }, [initialProfilePayload]);
-
+  // Statistika — alohida, mustaqil fetch
   useEffect(() => {
     const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
     if (!base || !getAccessToken()) return;
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetchWithAuth(`${base}/profil/statistika`, { method: "GET" }, getAccessToken, refreshAccessToken);
+        const res = await fetchWithAuth(`${base}/profil/statistika/`, { method: "GET" }, getAccessToken, refreshAccessToken);
         const text = await res.text();
         let json = null;
         try { json = text ? JSON.parse(text) : null; } catch { json = null; }
@@ -375,42 +368,75 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     return () => { cancelled = true; };
   }, [refreshAccessToken]);
 
-  const fetchArticlesPayload = useCallback(async () => {
+  // Yagona maqolalar fetch funksiyasi — profil/maqolalar/ → profil/ zaxirasi
+  const fetchArticles = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
-    if (base && getAccessToken()) {
-      const res = await fetchWithAuth(`${base}/profil/`, { method: "GET" }, getAccessToken, refreshAccessToken);
-      const text = await res.text();
-      let json = null;
-      try { json = text ? JSON.parse(text) : null; } catch { json = null; }
-      if (res.ok) {
-        setProfilePayload(json);
-        return normalizeMaqolalarList(json);
-      }
-      console.warn("[UserDashboard] profil/", res.status, parseApiError(json, ""));
-      toast.error(parseApiError(json, "Profildan maqolalar ro'yxati yuklanmadi"));
-      return [];
-    }
-    const data = await fakeArticleApi.getMyArticles(userData);
-    return data.map((a) => normalizeMaqolaForDashboard(a));
-  }, [userData, refreshAccessToken]);
 
-  const fetchArticles = useCallback(async () => {
-    setLoading(true);
+    if (!base || !getAccessToken()) {
+      // Token yo'q — fake data
+      try {
+        const data = await fakeArticleApi.getMyArticles(userData);
+        setArticles(data.map((a) => normalizeMaqolaForDashboard(a)));
+      } catch { /* ignore */ }
+      setLoading(false);
+      return;
+    }
+
     try {
-      setArticles(await fetchArticlesPayload());
-    } catch (error) {
-      console.error("Error fetching articles:", error);
-      toast.error("Maqolalarni yuklashda xatolik");
+      // 1-urinish: profil/maqolalar/ (dedicated list endpoint)
+      let list = null;
+      const listRes = await fetchWithAuth(`${base}/profil/maqolalar/`, { method: "GET" }, getAccessToken, refreshAccessToken);
+      if (listRes.ok) {
+        const t = await listRes.text();
+        let j = null;
+        try { j = t ? JSON.parse(t) : null; } catch { j = null; }
+        const arr = normalizeMaqolalarList(j);
+        if (arr.length > 0) {
+          list = arr;
+          console.info(`[UserDashboard] profil/maqolalar/ → ${arr.length} ta maqola`);
+        }
+      }
+
+      // 2-urinish: profil/ (agar list endpoint bo'sh yoki yo'q bo'lsa)
+      if (!list) {
+        const profilRes = await fetchWithAuth(`${base}/profil/`, { method: "GET" }, getAccessToken, refreshAccessToken);
+        const t = await profilRes.text();
+        let j = null;
+        try { j = t ? JSON.parse(t) : null; } catch { j = null; }
+        if (profilRes.ok && j) {
+          setProfilePayload(j);
+          list = normalizeMaqolalarList(j);
+          console.info(`[UserDashboard] profil/ → ${list.length} ta maqola`);
+        } else {
+          console.warn("[UserDashboard] profil/", profilRes.status, parseApiError(j, ""));
+          toast.error(parseApiError(j, "Maqolalar ro'yxatini yuklashda xatolik"));
+          list = [];
+        }
+      }
+
+      setArticles(list);
+    } catch (err) {
+      console.error("[UserDashboard] fetchArticles xatolik:", err);
+      toast.error("Maqolalarni yuklashda xatolik yuz berdi");
+      setArticles([]);
     } finally {
       setLoading(false);
     }
-  }, [fetchArticlesPayload]);
+  }, [userData, refreshAccessToken]);
 
+  // Profil info AdminPanel dan kelsa — faqat profilePayload saqlaymiz (articles emas)
   useEffect(() => {
-    if (!userData?.email) return;
-    const t = setTimeout(() => { fetchArticles(); }, 0);
-    return () => clearTimeout(t);
-  }, [userData?.email, fetchArticles]);
+    if (initialProfilePayload) {
+      setProfilePayload(initialProfilePayload);
+    }
+  }, [initialProfilePayload]);
+
+  // Birinchi yuklash — token tayyor bo'lganda
+  useEffect(() => {
+    fetchArticles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const dateFilteredArticles = useMemo(
     () => filterArticlesByDateRange(articles, dateFrom, dateTo),
