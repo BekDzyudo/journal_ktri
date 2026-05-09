@@ -1,4 +1,8 @@
-import { ARTICLE_STATUS } from "../constants/roles.js";
+import {
+  ARTICLE_STATUS,
+  MUALLIF_API_HOLAT,
+  MUALLIF_API_HOLAT_LABELS,
+} from "../constants/roles.js";
 
 const VALID_STATUSES = new Set(Object.values(ARTICLE_STATUS));
 
@@ -24,9 +28,10 @@ function mualliflarString(m) {
   const list = m?.mualliflar;
   if (Array.isArray(list) && list.length) {
     return list
-      .map((a) =>
-        (a?.ism_familya || [a?.familiya, a?.ism, a?.sharif].filter(Boolean).join(" ")).trim()
-      )
+      .map((a) => {
+        if (typeof a === "string") return a.trim();
+        return (a?.ism_familya || [a?.familiya, a?.ism, a?.sharif].filter(Boolean).join(" ")).trim();
+      })
       .filter(Boolean)
       .join(", ");
   }
@@ -50,6 +55,7 @@ export function mapApiStatusToArticleStatus(v) {
 
   const ALIASES = {
     yuborildi: ARTICLE_STATUS.SUBMITTED,
+    yuborilgan: ARTICLE_STATUS.SUBMITTED,
     yangi: ARTICLE_STATUS.SUBMITTED,
     submitted: ARTICLE_STATUS.SUBMITTED,
     tolov_kutilmoqda: ARTICLE_STATUS.PAYMENT_PENDING,
@@ -67,14 +73,50 @@ export function mapApiStatusToArticleStatus(v) {
     salbiy_xulosa: ARTICLE_STATUS.REVIEW_REJECTED,
     review_rejected: ARTICLE_STATUS.REVIEW_REJECTED,
     qabul_qilindi: ARTICLE_STATUS.ACCEPTED,
+    qabul_qilingan: ARTICLE_STATUS.ACCEPTED,
     accepted: ARTICLE_STATUS.ACCEPTED,
     rad_etildi: ARTICLE_STATUS.REJECTED,
+    rad_etilgan: ARTICLE_STATUS.REJECTED,
     rejected: ARTICLE_STATUS.REJECTED,
+    nashr_etilgan: ARTICLE_STATUS.PUBLISHED,
+    published: ARTICLE_STATUS.PUBLISHED,
     qayta_korib_chiqish: ARTICLE_STATUS.REVISION_REQUIRED,
     revision: ARTICLE_STATUS.REVISION_REQUIRED,
   };
 
   return ALIASES[s] ?? ARTICLE_STATUS.SUBMITTED;
+}
+
+/** Backend `holat`: bo'sh joy → _, katta harf */
+export function normalizeApiHolatKey(holat) {
+  if (holat == null || holat === "") return null;
+  return String(holat).trim().toUpperCase().replace(/\s+/g, "_");
+}
+
+/** Muallif panelidagi 5 ta holatdan biri; API `holat` yoki ichki status bo'yicha */
+export function inferMuallifHolatKeyForPanel(article) {
+  if (article?.holatKey && MUALLIF_API_HOLAT_LABELS[article.holatKey]) {
+    return article.holatKey;
+  }
+  const fromHolat = normalizeApiHolatKey(article?.holat);
+  if (fromHolat && MUALLIF_API_HOLAT_LABELS[fromHolat]) return fromHolat;
+
+  const s = article?.status;
+  if (s === ARTICLE_STATUS.PUBLISHED) return MUALLIF_API_HOLAT.NASHR_ETILGAN;
+  if (s === ARTICLE_STATUS.REJECTED || s === ARTICLE_STATUS.REVIEW_REJECTED) {
+    return MUALLIF_API_HOLAT.RAD_ETILGAN;
+  }
+  if (s === ARTICLE_STATUS.ACCEPTED) return MUALLIF_API_HOLAT.QABUL_QILINGAN;
+  if (
+    s === ARTICLE_STATUS.ASSIGNED ||
+    s === ARTICLE_STATUS.UNDER_REVIEW ||
+    s === ARTICLE_STATUS.IN_EDITING ||
+    s === ARTICLE_STATUS.REVIEW_ACCEPTED ||
+    s === ARTICLE_STATUS.REVISION_REQUIRED
+  ) {
+    return MUALLIF_API_HOLAT.KORIB_CHIQILMOQDA;
+  }
+  return MUALLIF_API_HOLAT.YUBORILGAN;
 }
 
 /** Superadmin jadvali kutgan maydonlar bilan boyitadi */
@@ -97,7 +139,9 @@ export function normalizeMaqolaForDashboard(m) {
         [m.taqrizchi.first_name, m.taqrizchi.last_name].filter(Boolean).join(" ")
       : null);
 
+  const holatKey = normalizeApiHolatKey(m?.holat);
   const dateRaw =
+    m?.yuborilgan_vaqt ||
     m?.yuborilgan_sana ||
     m?.created_at ||
     m?.createdAt ||
@@ -109,6 +153,8 @@ export function normalizeMaqolaForDashboard(m) {
     ...m,
     id,
     pk: id,
+    holatKey: holatKey || null,
+    yuborilganVaqt: m?.yuborilgan_vaqt ?? null,
     articleTitle: m?.sarlavha ?? m?.articleTitle ?? m?.title ?? "",
     authorNames: mualliflarString(m),
     category: rukn?.nom ?? m?.category ?? m?.rukn_nomi ?? "",

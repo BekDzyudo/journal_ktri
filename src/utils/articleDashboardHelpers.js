@@ -32,6 +32,8 @@ export function uniqueDisplayStatuses(articles, statusDisplayMap) {
 
 export function getArticleDate(article) {
   return (
+    article.yuborilganVaqt ||
+    article.yuborilgan_vaqt ||
     article.submittedAt ||
     article.createdAt ||
     article.submittedDate ||
@@ -40,6 +42,30 @@ export function getArticleDate(article) {
     article.paidAt ||
     null
   );
+}
+
+/** dd.mm.yyyy */
+export function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${d}.${m}.${y}`;
+}
+
+/** dd.mm.yyyy HH:MM */
+export function formatArticleDateTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${d}.${m}.${y} ${h}:${min}`;
 }
 
 function toDateOnly(value, endOfDay = false) {

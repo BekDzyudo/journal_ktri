@@ -20,6 +20,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import NewPassword from "./pages/auth/NewPassword";
 import AdminPanel from "./pages/admin/AdminPanel";
+import UserArticleDetail from "./pages/dashboard/user/UserArticleDetail";
 
 function App() {
 
@@ -69,6 +70,10 @@ function App() {
         {
           path: "admin",
           element: <AdminPanel/>
+        },
+        {
+          path: "admin/articles/:articleId",
+          element: auth ? <UserArticleDetail /> : <Navigate to="/login" replace />
         },
         {
           path: "dashboard",

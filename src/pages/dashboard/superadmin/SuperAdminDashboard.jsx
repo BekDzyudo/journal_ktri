@@ -24,6 +24,7 @@ import {
   filterArticlesByDisplayStatus,
   filterArticlesByDateRange,
   uniqueDisplayStatuses,
+  formatDate,
 } from "../../../utils/articleDashboardHelpers.js";
 import { useNotifications } from "../../../context/NotificationContext.jsx";
 
@@ -893,9 +894,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                           )}
                         </td>
                         <td className="text-xs text-slate-500">
-                          {new Date(
-                            article.createdAt || article.submittedAt || article.submittedDate
-                          ).toLocaleDateString("uz-UZ")}
+                          {formatDate(article.createdAt || article.submittedAt || article.submittedDate)}
                         </td>
                         <td>
                           <span
@@ -917,7 +916,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                           </span>
                           {article.paidAt && (
                             <span className="mt-0.5 block text-[10px] text-slate-400">
-                              {new Date(article.paidAt).toLocaleDateString("uz-UZ")}
+                              {formatDate(article.paidAt)}
                             </span>
                           )}
                         </td>

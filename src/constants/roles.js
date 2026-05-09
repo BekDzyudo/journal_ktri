@@ -45,6 +45,7 @@ export const ARTICLE_STATUS = {
   ACCEPTED: 'accepted',             // Qabul qilindi
   REJECTED: 'rejected',             // Rad etildi
   REVISION_REQUIRED: 'revision',    // Qayta ko'rib chiqish
+  PUBLISHED: 'published',           // Nashr etilgan (muallif paneli / API)
 }
 
 // Status Display Names
@@ -60,6 +61,7 @@ export const STATUS_NAMES = {
   [ARTICLE_STATUS.ACCEPTED]: 'Qabul qilindi',
   [ARTICLE_STATUS.REJECTED]: 'Rad etildi',
   [ARTICLE_STATUS.REVISION_REQUIRED]: 'Qayta ko\'rib chiqish',
+  [ARTICLE_STATUS.PUBLISHED]: 'Nashr etilgan',
 }
 
 // Status Colors (for Tailwind CSS classes)
@@ -75,6 +77,7 @@ export const STATUS_COLORS = {
   [ARTICLE_STATUS.ACCEPTED]: 'bg-green-100 text-green-800 border-green-200',
   [ARTICLE_STATUS.REJECTED]: 'bg-red-100 text-red-800 border-red-200',
   [ARTICLE_STATUS.REVISION_REQUIRED]: 'bg-orange-100 text-orange-800 border-orange-200',
+  [ARTICLE_STATUS.PUBLISHED]: 'bg-teal-100 text-teal-800 border-teal-200',
 }
 
 // Role-based Status Display
@@ -92,6 +95,7 @@ export const USER_STATUS_DISPLAY = {
   [ARTICLE_STATUS.ACCEPTED]: 'Qabul qilindi',        // Qabul qilindi
   [ARTICLE_STATUS.REJECTED]: 'Rad etildi',           // Rad etildi
   [ARTICLE_STATUS.REVISION_REQUIRED]: 'Qayta ko\'rib chiqish', // Qayta ishlash kerak
+  [ARTICLE_STATUS.PUBLISHED]: 'Nashr etilgan',
 }
 
 export const ADMIN_STATUS_DISPLAY = {
@@ -106,6 +110,7 @@ export const ADMIN_STATUS_DISPLAY = {
   [ARTICLE_STATUS.ACCEPTED]: 'Qabul qilindi',        // Qabul qilindi
   [ARTICLE_STATUS.REJECTED]: 'Rad etildi',           // Rad etildi
   [ARTICLE_STATUS.REVISION_REQUIRED]: 'Qayta ko\'rib chiqish', // Qayta ishlash kerak
+  [ARTICLE_STATUS.PUBLISHED]: 'Nashr etilgan',
 }
 
 export const SUPERADMIN_STATUS_DISPLAY = {
@@ -120,6 +125,7 @@ export const SUPERADMIN_STATUS_DISPLAY = {
   [ARTICLE_STATUS.ACCEPTED]: 'Qabul qilindi',        // Qabul qilindi
   [ARTICLE_STATUS.REJECTED]: 'Rad etildi',           // Rad etildi
   [ARTICLE_STATUS.REVISION_REQUIRED]: 'Qayta ko\'rib chiqish', // Qayta ishlash kerak
+  [ARTICLE_STATUS.PUBLISHED]: 'Nashr etilgan',
 }
 
 // Role-based Status Colors
@@ -131,6 +137,37 @@ export const USER_STATUS_COLORS = {
   'Qabul qilindi': 'bg-green-100 text-green-800 border-green-200',
   'Rad etildi': 'bg-red-100 text-red-800 border-red-200',
   'Qayta ko\'rib chiqish': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Yuborilgan': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Ko\'rib chiqilmoqda': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  'Qabul qilingan': 'bg-green-100 text-green-800 border-green-200',
+  'Rad etilgan': 'bg-red-100 text-red-800 border-red-200',
+  'Nashr etilgan': 'bg-teal-100 text-teal-800 border-teal-200',
+}
+
+/** Backend `holat` qiymati — muallif paneli filtri va budjet */
+export const MUALLIF_API_HOLAT = {
+  YUBORILGAN: "YUBORILGAN",
+  KORIB_CHIQILMOQDA: "KORIB_CHIQILMOQDA",
+  QABUL_QILINGAN: "QABUL_QILINGAN",
+  RAD_ETILGAN: "RAD_ETILGAN",
+  NASHR_ETILGAN: "NASHR_ETILGAN",
+}
+
+/** MUALLIF_API_HOLAT → ko‘rinadigan matn */
+export const MUALLIF_API_HOLAT_LABELS = {
+  [MUALLIF_API_HOLAT.YUBORILGAN]: "Yuborilgan",
+  [MUALLIF_API_HOLAT.KORIB_CHIQILMOQDA]: "Ko'rib chiqilmoqda",
+  [MUALLIF_API_HOLAT.QABUL_QILINGAN]: "Qabul qilingan",
+  [MUALLIF_API_HOLAT.RAD_ETILGAN]: "Rad etilgan",
+  [MUALLIF_API_HOLAT.NASHR_ETILGAN]: "Nashr etilgan",
+}
+
+export const MUALLIF_API_HOLAT_COLORS = {
+  [MUALLIF_API_HOLAT.YUBORILGAN]: "bg-blue-100 text-blue-800 border-blue-200",
+  [MUALLIF_API_HOLAT.KORIB_CHIQILMOQDA]: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  [MUALLIF_API_HOLAT.QABUL_QILINGAN]: "bg-green-100 text-green-800 border-green-200",
+  [MUALLIF_API_HOLAT.RAD_ETILGAN]: "bg-red-100 text-red-800 border-red-200",
+  [MUALLIF_API_HOLAT.NASHR_ETILGAN]: "bg-teal-100 text-teal-800 border-teal-200",
 }
 
 export const ADMIN_STATUS_COLORS = {
@@ -144,6 +181,7 @@ export const ADMIN_STATUS_COLORS = {
   'Qabul qilindi': 'bg-green-100 text-green-800 border-green-200',
   'Rad etildi': 'bg-red-100 text-red-800 border-red-200',
   'Qayta ko\'rib chiqish': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Nashr etilgan': 'bg-teal-100 text-teal-800 border-teal-200',
 }
 
 export const SUPERADMIN_STATUS_COLORS = {
@@ -158,6 +196,7 @@ export const SUPERADMIN_STATUS_COLORS = {
   'Qabul qilindi': 'bg-green-100 text-green-800 border-green-200',
   'Rad etildi': 'bg-red-100 text-red-800 border-red-200',
   'Qayta ko\'rib chiqish': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Nashr etilgan': 'bg-teal-100 text-teal-800 border-teal-200',
 }
 
 // Role Permissions

@@ -14,6 +14,7 @@ import {
   filterArticlesByDisplayStatus,
   filterArticlesByDateRange,
   uniqueDisplayStatuses,
+  formatDate,
 } from "../../../utils/articleDashboardHelpers.js";
 import { useNotifications } from "../../../context/NotificationContext.jsx";
 
@@ -348,7 +349,7 @@ function AdminDashboard({ userData }) {
                     </td>
                     <td className="text-xs text-slate-500">{article.category || "—"}</td>
                     <td className="text-xs text-slate-500">
-                      {article.assignedAt ? new Date(article.assignedAt).toLocaleDateString("uz-UZ") : "—"}
+                      {article.assignedAt ? formatDate(article.assignedAt) : "—"}
                     </td>
                     <td>
                       <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getStatusColor(article.status)}`}>

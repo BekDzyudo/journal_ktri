@@ -13,14 +13,34 @@ import AdminDashboard from "../dashboard/admin/AdminDashboard.jsx";
 import SuperAdminDashboard from "../dashboard/superadmin/SuperAdminDashboard.jsx";
 import Modal from "../../components/Modal.jsx";
 import { NotificationProvider } from "../../context/NotificationContext.jsx";
+import { fetchWithAuth } from "../../utils/authenticatedFetch.js";
+import { parseApiError } from "../../utils/apiError.js";
+
+function normalizeProfilUser(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const raw = payload.malumotlar || payload.user || {};
+  if (!raw || typeof raw !== "object") return null;
+
+  return {
+    ...raw,
+    id: raw.id ?? payload.user?.id,
+    first_name: raw.first_name ?? raw.ism ?? payload.user?.ism ?? "",
+    last_name: raw.last_name ?? raw.familiya ?? payload.user?.familiya ?? "",
+    email: raw.email ?? payload.user?.email ?? "",
+    phone_number: raw.phone_number ?? raw.telefon ?? payload.user?.telefon ?? "",
+    role: normalizeRole(payload.rol ?? payload.user?.rol ?? raw.role),
+    tip: payload.tip,
+    tashkilot: raw.tashkilot ?? payload.user?.tashkilot ?? "",
+  };
+}
 
 function AdminPanel() {
-  const { auth, userData, logout, userRole: contextUserRole } = useContext(AuthContext);
+  const { auth, userData, logout, userRole: contextUserRole, refresh: refreshAccessToken } = useContext(AuthContext);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  
-  const userRole = normalizeRole(contextUserRole || userData?.role);
+  const [profilPayload, setProfilPayload] = useState(null);
+  const [profilError, setProfilError] = useState("");
 
   // Profile edit states
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -44,7 +64,49 @@ function AdminPanel() {
   const { data: user } = useGetFetchProfile(
     `${import.meta.env.VITE_BASE_URL}/user-data/`
   );
-  const profileUser = user || userData || {};
+  const profilUser = useMemo(() => normalizeProfilUser(profilPayload), [profilPayload]);
+  const profileUser = profilUser || user || userData || {};
+  const userRole = normalizeRole(profilPayload?.rol || contextUserRole || profileUser?.role || userData?.role);
+
+  useEffect(() => {
+    if (!auth) return;
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    const token = getAccessToken();
+    if (!base || !token) return;
+
+    let cancelled = false;
+    const loadProfil = async () => {
+      try {
+        setProfilError("");
+        const res = await fetchWithAuth(
+          `${base}/profil/`,
+          { method: "GET" },
+          getAccessToken,
+          refreshAccessToken
+        );
+        const text = await res.text();
+        let json = null;
+        try {
+          json = text ? JSON.parse(text) : null;
+        } catch {
+          json = null;
+        }
+        if (!res.ok) {
+          throw new Error(parseApiError(json, "Profil ma'lumotlarini yuklab bo'lmadi"));
+        }
+        if (!cancelled) setProfilPayload(json);
+      } catch (error) {
+        if (!cancelled) {
+          setProfilError(error.message || "Profil ma'lumotlarini yuklab bo'lmadi");
+        }
+      }
+    };
+
+    loadProfil();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth, refreshAccessToken]);
 
   useEffect(() => {
     if (!auth) {
@@ -240,7 +302,7 @@ function AdminPanel() {
       case ROLES.SUPERADMIN:
         return <SuperAdminDashboard userData={profileUser} view="articles" />;
       default:
-        return <UserDashboard userData={profileUser} />;
+        return <UserDashboard userData={profileUser} profilePayload={profilPayload} />;
     }
   };
 
@@ -291,6 +353,11 @@ function AdminPanel() {
             </div>
             
             <div className="space-y-6">
+              {profilError && userRole === ROLES.USER && (
+                <div className="alert alert-warning">
+                  <span>{profilError}</span>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Ism</label>
@@ -328,6 +395,35 @@ function AdminPanel() {
                     className="input input-bordered w-full bg-slate-50"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tashkilot</label>
+                  <input
+                    type="text"
+                    value={profileUser?.tashkilot || profileUser?.taskilot || ""}
+                    readOnly
+                    className="input input-bordered w-full bg-slate-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
+                  <input
+                    type="text"
+                    value={profilPayload?.rol || profileUser?.role || ""}
+                    readOnly
+                    className="input input-bordered w-full bg-slate-50"
+                  />
+                </div>
+                {userRole === ROLES.USER && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Maqolalar soni</label>
+                    <input
+                      type="text"
+                      value={`${profilPayload?.maqolalar?.length ?? 0} ta`}
+                      readOnly
+                      className="input input-bordered w-full bg-slate-50"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">

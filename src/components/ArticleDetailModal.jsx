@@ -5,13 +5,14 @@ import {
   FaBriefcase, FaFileUpload, FaPhone, FaEnvelope, FaDownload, FaExternalLinkAlt, FaCreditCard,
 } from "react-icons/fa";
 import { ARTICLE_STATUS } from "../constants/roles.js";
+import { getArticleDate, formatArticleDateTime, formatDate } from "../utils/articleDashboardHelpers.js";
 
 const USER_STATUS_STEPS = [
   { key: "submitted", label: "Yuborildi", statuses: [ARTICLE_STATUS.SUBMITTED] },
   { key: "screening", label: "Dastlabki ko'rik", statuses: [ARTICLE_STATUS.PAYMENT_PENDING] },
   { key: "payment", label: "To'lov", statuses: [ARTICLE_STATUS.PAID] },
   { key: "reviewing", label: "Taqriz", statuses: [ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW, ARTICLE_STATUS.IN_EDITING, ARTICLE_STATUS.REVIEW_ACCEPTED, ARTICLE_STATUS.REVIEW_REJECTED] },
-  { key: "finalized", label: "Yakunlandi", statuses: [ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED] },
+  { key: "finalized", label: "Yakunlandi", statuses: [ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED, ARTICLE_STATUS.PUBLISHED] },
 ];
 
 const SUPERADMIN_STATUS_STEPS = [
@@ -19,7 +20,7 @@ const SUPERADMIN_STATUS_STEPS = [
   { key: "screening", label: "Dastlabki xulosa", statuses: [ARTICLE_STATUS.PAYMENT_PENDING] },
   { key: "payment", label: "To'lov", statuses: [ARTICLE_STATUS.PAID] },
   { key: "reviewing", label: "Taqrizchi", statuses: [ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW, ARTICLE_STATUS.IN_EDITING] },
-  { key: "finalized", label: "Yakuniy", statuses: [ARTICLE_STATUS.REVIEW_ACCEPTED, ARTICLE_STATUS.REVIEW_REJECTED, ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED] },
+  { key: "finalized", label: "Yakuniy", statuses: [ARTICLE_STATUS.REVIEW_ACCEPTED, ARTICLE_STATUS.REVIEW_REJECTED, ARTICLE_STATUS.ACCEPTED, ARTICLE_STATUS.REJECTED, ARTICLE_STATUS.REVISION_REQUIRED, ARTICLE_STATUS.PUBLISHED] },
 ];
 
 function ArticleDetailModal({ isOpen, onClose, article, role }) {
@@ -51,6 +52,7 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
   const getFinalLabel = () => {
     if (article.status === ARTICLE_STATUS.PAID) return "To'lov qilindi";
     if (article.status === ARTICLE_STATUS.ACCEPTED) return "Qabul qilindi";
+    if (article.status === ARTICLE_STATUS.PUBLISHED) return "Nashr etilgan";
     if (article.status === ARTICLE_STATUS.REJECTED) return "Rad etildi";
     if (article.status === ARTICLE_STATUS.REVISION_REQUIRED) return "Qayta ko'rib chiqish";
     return "Yakunlandi";
@@ -58,13 +60,14 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
 
   const getFinalColor = () => {
     if (article.status === ARTICLE_STATUS.ACCEPTED) return "bg-green-500 border-green-500 text-white";
+    if (article.status === ARTICLE_STATUS.PUBLISHED) return "bg-teal-500 border-teal-500 text-white";
     if (article.status === ARTICLE_STATUS.REJECTED) return "bg-red-500 border-red-500 text-white";
     if (article.status === ARTICLE_STATUS.REVISION_REQUIRED) return "bg-orange-500 border-orange-500 text-white";
     return "bg-gray-400 border-gray-400 text-white";
   };
 
   const isFinalStep = (index) => index === statusSteps.length - 1;
-  const submittedDate = article.submittedDate || article.createdAt || article.submittedAt;
+  const submittedDate = getArticleDate(article);
 
   return (
     <div className="fixed inset-0 z-150 overflow-y-auto">
@@ -118,7 +121,7 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
                   if (isRejectedStep) labelClass = "text-red-600 font-semibold";
                   else if (isCompleted) labelClass = "text-green-600 font-medium";
                   else if (isCurrent) labelClass = isFinal
-                    ? (article.status === ARTICLE_STATUS.REJECTED ? "text-red-600 font-semibold" : article.status === ARTICLE_STATUS.ACCEPTED ? "text-green-600 font-semibold" : "text-orange-600 font-semibold")
+                    ? (article.status === ARTICLE_STATUS.REJECTED ? "text-red-600 font-semibold" : article.status === ARTICLE_STATUS.ACCEPTED ? "text-green-600 font-semibold" : article.status === ARTICLE_STATUS.PUBLISHED ? "text-teal-700 font-semibold" : "text-orange-600 font-semibold")
                     : "text-blue-600 font-semibold";
 
                   const displayLabel = isRejectedStep && isFinal ? "Rad etildi" : isCurrent && isFinal ? getFinalLabel() : step.label;
@@ -160,8 +163,14 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
               {article.phone && <InfoRow icon={<FaPhone />} label="Telefon" value={article.phone} />}
               <InfoRow
                 icon={<FaCalendar />}
-                label="Yuborilgan sana"
-                value={submittedDate ? new Date(submittedDate).toLocaleDateString("uz-UZ") : "-"}
+                label={role === "user" ? "Yuborilgan vaqt" : "Yuborilgan sana"}
+                value={
+                  submittedDate
+                    ? role === "user"
+                      ? formatArticleDateTime(submittedDate)
+                      : formatDate(submittedDate)
+                    : "—"
+                }
               />
               {role === "superadmin" && article.assignedTo && (
                 <InfoRow icon={<FaUser />} label="Tayinlangan taqrizchi" value={article.assignedToName || article.assignedTo} />
@@ -315,7 +324,7 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
                 )}
                 {article.reviewedAt && (
                   <p className="text-xs text-gray-400">
-                    Taqriz yuborilgan: {new Date(article.reviewedAt).toLocaleDateString("uz-UZ")}
+                    Taqriz yuborilgan: {formatDate(article.reviewedAt)}
                     {role === "superadmin" && article.reviewedByName && ` · Taqrizchi: ${article.reviewedByName}`}
                   </p>
                 )}
