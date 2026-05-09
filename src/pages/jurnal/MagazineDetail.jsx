@@ -71,14 +71,34 @@ function MagazineDetail() {
         a?.articleTitle ||
         `Maqola #${idx + 1}`;
 
-      const author =
-        a?.author ||
-        a?.authorName ||
-        a?.authorNames ||
-        a?.authors ||
-        a?.muallif ||
-        a?.mualliflar ||
-        "-";
+      const rawAuthor =
+        a?.author ??
+        a?.authorName ??
+        a?.authorNames ??
+        a?.authors ??
+        a?.muallif ??
+        a?.mualliflar ??
+        null;
+
+      const resolveAuthorString = (val) => {
+        if (!val) return "-";
+        if (typeof val === "string") return val;
+        if (Array.isArray(val)) {
+          const names = val
+            .map((m) => {
+              if (typeof m === "string") return m;
+              return m?.ism_familya || [m?.ism, m?.familiya].filter(Boolean).join(" ") || null;
+            })
+            .filter(Boolean);
+          return names.length > 0 ? names.join(", ") : "-";
+        }
+        if (typeof val === "object") {
+          return val?.ism_familya || [val?.ism, val?.familiya].filter(Boolean).join(" ") || "-";
+        }
+        return String(val);
+      };
+
+      const author = resolveAuthorString(rawAuthor);
 
       const pdfUrl =
         a?.pdf ||
