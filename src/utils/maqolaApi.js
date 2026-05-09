@@ -124,6 +124,7 @@ export function inferMuallifHolatKeyForPanel(article) {
   if (fromHolat && MUALLIF_API_HOLAT_LABELS[fromHolat]) return fromHolat;
 
   const s = article?.status;
+  if (s === ARTICLE_STATUS.PAYMENT_PENDING) return MUALLIF_API_HOLAT.TOLOV_KUTILMOQDA;
   if (s === ARTICLE_STATUS.PUBLISHED) return MUALLIF_API_HOLAT.NASHR_ETILGAN;
   if (s === ARTICLE_STATUS.REJECTED || s === ARTICLE_STATUS.REVIEW_REJECTED) {
     return MUALLIF_API_HOLAT.RAD_ETILGAN;

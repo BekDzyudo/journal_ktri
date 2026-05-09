@@ -29,6 +29,7 @@ import {
   formatArticleDateTime,
   formatDate,
 } from "../../../utils/articleDashboardHelpers.js";
+import useGetFetch from "../../../hooks/useGetFetch.jsx";
 
 const MUALLIF_HOLAT_FILTER_ORDER = Object.values(MUALLIF_API_HOLAT);
 
@@ -74,6 +75,9 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay }) {
   const [data, setData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
   const [detailError, setDetailError] = useState("");
+
+
+  
 
   useEffect(() => {
     if (!articleId) return;
@@ -361,8 +365,16 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
         const text = await res.text();
         let json = null;
         try { json = text ? JSON.parse(text) : null; } catch { json = null; }
-        if (res.ok && json && !cancelled) setStats(json);
-      } catch { /* fallback to local */ }
+        if (!cancelled) {
+          if (res.ok) {
+            if (json) setStats(json);
+          } else {
+            console.warn("[profil/statistika/] xatolik:", res.status, json ?? text);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) console.warn("[profil/statistika/] so'rov xatolik:", e?.message || e);
+      }
     };
     load();
     return () => { cancelled = true; };
@@ -446,6 +458,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
   const localStats = useMemo(() => ({
     total: articles.length,
     submitted: articles.filter((a) => a.holat === "YUBORILGAN" || a.status === ARTICLE_STATUS.SUBMITTED).length,
+    paymentPending: articles.filter((a) => a.holat === "TOLOV_KUTILMOQDA" || a.status === ARTICLE_STATUS.PAYMENT_PENDING).length,
     koribChiqilmoqda: articles.filter((a) => [ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW, ARTICLE_STATUS.IN_EDITING].includes(a.status)).length,
     accepted: articles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
     rejected: articles.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
@@ -457,6 +470,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     return {
       total: stats.jami ?? localStats.total,
       submitted: stats.yuborilgan ?? localStats.submitted,
+      paymentPending: stats.tolov_kutilmoqda ?? localStats.paymentPending,
       koribChiqilmoqda: stats.korib_chiqilmoqda ?? localStats.koribChiqilmoqda,
       accepted: stats.qabul_qilingan ?? localStats.accepted,
       rejected: stats.rad_etilgan ?? localStats.rejected,
@@ -576,13 +590,16 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
       {/* Stats */}
       <div>
         <SectionHeader icon={<FaLayerGroup />} title="Maqolalar monitoringi" color="bg-blue-500" iconColor="text-blue-600" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-7">
           <StatsCard icon={<FaNewspaper />} iconColor="text-blue-500" title="Jami" value={dashboardStats.total}
             badge="Hammasi" badgeColor="text-blue-500" barColor="bg-blue-500" progress={100}
             footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Barcha</span>} />
           <StatsCard icon={<FaArrowRight />} iconColor="text-sky-500" title="Yuborilgan" value={dashboardStats.submitted}
             total={dashboardStats.total} badge="Yangi" badgeColor="text-sky-500" barColor="bg-sky-400"
             footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Ko'rilmagan</span>} />
+          <StatsCard icon={<FaCreditCard />} iconColor="text-amber-500" title="To'lov kutilmoqda" value={dashboardStats.paymentPending}
+            total={dashboardStats.total} badge="To'lov" badgeColor="text-amber-500" barColor="bg-amber-400"
+            footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />To'lov kutilmoqda</span>} />
           <StatsCard icon={<FaClock />} iconColor="text-amber-500" title="Ko'rib chiqilmoqda" value={dashboardStats.koribChiqilmoqda}
             total={dashboardStats.total} badge="Jarayonda" badgeColor="text-amber-500" barColor="bg-amber-400"
             footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Taqrizda</span>} />

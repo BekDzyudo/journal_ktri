@@ -72,20 +72,37 @@ function ArticleDetail() {
     }
     return [];
   };
-
   // Muallifni normalize qilish
-  const getAuthor = () => {
-    if (article?.muallif?.ism_familya) {
-      return article.muallif.ism_familya;
+  const getAuthors = () => {
+    const rawAuthors = article?.muallif ?? article?.mualliflar ?? article?.authors ?? [];
+    if (Array.isArray(rawAuthors)) {
+      return [...rawAuthors]
+        .sort((a, b) => (a?.tartib ?? 0) - (b?.tartib ?? 0))
+        .map((a) => {
+          if (typeof a === "string") return { ism_familya: a };
+          return {
+            ...a,
+            ism_familya: a?.ism_familya || [a?.ism, a?.familiya].filter(Boolean).join(" "),
+          };
+        })
+        .filter((a) => a.ism_familya);
     }
-    return (
-      article?.author ||
-      article?.authorName ||
-      article?.authorNames ||
-      article?.authors ||
-      article?.mualliflar ||
-      "-"
-    );
+    if (rawAuthors && typeof rawAuthors === "object") {
+      return [{
+        ...rawAuthors,
+        ism_familya: rawAuthors.ism_familya || [rawAuthors.ism, rawAuthors.familiya].filter(Boolean).join(" "),
+      }].filter((a) => a.ism_familya);
+    }
+    return [];
+  };
+
+  const getAuthor = () => {
+    const authors = getAuthors();
+    if (authors.length > 0) {
+      return authors.map((a) => a.ism_familya).join(", ");
+    }
+    const fallback = article?.author || article?.authorName || article?.authorNames || "-";
+    return typeof fallback === "string" ? fallback : "-";
   };
 
   // PDF URL ni normalize qilish
@@ -160,6 +177,7 @@ function ArticleDetail() {
 
   const pdfUrl = getPdfUrl();
   const keywords = getKeywords();
+  const authors = getAuthors();
   const author = getAuthor();
   const journalImage = getJournalImage();
 
@@ -283,7 +301,7 @@ function ArticleDetail() {
                           <FaUser className="text-blue-700" size={14} />
                         </div>
                         <div>
-                          <p className="text-xs text-gray-600 font-semibold">Muallif</p>
+                          <p className="text-xs text-gray-600 font-semibold">Mualliflar</p>
                           <p className="text-sm font-bold text-gray-900">{author}</p>
                         </div>
                       </div>
@@ -302,7 +320,7 @@ function ArticleDetail() {
                         </div>
                       )}
 
-                      {article.boshqa_mualliflar && (
+                      {article.boshqa_mualliflar && authors.length === 0 && (
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0">
                             <FaUsers className="text-blue-700" size={18} />
@@ -383,60 +401,65 @@ function ArticleDetail() {
                 )}
 
                 {/* Author & Organization Info */}
-                {article.muallif && (
+                {authors.length > 0 && (
                   <div className="bg-gradient-to-br from-purple-50 via-white to-purple-50 rounded-2xl shadow-lg border-2 border-purple-100 p-6 lg:p-8">
                     <h2 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-3">
-                      <FaUser className="text-purple-600" size={20} />
-                      Muallif haqida
+                      <FaUsers className="text-purple-600" size={20} />
+                      Mualliflar haqida
                     </h2>
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
-                          <FaUser className="text-purple-700" size={16} />
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">F.I.Sh</p>
-                          <p className="font-bold text-gray-900">{article.muallif.ism_familya}</p>
-                        </div>
-                      </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {authors.map((authorItem, idx) => (
+                        <div key={authorItem.id ?? `${authorItem.email}-${idx}`} className="rounded-xl border border-purple-100 bg-white/80 p-4">
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
+                                <FaUser className="text-purple-700" size={16} />
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-600">F.I.Sh</p>
+                                <p className="font-bold text-gray-900">{authorItem.ism_familya}</p>
+                              </div>
+                            </div>
+                            <span className="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                              {idx === 0 ? "Asosiy muallif" : "Hammuallif"}
+                            </span>
+                          </div>
 
-                      {article.muallif.lavozim && (
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
-                            <FaBriefcase className="text-purple-700" size={16} />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Lavozim</p>
-                            <p className="font-semibold text-gray-900">{article.muallif.lavozim}</p>
-                          </div>
-                        </div>
-                      )}
+                          <div className="space-y-3">
+                            {authorItem.lavozim && (
+                              <div className="flex items-start gap-2">
+                                <FaBriefcase className="mt-0.5 text-purple-500" size={14} />
+                                <div>
+                                  <p className="text-xs text-gray-500">Lavozim</p>
+                                  <p className="text-sm font-semibold text-gray-900">{authorItem.lavozim}</p>
+                                </div>
+                              </div>
+                            )}
 
-                      {article.muallif.tashkilot && (
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
-                            <FaBuilding className="text-purple-700" size={16} />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Tashkilot</p>
-                            <p className="font-semibold text-gray-900">{article.muallif.tashkilot}</p>
-                          </div>
-                        </div>
-                      )}
+                            {authorItem.tashkilot && (
+                              <div className="flex items-start gap-2">
+                                <FaBuilding className="mt-0.5 text-purple-500" size={14} />
+                                <div>
+                                  <p className="text-xs text-gray-500">Tashkilot</p>
+                                  <p className="text-sm font-semibold text-gray-900">{authorItem.tashkilot}</p>
+                                </div>
+                              </div>
+                            )}
 
-                      {article.muallif.email && (
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
-                            <FaEnvelope className="text-purple-700" size={16} />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Email</p>
-                            <a href={`mailto:${article.muallif.email}`} className="font-semibold text-blue-600 hover:text-blue-800 break-all">
-                              {article.muallif.email}
-                            </a>
+                            {authorItem.email && (
+                              <div className="flex items-start gap-2">
+                                <FaEnvelope className="mt-0.5 text-purple-500" size={14} />
+                                <div>
+                                  <p className="text-xs text-gray-500">Email</p>
+                                  <a href={`mailto:${authorItem.email}`} className="text-sm font-semibold text-blue-600 hover:text-blue-800 break-all">
+                                    {authorItem.email}
+                                  </a>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
+                      ))}
                     </div>
                   </div>
                 )}

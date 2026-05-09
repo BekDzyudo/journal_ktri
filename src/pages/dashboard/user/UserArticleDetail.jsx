@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   FaArrowLeft,
   FaCalendarAlt,
-  FaEnvelope,
   FaFileAlt,
   FaLayerGroup,
   FaNewspaper,
@@ -14,15 +13,12 @@ import { AuthContext } from "../../../context/AuthContext.jsx";
 import { getAccessToken } from "../../../utils/authStorage.js";
 import { fetchWithAuth } from "../../../utils/authenticatedFetch.js";
 import { parseApiError } from "../../../utils/apiError.js";
-import {
-  inferMuallifHolatKeyForPanel,
-  normalizeMaqolalarList,
-} from "../../../utils/maqolaApi.js";
+import { inferMuallifHolatKeyForPanel } from "../../../utils/maqolaApi.js";
 import {
   MUALLIF_API_HOLAT_COLORS,
   MUALLIF_API_HOLAT_LABELS,
 } from "../../../constants/roles.js";
-import { formatArticleDateTime, getArticleDate } from "../../../utils/articleDashboardHelpers.js";
+import { formatArticleDateTime, formatDate } from "../../../utils/articleDashboardHelpers.js";
 
 function DetailRow({ icon, label, value }) {
   return (
@@ -36,22 +32,20 @@ function DetailRow({ icon, label, value }) {
   );
 }
 
-function getAuthorInfo(payload) {
-  const raw = payload?.malumotlar || payload?.user || {};
-  const name = [raw?.ism || raw?.first_name, raw?.familiya || raw?.last_name].filter(Boolean).join(" ");
-  return {
-    name,
-    email: raw?.email || payload?.user?.email || "",
-    phone: raw?.telefon || raw?.phone_number || payload?.user?.telefon || "",
-    role: payload?.rol || payload?.user?.rol || "MUALLIF",
-  };
+function getAuthorsText(article) {
+  const list = article?.muallif;
+  if (!Array.isArray(list) || list.length === 0) return "—";
+  return [...list]
+    .sort((a, b) => (a?.tartib ?? 0) - (b?.tartib ?? 0))
+    .map((m) => m?.ism_familya)
+    .filter(Boolean)
+    .join(", ") || "—";
 }
 
 function UserArticleDetail() {
   const { articleId } = useParams();
   const navigate = useNavigate();
   const { refresh: refreshAccessToken } = useContext(AuthContext);
-  const [profilePayload, setProfilePayload] = useState(null);
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -71,7 +65,7 @@ function UserArticleDetail() {
       setError("");
       try {
         const res = await fetchWithAuth(
-          `${base}/profil/`,
+          `${base}/profil/maqolalar/${articleId}/`,
           { method: "GET" },
           getAccessToken,
           refreshAccessToken
@@ -84,15 +78,10 @@ function UserArticleDetail() {
           json = null;
         }
         if (!res.ok) {
-          throw new Error(parseApiError(json, "Profil ma'lumotlarini yuklab bo'lmadi"));
-        }
-        const found = normalizeMaqolalarList(json).find((item) => String(item.id) === String(articleId));
-        if (!found) {
-          throw new Error("Maqola topilmadi.");
+          throw new Error(parseApiError(json, "Maqola ma'lumotlarini yuklab bo'lmadi"));
         }
         if (!cancelled) {
-          setProfilePayload(json);
-          setArticle(found);
+          setArticle(json);
         }
       } catch (err) {
         if (!cancelled) setError(err.message || "Maqolani yuklashda xatolik");
@@ -116,7 +105,7 @@ function UserArticleDetail() {
     };
   }, [article]);
 
-  const authorInfo = useMemo(() => getAuthorInfo(profilePayload), [profilePayload]);
+  const authorNames = useMemo(() => getAuthorsText(article), [article]);
 
   if (loading) {
     return (
@@ -168,7 +157,7 @@ function UserArticleDetail() {
                   Maqola tafsilotlari
                 </div>
                 <h1 className="text-2xl font-black leading-tight text-slate-950">
-                  {article.articleTitle || "Maqola"}
+                  {article.sarlavha || article.articleTitle || "Maqola"}
                 </h1>
               </div>
               <span className={`inline-flex w-max items-center rounded-full border px-3 py-1 text-xs font-bold ${statusInfo.className}`}>
@@ -178,13 +167,38 @@ function UserArticleDetail() {
           </div>
 
           <div className="grid gap-4 p-6 md:grid-cols-2">
-            <DetailRow icon={<FaUser />} label="Mualliflar" value={article.authorNames} />
-            <DetailRow icon={<FaCalendarAlt />} label="Yuborilgan vaqt" value={formatArticleDateTime(getArticleDate(article))} />
+            <DetailRow icon={<FaUser />} label="Mualliflar" value={authorNames} />
+            <DetailRow icon={<FaCalendarAlt />} label="Yuborilgan vaqt" value={formatArticleDateTime(article.yuborilgan_vaqt)} />
             <DetailRow icon={<FaTag />} label="Holat kaliti" value={article.holat || article.holatKey} />
-            <DetailRow icon={<FaLayerGroup />} label="Rukn" value={article.category || article.rukn?.nom} />
-            <DetailRow icon={<FaUser />} label="Profil egasi" value={authorInfo.name} />
-            <DetailRow icon={<FaEnvelope />} label="Email" value={authorInfo.email} />
+            <DetailRow icon={<FaLayerGroup />} label="Rukn" value={article.rukn?.nom} />
+            <DetailRow icon={<FaTag />} label="Rukn kodi" value={article.rukn?.kod} />
+            <DetailRow icon={<FaTag />} label="Kalit so'zlar" value={article.kalit_sozlar} />
+            <DetailRow icon={<FaCalendarAlt />} label="Nashr sanasi" value={formatDate(article.nashr_sanasi)} />
           </div>
+
+          {Array.isArray(article.muallif) && article.muallif.length > 0 && (
+            <div className="border-t border-slate-100 p-6">
+              <p className="mb-3 text-xs font-black uppercase tracking-wider text-slate-400">Mualliflar</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {[...article.muallif]
+                  .sort((a, b) => (a?.tartib ?? 0) - (b?.tartib ?? 0))
+                  .map((m, idx) => (
+                    <div key={`${m.email}-${idx}`} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-sm font-black text-slate-900">{m.ism_familya || "—"}</p>
+                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                          {idx === 0 ? "Asosiy muallif" : "Hammuallif"}
+                        </span>
+                      </div>
+                      {m.email && <p className="text-xs text-slate-500"><b>Email:</b> {m.email}</p>}
+                      {m.telefon && <p className="text-xs text-slate-500"><b>Telefon:</b> {m.telefon}</p>}
+                      {m.tashkilot && <p className="text-xs text-slate-500"><b>Tashkilot:</b> {m.tashkilot}</p>}
+                      {m.lavozim && <p className="text-xs text-slate-500"><b>Lavozim:</b> {m.lavozim}</p>}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
           {(article.annotatsiya || article.annotation) && (
             <div className="border-t border-slate-100 p-6">
@@ -193,10 +207,33 @@ function UserArticleDetail() {
             </div>
           )}
 
-          {article.articleFileUrl && (
+          {article.rad_sababi && (
+            <div className="border-t border-red-100 bg-red-50 p-6">
+              <p className="mb-2 text-xs font-black uppercase tracking-wider text-red-500">Rad etilish sababi</p>
+              <p className="text-sm leading-7 text-red-700">{article.rad_sababi}</p>
+            </div>
+          )}
+
+          {article.adabiyotlar && (
+            <div className="border-t border-slate-100 p-6">
+              <p className="mb-2 text-xs font-black uppercase tracking-wider text-slate-400">Adabiyotlar</p>
+              <p className="whitespace-pre-line text-sm leading-7 text-slate-700">{article.adabiyotlar}</p>
+            </div>
+          )}
+
+          {article.how_to_cite && (
+            <div className="border-t border-slate-100 p-6">
+              <p className="mb-2 text-xs font-black uppercase tracking-wider text-slate-400">Iqtibos keltirish</p>
+              <p className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm italic leading-7 text-slate-600">
+                {article.how_to_cite}
+              </p>
+            </div>
+          )}
+
+          {article.pdf && (
             <div className="border-t border-slate-100 p-6">
               <a
-                href={article.articleFileUrl}
+                href={article.pdf}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"

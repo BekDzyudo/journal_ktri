@@ -1,22 +1,20 @@
 import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
   FaNewspaper, FaUsers, FaUserShield, FaCheckCircle, FaTimesCircle,
-  FaEye, FaUserTimes, FaSearch, FaTag, FaFileUpload, FaFileAlt,
+  FaUserTimes, FaSearch, FaTag, FaFileAlt,
   FaDownload, FaExternalLinkAlt, FaClock,
   FaSyncAlt, FaCalendarAlt, FaArrowRight, FaThLarge, FaLayerGroup,
-  FaUserFriends, FaGavel, FaUserCog,
+  FaUserFriends, FaGavel, FaUserCog, FaArrowLeft, FaUser,
+  FaBookOpen, FaBan, FaHashtag, FaBook, FaQuoteLeft, FaJournalWhills,
+  FaCreditCard, FaClipboardList,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
-import {
-  ROLES, normalizeRole, ARTICLE_STATUS,
-  SUPERADMIN_STATUS_DISPLAY, SUPERADMIN_STATUS_COLORS,
-} from "../../../constants/roles.js";
 import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import { fetchWithAuth } from "../../../utils/authenticatedFetch.js";
-import { normalizeMaqolalarList } from "../../../utils/maqolaApi.js";
+import { normalizeMaqolalarList, inferMuallifHolatKeyForPanel, normalizeMaqolaForDashboard } from "../../../utils/maqolaApi.js";
 import { parseApiError } from "../../../utils/apiError.js";
 import { getAccessToken } from "../../../utils/authStorage.js";
 import { AuthContext } from "../../../context/AuthContext.jsx";
@@ -25,8 +23,328 @@ import {
   filterArticlesByDateRange,
   uniqueDisplayStatuses,
   formatDate,
+  formatArticleDateTime,
 } from "../../../utils/articleDashboardHelpers.js";
 import { useNotifications } from "../../../context/NotificationContext.jsx";
+import {
+  ROLES, normalizeRole, ARTICLE_STATUS,
+  SUPERADMIN_STATUS_DISPLAY, SUPERADMIN_STATUS_COLORS,
+  MUALLIF_API_HOLAT_LABELS, MUALLIF_API_HOLAT_COLORS,
+} from "../../../constants/roles.js";
+
+// ─── shared helpers ────────────────────────────────────────────────────────
+function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-blue-600" }) {
+  return (
+    <div className="mb-4 flex items-center gap-2.5">
+      <div className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${color} bg-opacity-15`}>
+        <span className={`text-xs ${iconColor}`}>{icon}</span>
+      </div>
+      <h3 className="text-sm font-black uppercase tracking-[0.08em] text-slate-700">{title}</h3>
+      <div className="ml-1 h-px flex-1 bg-slate-100" />
+    </div>
+  );
+}
+
+function InfoBlock({ label, value, className = "" }) {
+  if (!value && value !== 0) return null;
+  return (
+    <div className={`rounded-xl border border-slate-100 bg-slate-50 p-4 ${className}`}>
+      <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-sm font-semibold text-slate-800 leading-relaxed">{value}</p>
+    </div>
+  );
+}
+
+function resolveAdminMediaUrl(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+  return s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
+}
+
+// ─── SuperAdminDetailPanel ──────────────────────────────────────────────────
+function SuperAdminDetailPanel({ articleId, onBack, onActionDone }) {
+  const { refresh: refreshAccessToken } = useContext(AuthContext);
+  const [data, setData] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(true);
+  const [detailError, setDetailError] = useState("");
+
+  useEffect(() => {
+    if (!articleId) return;
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base) { setDetailError("VITE_BASE_URL sozlanmagan"); setDetailLoading(false); return; }
+    let cancelled = false;
+    const load = async () => {
+      setDetailLoading(true);
+      setDetailError("");
+      try {
+        const res = await fetchWithAuth(
+          `${base}/admin/maqolalar/${articleId}/`,
+          { method: "GET" },
+          getAccessToken,
+          refreshAccessToken
+        );
+        const text = await res.text();
+        let json = null;
+        try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+        if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
+        if (!cancelled) setData(json);
+      } catch (err) {
+        if (!cancelled) setDetailError(err.message || "Maqolani yuklashda xatolik");
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [articleId, refreshAccessToken]);
+
+  const normalizedArticle = useMemo(() => data ? normalizeMaqolaForDashboard(data) : null, [data]);
+  const holat = data?.holat ?? "";
+  const holatKey = inferMuallifHolatKeyForPanel({ holat });
+  const badgeClass = MUALLIF_API_HOLAT_COLORS[holatKey] || "bg-gray-100 text-gray-800 border-gray-200";
+  const badgeLabel = MUALLIF_API_HOLAT_LABELS[holatKey] || holat || "—";
+  const pdfUrl = resolveAdminMediaUrl(data?.fayl || data?.pdf || null);
+
+  return (
+    <div className="space-y-6">
+      {/* Back bar */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+        >
+          <FaArrowLeft className="text-xs" />
+          Ro'yxatga qaytish
+        </button>
+      </div>
+
+      {detailLoading && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+          <span className="loading loading-spinner loading-lg text-emerald-500" />
+          <p className="mt-3 text-sm font-semibold text-slate-400">Yuklanmoqda...</p>
+        </div>
+      )}
+
+      {detailError && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-semibold text-red-700">
+          {detailError}
+        </div>
+      )}
+
+      {data && !detailLoading && (
+        <>
+          {/* Title + status */}
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-600">
+                  <FaNewspaper className="text-white text-lg" />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    Maqola tafsilotlari · #{data.id}
+                  </p>
+                  <h2 className="mt-1 text-xl font-black leading-snug text-slate-900">
+                    {data.sarlavha || "Nomsiz maqola"}
+                  </h2>
+                </div>
+              </div>
+              <span className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-xs font-bold ${badgeClass}`}>
+                {badgeLabel}
+              </span>
+            </div>
+
+            {/* Meta chips */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {data.rukn?.nom && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  <FaBookOpen className="text-[9px]" />{data.rukn.nom}
+                </span>
+              )}
+              {data.rukn?.kod && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                  {data.rukn.kod}
+                </span>
+              )}
+              {data.sahifalar && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                  Sahifalar: {data.sahifalar}
+                </span>
+              )}
+              {data.yuborilgan_vaqt && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                  <FaCalendarAlt className="text-[9px]" />
+                  {formatArticleDateTime(data.yuborilgan_vaqt)}
+                </span>
+              )}
+              {data.nashr_sanasi && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-100 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">
+                  Nashr: {formatDate(data.nashr_sanasi)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Mualliflar */}
+          {Array.isArray(data.mualliflar) && data.mualliflar.length > 0 && (
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <SectionHeader icon={<FaUser />} title="Mualliflar" color="bg-violet-500" iconColor="text-violet-600" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[...data.mualliflar]
+                  .sort((a, b) => (a.tartib ?? 0) - (b.tartib ?? 0))
+                  .map((m, idx) => (
+                    <div key={m.id ?? `${m.email}-${idx}`} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-black text-slate-900">{m.ism_familya || "—"}</p>
+                        {idx === 0 ? (
+                          <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">Asosiy muallif</span>
+                        ) : (
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">Hammuallif</span>
+                        )}
+                      </div>
+                      <div className="space-y-1 text-xs text-slate-500">
+                        {m.email && <p><span className="font-semibold text-slate-600">Email:</span> {m.email}</p>}
+                        {m.tashkilot && <p><span className="font-semibold text-slate-600">Tashkilot:</span> {m.tashkilot}</p>}
+                        {m.lavozim && <p><span className="font-semibold text-slate-600">Lavozim:</span> {m.lavozim}</p>}
+                        {m.telefon && <p><span className="font-semibold text-slate-600">Telefon:</span> {m.telefon}</p>}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Jurnal soni */}
+          {data.jurnal_soni && (
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <SectionHeader icon={<FaJournalWhills />} title="Jurnal soni" color="bg-sky-500" iconColor="text-sky-600" />
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {data.jurnal_soni.title && <InfoBlock label="Jurnal nomi" value={data.jurnal_soni.title} />}
+                {data.jurnal_soni.year && <InfoBlock label="Yil" value={String(data.jurnal_soni.year)} />}
+                {data.jurnal_soni.volume && <InfoBlock label="Tom" value={String(data.jurnal_soni.volume)} />}
+                {data.jurnal_soni.issue && <InfoBlock label="Son" value={String(data.jurnal_soni.issue)} />}
+                {data.jurnal_soni.date && <InfoBlock label="Sana" value={formatDate(data.jurnal_soni.date)} />}
+              </div>
+            </div>
+          )}
+
+          {/* Kalit so'zlar */}
+          {(data.kalit_sozlar_list?.length > 0 || data.kalit_sozlar) && (
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <SectionHeader icon={<FaHashtag />} title="Kalit so'zlar" color="bg-amber-500" iconColor="text-amber-600" />
+              <div className="flex flex-wrap gap-2">
+                {(data.kalit_sozlar_list?.length > 0
+                  ? data.kalit_sozlar_list
+                  : String(data.kalit_sozlar).split(",").map((s) => s.trim()).filter(Boolean)
+                ).map((kw, i) => (
+                  <span key={i} className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Annotatsiya */}
+          {data.annotatsiya && (
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <SectionHeader icon={<FaBookOpen />} title="Annotatsiya" color="bg-blue-500" iconColor="text-blue-600" />
+              <p className="text-sm leading-7 text-slate-700">{data.annotatsiya}</p>
+            </div>
+          )}
+
+          {/* Adabiyotlar */}
+          {data.adabiyotlar && (
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <SectionHeader icon={<FaBook />} title="Adabiyotlar" color="bg-indigo-500" iconColor="text-indigo-600" />
+              <p className="text-sm leading-7 text-slate-700 whitespace-pre-line">{data.adabiyotlar}</p>
+            </div>
+          )}
+
+          {/* How to cite */}
+          {data.how_to_cite && (
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <SectionHeader icon={<FaQuoteLeft />} title="Iqtibos keltirish" color="bg-slate-500" iconColor="text-slate-600" />
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-sm italic leading-7 text-slate-600">{data.how_to_cite}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Rad etilish sababi */}
+          {data.rad_sababi && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
+              <div className="mb-3 flex items-center gap-2">
+                <FaBan className="text-red-500" />
+                <p className="text-sm font-black uppercase tracking-wider text-red-600">Rad etilish sababi</p>
+              </div>
+              <p className="text-sm leading-6 text-red-700">{data.rad_sababi}</p>
+            </div>
+          )}
+
+          {/* Taqrizchi */}
+          {normalizedArticle?.assignedTo && (
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <SectionHeader icon={<FaClipboardList />} title="Taqrizchi" color="bg-rose-500" iconColor="text-rose-600" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <InfoBlock label="Taqrizchi" value={normalizedArticle.assignedToName || normalizedArticle.assignedTo} />
+              </div>
+            </div>
+          )}
+
+          {/* Fayl */}
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <SectionHeader icon={<FaFileAlt />} title="Fayl" color="bg-sky-500" iconColor="text-sky-600" />
+            {pdfUrl ? (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const win = window.open(pdfUrl, "_blank", "noopener,noreferrer");
+                    if (!win) toast.info("Yangi oynani ochib bo'lmadi. Yuklab oling.");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+                >
+                  <FaExternalLinkAlt className="text-xs" />
+                  Faylni ko'rish
+                </button>
+                <a
+                  href={pdfUrl}
+                  download=""
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
+                >
+                  <FaDownload className="text-xs" />
+                  Yuklab olish
+                </a>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">Fayl hali yuklanmagan.</p>
+            )}
+          </div>
+
+          {/* Admin amallar */}
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+            <p className="mb-3 text-xs font-black uppercase tracking-wider text-emerald-700">
+              Ro'yxatga qaytib amallarni bajaring
+            </p>
+            <button
+              onClick={onBack}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50"
+            >
+              <FaArrowLeft className="text-xs" />
+              Ro'yxatga qaytish
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function getTodayStr() {
   const d = new Date();
@@ -43,6 +361,7 @@ function computeSuperAdminStats(submittedArticles, allUsers) {
   return {
     totalArticles: submittedArticles.length,
     newMaterials: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.SUBMITTED).length,
+    paymentPending: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.PAYMENT_PENDING).length,
     assigned: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ASSIGNED).length,
     inReview: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.IN_EDITING).length,
     accepted: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
@@ -96,6 +415,11 @@ function normalizeStatistikaPayload(raw, fallbackStats) {
         maq || {},
         ["tayinlangan", "assigned", "tayinlanganlar", "taqrizchiga_tayinlangan"],
         fallbackStats.assigned
+      ),
+      paymentPending: pickStatsNumber(
+        maq || {},
+        ["tolov_kutilmoqda", "payment_pending", "paymentPending"],
+        fallbackStats.paymentPending
       ),
       inReview: pickStatsNumber(
         maq || {},
@@ -170,6 +494,11 @@ function normalizeStatistikaPayload(raw, fallbackStats) {
       ["assigned", "tayinlangan", "tayinlanganlar", "taqrizchiga_tayinlangan"],
       fallbackStats.assigned
     ),
+    paymentPending: pickStatsNumber(
+      source,
+      ["tolov_kutilmoqda", "payment_pending", "paymentPending"],
+      fallbackStats.paymentPending
+    ),
     inReview: pickStatsNumber(
       source,
       ["inReview", "in_review", "taqrizda", "taqriz_kelgan", "taqriz_kelib_tushgan"],
@@ -216,18 +545,6 @@ function normalizeStatistikaPayload(raw, fallbackStats) {
       fallbackStats.totalAllUsers
     ),
   };
-}
-
-function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-blue-500" }) {
-  return (
-    <div className="mb-4 flex items-center gap-2.5">
-      <div className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${color} bg-opacity-15`}>
-        <span className={`text-xs ${iconColor}`}>{icon}</span>
-      </div>
-      <h3 className="text-sm font-black uppercase tracking-[0.08em] text-slate-700">{title}</h3>
-      <div className="ml-1 h-px flex-1 bg-slate-100" />
-    </div>
-  );
 }
 
 function SuperAdminDashboard({ userData, view = "articles" }) {
@@ -340,6 +657,54 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     }
   }, [refreshAccessToken]);
 
+  const sendArticleMessage = useCallback(async (article, message) => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base) throw new Error("VITE_BASE_URL sozlanmagan");
+
+    if (!article?.id) throw new Error("Maqola ID topilmadi");
+
+    const res = await fetchWithAuth(
+      `${base}/admin/xabar-yuborish/`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          maqola_id: article.id,
+          matn: message,
+        }),
+      },
+      getAccessToken,
+      refreshAccessToken
+    );
+    const text = await res.text();
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+    if (!res.ok) throw new Error(parseApiError(json, "Xabar yuborilmadi"));
+    return json;
+  }, [refreshAccessToken]);
+
+  const sendToPayment = useCallback(async (article) => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base) throw new Error("VITE_BASE_URL sozlanmagan");
+    if (!article?.id) throw new Error("Maqola ID topilmadi");
+
+    const res = await fetchWithAuth(
+      `${base}/admin/maqolalar/${article.id}/`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ harakat: "click_yuborish" }),
+      },
+      getAccessToken,
+      refreshAccessToken
+    );
+    const text = await res.text();
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+    if (!res.ok) throw new Error(parseApiError(json, "To'lovga yuborilmadi"));
+    return json;
+  }, [refreshAccessToken]);
+
   const [articles, setArticles] = useState([]);
   const [statsData, setStatsData] = useState(null);
   const [users, setUsers] = useState([]);
@@ -355,6 +720,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const [finalDecisionModalOpen, setFinalDecisionModalOpen] = useState(false);
   const [finalDecisionDescription, setFinalDecisionDescription] = useState("");
   const [detailArticle, setDetailArticle] = useState(null);
+  const [detailArticleId, setDetailArticleId] = useState(null);
   const [selectedAdmin, setSelectedAdmin] = useState("");
   const [decisionDescription, setDecisionDescription] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -413,9 +779,18 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   };
 
   const handleQuickDecision = async (article, decision) => {
-    const label = decision === "accept" ? "CLICK to'loviga yuborildi" : "Rad etildi";
+    const label = decision === "accept" ? "To'lovga yuborildi" : "Rad etildi";
+    const message = decisionDescription.trim();
+    if (decision === "reject" && !message) {
+      toast.error("Rad etish sababini kiriting");
+      return;
+    }
     try {
-      await fakeArticleApi.setInitialDecision(article.id, decision, decisionDescription.trim());
+      if (decision === "accept") {
+        await sendToPayment(article);
+      } else {
+        await sendArticleMessage(article, message);
+      }
       toast.success(`Maqola "${label}"!`);
       refreshNotifications();
       setDecisionModalOpen(false);
@@ -430,8 +805,16 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
 
   const handleFinalDecision = async (article, decision) => {
     const label = decision === "accept" ? "Qabul qilindi" : "Rad etildi";
+    const message = finalDecisionDescription.trim();
+    if (decision === "reject" && !message) {
+      toast.error("Rad etish sababini kiriting");
+      return;
+    }
     try {
-      await fakeArticleApi.setFinalDecision(article.id, decision, finalDecisionDescription.trim());
+      await sendArticleMessage(
+        article,
+        message || "Maqola bo'yicha yakuniy qaror qabul qilindi."
+      );
       toast.success(`Maqola yakuniy "${label}"!`);
       refreshNotifications();
       setFinalDecisionModalOpen(false);
@@ -579,6 +962,17 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
 
   const showArticles = view !== "users";
   const showUsers = view !== "articles";
+
+  /* ── Detail panel ── */
+  if (detailArticleId) {
+    return (
+      <SuperAdminDetailPanel
+        articleId={detailArticleId}
+        onBack={() => setDetailArticleId(null)}
+        onActionDone={() => { setDetailArticleId(null); fetchData(); }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -770,18 +1164,18 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 }
               />
               <StatsCard
-                icon={<FaUsers />}
-                iconColor="text-blue-500"
-                title="Mualliflar"
-                value={dashboardStats.totalAuthors}
-                badge="Muallif"
-                badgeColor="text-blue-500"
-                barColor="bg-blue-500"
-                progress={100}
+                icon={<FaCreditCard />}
+                iconColor="text-amber-500"
+                title="To'lov kutilmoqda"
+                value={dashboardStats.paymentPending}
+                total={dashboardStats.totalArticles}
+                badge="To'lov"
+                badgeColor="text-amber-500"
+                barColor="bg-amber-400"
                 footer={
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
-                    Statistika (API)
+                    To'lov kutayotganlar
                   </span>
                 }
               />
@@ -930,11 +1324,12 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                         <td>
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => setDetailArticle(article)}
-                              className="grid h-8 w-8 place-items-center rounded-lg text-blue-500 transition hover:bg-blue-50"
-                              title="Ko'rish"
+                              onClick={() => setDetailArticleId(article.id)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-100"
+                              title="Batafsil ko'rish"
                             >
-                              <FaEye className="text-sm" />
+                              <FaClipboardList className="text-[11px]" />
+                              Batafsil
                             </button>
                             {article.articleFileUrl && (
                               <a
@@ -1337,18 +1732,18 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Muallif uchun izoh
+              Muallif uchun izoh <span className="text-red-500">(rad etishda majburiy)</span>
             </label>
             <textarea
               value={decisionDescription}
               onChange={(e) => setDecisionDescription(e.target.value)}
               className="textarea textarea-bordered w-full h-28"
-              placeholder="Masalan: Maqola dastlabki ko'rikdan o'tdi. Nashr jarayonini davom ettirish uchun PAYME orqali to'lov qiling..."
+              placeholder="Masalan: Qo'shimcha hujjat kerak."
             />
           </div>
 
           <p className="text-sm text-gray-600">
-            Qabul qilinganda muallif panelida CLICK test to'lov tugmasi ochiladi. Rad etilganda jarayon yakunlanadi.
+            To'lovga yuborilganda maqola holati to'lov kutilmoqda bo'ladi. Rad etilganda sabab majburiy.
           </p>
 
           <div className="flex gap-3 pt-2">
@@ -1357,7 +1752,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               className="btn btn-success flex-1 gap-2"
             >
               <FaCheckCircle />
-              CLICKga yuborish
+              To'lovga yuborish
             </button>
             <button
               onClick={() => handleQuickDecision(selectedArticle, "reject")}
@@ -1419,13 +1814,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
 
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Muallif uchun xabar <span className="text-slate-400">(ixtiyoriy)</span>
+              Muallif uchun xabar <span className="text-red-500">(rad etishda majburiy)</span>
             </label>
             <textarea
               value={finalDecisionDescription}
               onChange={(e) => setFinalDecisionDescription(e.target.value)}
               className="textarea textarea-bordered w-full h-24 text-sm"
-              placeholder="Muallif panelida ko'rinadi. Bo'sh qoldirilsa, standart matn ishlatiladi."
+              placeholder="Masalan: Qo'shimcha hujjat kerak."
             />
           </div>
 
