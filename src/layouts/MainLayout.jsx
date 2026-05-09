@@ -13,7 +13,7 @@ const HERO_PAGES = ['/', '/digital-educational-resources', '/methodological-supp
 
 function MainLayout() {
   const location = useLocation();
-  const isAdminPath = location.pathname.startsWith("/admin");
+  const isProfilePath = location.pathname.startsWith("/profile");
 
   // onHero hero bor sahifalarda default true
   const [onHero, setOnHero] = useState(HERO_PAGES.includes(location.pathname));
@@ -42,15 +42,15 @@ function MainLayout() {
         />
         
         <div className="flex flex-col min-h-screen">
-          {!isAdminPath && (
+          {!isProfilePath && (
             <header>
               <Header />
             </header>
           )}
-          <main className={isAdminPath || onHero ? "" : "pt-20"}>
+          <main className={isProfilePath || onHero ? "" : "pt-20"}>
             <Outlet />
           </main>
-          {!isAdminPath && (
+          {!isProfilePath && (
             <footer>
               <Footer/>
             </footer>

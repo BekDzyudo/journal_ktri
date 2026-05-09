@@ -134,7 +134,7 @@ function UserArticleDetail() {
       <div className="min-h-screen bg-[#f6f8fc] px-4 py-24 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
           <button
-            onClick={() => navigate("/admin")}
+            onClick={() => navigate("/profile")}
             className="mb-5 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
             <FaArrowLeft className="text-xs" />
@@ -152,7 +152,7 @@ function UserArticleDetail() {
     <div className="min-h-screen bg-[#f6f8fc] px-4 py-24 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
         <button
-          onClick={() => navigate("/admin")}
+          onClick={() => navigate("/profile")}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
         >
           <FaArrowLeft className="text-xs" />

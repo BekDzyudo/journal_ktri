@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider, useParams } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import MainLayout from "./layouts/MainLayout";
@@ -21,6 +21,12 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import NewPassword from "./pages/auth/NewPassword";
 import AdminPanel from "./pages/admin/AdminPanel";
 import UserArticleDetail from "./pages/dashboard/user/UserArticleDetail";
+
+function LegacyAdminArticlesRedirect({ auth }) {
+  const { articleId } = useParams();
+  if (!auth) return <Navigate to="/login" replace />;
+  return <Navigate to={`/profile/articles/${articleId}`} replace />;
+}
 
 function App() {
 
@@ -68,16 +74,24 @@ function App() {
           element: <Contact/>
         },
         {
-          path: "admin",
+          path: "profile",
           element: <AdminPanel/>
         },
         {
-          path: "admin/articles/:articleId",
+          path: "profile/articles/:articleId",
           element: auth ? <UserArticleDetail /> : <Navigate to="/login" replace />
         },
         {
+          path: "admin",
+          element: <Navigate to="/profile" replace />
+        },
+        {
+          path: "admin/articles/:articleId",
+          element: <LegacyAdminArticlesRedirect auth={auth} />
+        },
+        {
           path: "dashboard",
-          element: <Navigate to="/admin" replace />
+          element: <Navigate to="/profile" replace />
         },
       ],
     },

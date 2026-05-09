@@ -158,7 +158,7 @@ function Header() {
                       {userData?.email && <p className="text-xs text-gray-600">{userData.email}</p>}
                     </div>
                     <Link
-                      to="/admin"
+                      to="/profile"
                       onClick={() => setUserDropdownOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors duration-200 text-gray-700"
                     >

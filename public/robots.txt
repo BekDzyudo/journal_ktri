@@ -3,7 +3,7 @@ User-agent: *
 Allow: /
 
 # Disallow private pages
-Disallow: /admin
+Disallow: /profile
 Disallow: /api
 Disallow: /profil
 
