@@ -6,13 +6,31 @@ import {
 
 const VALID_STATUSES = new Set(Object.values(ARTICLE_STATUS));
 
+function extractArrayFromMaybePaginated(val) {
+  if (val == null) return null;
+  if (Array.isArray(val)) return val;
+  if (typeof val === "object" && Array.isArray(val.results)) return val.results;
+  return null;
+}
+
 /** API javobidan maqolalar massivini ajratib oladi */
 export function parseMaqolalarListPayload(raw) {
   if (raw == null) return [];
   if (Array.isArray(raw)) return raw;
   if (Array.isArray(raw.results)) return raw.results;
   if (Array.isArray(raw.data)) return raw.data;
-  if (Array.isArray(raw.maqolalar)) return raw.maqolalar;
+
+  const fromTop = extractArrayFromMaybePaginated(raw.maqolalar);
+  if (fromTop) return fromTop;
+
+  const listKeys = ["maqolalar", "articles", "my_articles", "myArticles", "user_maqolalar"];
+  const dataObj = raw.data != null && typeof raw.data === "object" && !Array.isArray(raw.data) ? raw.data : null;
+  for (const key of listKeys) {
+    const v = raw[key] ?? dataObj?.[key];
+    const arr = extractArrayFromMaybePaginated(v);
+    if (arr) return arr;
+  }
+
   return [];
 }
 
@@ -25,9 +43,11 @@ function resolveFileUrl(f) {
 }
 
 function mualliflarString(m) {
-  const list = m?.mualliflar;
+  const list = m?.mualliflar ?? m?.muallif;
   if (Array.isArray(list) && list.length) {
     return list
+      .slice()
+      .sort((a, b) => (a?.tartib ?? 0) - (b?.tartib ?? 0))
       .map((a) => {
         if (typeof a === "string") return a.trim();
         return (a?.ism_familya || [a?.familiya, a?.ism, a?.sharif].filter(Boolean).join(" ")).trim();
@@ -35,7 +55,9 @@ function mualliflarString(m) {
       .filter(Boolean)
       .join(", ");
   }
-  if (m?.muallif?.ism_familya) return m.muallif.ism_familya;
+  if (m?.muallif && typeof m.muallif === "object" && !Array.isArray(m.muallif) && m.muallif.ism_familya) {
+    return m.muallif.ism_familya;
+  }
   return (
     m?.authorNames ||
     m?.author ||
@@ -121,7 +143,7 @@ export function inferMuallifHolatKeyForPanel(article) {
 
 /** Superadmin jadvali kutgan maydonlar bilan boyitadi */
 export function normalizeMaqolaForDashboard(m) {
-  const id = m?.id ?? m?.pk;
+  const id = m?.id ?? m?.pk ?? m?.uuid ?? null;
   const rukn = m?.rukn;
 
   const assignedEmail =
@@ -164,6 +186,7 @@ export function normalizeMaqolaForDashboard(m) {
     submittedDate: dateRaw,
     articleFileUrl:
       resolveFileUrl(m?.fayl) ||
+      m?.pdf ||
       m?.fayl_url ||
       m?.file_url ||
       m?.articleFileUrl ||

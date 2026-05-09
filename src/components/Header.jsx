@@ -163,7 +163,7 @@ function Header() {
                       className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors duration-200 text-gray-700"
                     >
                       <FaUserCog className="text-blue-600" />
-                      <span className="text-sm">Admin Panel</span>
+                      <span className="text-sm">Profil</span>
                     </Link>
                     <button
                       onClick={() => {

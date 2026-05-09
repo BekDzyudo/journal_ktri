@@ -238,7 +238,7 @@ function SendJournal() {
       setFile(null)
       const inputEl = document.getElementById('fileInput')
       if (inputEl) inputEl.value = null
-      navigate('/dashboard')
+      navigate('/profile')
     } catch (error) {
       console.error('Error submitting article:', error)
       toast.error(error.message || 'Maqola yuborishda xatolik yuz berdi', {

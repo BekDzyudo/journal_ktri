@@ -32,6 +32,16 @@ import {
 
 const MUALLIF_HOLAT_FILTER_ORDER = Object.values(MUALLIF_API_HOLAT);
 
+function resolveMediaUrl(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+  if (!base) return s;
+  return s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
+}
+
 function getTodayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -100,7 +110,13 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay }) {
   const badgeClass = MUALLIF_API_HOLAT_COLORS[holatKey] || "bg-gray-100 text-gray-800 border-gray-200";
   const badgeLabel = MUALLIF_API_HOLAT_LABELS[holatKey] || holat || "—";
 
-  const pdfUrl = data?.pdf || data?.fayl || data?.articleFileUrl || null;
+  const pdfUrl = resolveMediaUrl(data?.pdf || data?.fayl || data?.articleFileUrl || null);
+
+  const openPdfInNewTab = () => {
+    if (!pdfUrl) return;
+    const win = window.open(pdfUrl, "_blank", "noopener,noreferrer");
+    if (!win) toast.info("Yangi oynani ochib bo'lmadi. Yuklab olish tugmasidan foydalaning.");
+  };
 
   return (
     <div className="space-y-6">
@@ -182,14 +198,16 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay }) {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
               <SectionHeader icon={<FaUser />} title="Mualliflar" color="bg-violet-500" iconColor="text-violet-600" />
               <div className="grid gap-4 sm:grid-cols-2">
-                {data.muallif
+                {[...data.muallif]
                   .sort((a, b) => (a.tartib ?? 0) - (b.tartib ?? 0))
-                  .map((m) => (
-                    <div key={m.id} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  .map((m, idx) => (
+                    <div key={m.id ?? `${m.email}-${idx}`} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-black text-slate-900">{m.ism_familya || "—"}</p>
-                        {m.tartib === 0 && (
-                          <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">Asosiy</span>
+                        {idx === 0 ? (
+                          <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">Asosiy muallif</span>
+                        ) : (
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">Hammuallif</span>
                         )}
                       </div>
                       <div className="space-y-1 text-xs text-slate-500">
@@ -287,18 +305,19 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay }) {
               )}
               {pdfUrl && (
                 <>
-                  <a
-                    href={pdfUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={openPdfInNewTab}
                     className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
                   >
                     <FaExternalLinkAlt className="text-xs" />
                     Faylni ko'rish
-                  </a>
+                  </button>
                   <a
                     href={pdfUrl}
-                    download
+                    download=""
+                    target="_blank"
+                    rel="noreferrer"
                     className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
                   >
                     <FaDownload className="text-xs" />
@@ -368,6 +387,8 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
         return normalizeMaqolalarList(json);
       }
       console.warn("[UserDashboard] profil/", res.status, parseApiError(json, ""));
+      toast.error(parseApiError(json, "Profildan maqolalar ro'yxati yuklanmadi"));
+      return [];
     }
     const data = await fakeArticleApi.getMyArticles(userData);
     return data.map((a) => normalizeMaqolaForDashboard(a));
