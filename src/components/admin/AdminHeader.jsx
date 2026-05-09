@@ -29,7 +29,7 @@ function AdminHeader({
 
   const initials  = `${firstName?.[0] || ""}${lastName?.[0] || ""}` || "U";
   const roleBadge =
-    userRole === ROLES.SUPERADMIN ? "Administrator"
+    userRole === ROLES.SUPERADMIN ? "Admin"
     : userRole === ROLES.ADMIN    ? "Taqrizchi"
     : "Muallif";
 

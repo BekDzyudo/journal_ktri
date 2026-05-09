@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaNewspaper, FaClock, FaCheckCircle, FaTimesCircle,
+  FaNewspaper, FaCheckCircle, FaTimesCircle,
   FaPlus, FaCreditCard, FaArrowLeft, FaDownload, FaExternalLinkAlt,
   FaSearch, FaSyncAlt, FaCalendarAlt, FaArrowRight, FaLayerGroup,
   FaUser, FaFileAlt, FaBookOpen, FaBan, FaGlobe, FaQuoteLeft,
@@ -29,6 +29,7 @@ import {
   formatArticleDateTime,
   formatDate,
 } from "../../../utils/articleDashboardHelpers.js";
+import { syncArticleStatusNotifications } from "../../../utils/articleStatusNotifications.js";
 import useGetFetch from "../../../hooks/useGetFetch.jsx";
 
 const MUALLIF_HOLAT_FILTER_ORDER = Object.values(MUALLIF_API_HOLAT);
@@ -389,7 +390,14 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
       // Token yo'q — fake data
       try {
         const data = await fakeArticleApi.getMyArticles(userData);
-        setArticles(data.map((a) => normalizeMaqolaForDashboard(a)));
+        const normalized = data.map((a) => normalizeMaqolaForDashboard(a));
+        syncArticleStatusNotifications({
+          articles: normalized,
+          userData,
+          userRole: "user",
+          scope: "user-dashboard",
+        });
+        setArticles(normalized);
       } catch { /* ignore */ }
       setLoading(false);
       return;
@@ -427,6 +435,12 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
         }
       }
 
+      syncArticleStatusNotifications({
+        articles: list,
+        userData,
+        userRole: "user",
+        scope: "user-dashboard",
+      });
       setArticles(list);
     } catch (err) {
       console.error("[UserDashboard] fetchArticles xatolik:", err);
@@ -459,7 +473,6 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     total: articles.length,
     submitted: articles.filter((a) => a.holat === "YUBORILGAN" || a.status === ARTICLE_STATUS.SUBMITTED).length,
     paymentPending: articles.filter((a) => a.holat === "TOLOV_KUTILMOQDA" || a.status === ARTICLE_STATUS.PAYMENT_PENDING).length,
-    koribChiqilmoqda: articles.filter((a) => [ARTICLE_STATUS.ASSIGNED, ARTICLE_STATUS.UNDER_REVIEW, ARTICLE_STATUS.IN_EDITING].includes(a.status)).length,
     accepted: articles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
     rejected: articles.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
     nashrEtilgan: articles.filter((a) => a.status === ARTICLE_STATUS.PUBLISHED).length,
@@ -471,7 +484,6 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
       total: stats.jami ?? localStats.total,
       submitted: stats.yuborilgan ?? localStats.submitted,
       paymentPending: stats.tolov_kutilmoqda ?? localStats.paymentPending,
-      koribChiqilmoqda: stats.korib_chiqilmoqda ?? localStats.koribChiqilmoqda,
       accepted: stats.qabul_qilingan ?? localStats.accepted,
       rejected: stats.rad_etilgan ?? localStats.rejected,
       nashrEtilgan: stats.nashr_etilgan ?? localStats.nashrEtilgan,
@@ -590,7 +602,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
       {/* Stats */}
       <div>
         <SectionHeader icon={<FaLayerGroup />} title="Maqolalar monitoringi" color="bg-blue-500" iconColor="text-blue-600" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-7">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
           <StatsCard icon={<FaNewspaper />} iconColor="text-blue-500" title="Jami" value={dashboardStats.total}
             badge="Hammasi" badgeColor="text-blue-500" barColor="bg-blue-500" progress={100}
             footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Barcha</span>} />
@@ -600,9 +612,6 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
           <StatsCard icon={<FaCreditCard />} iconColor="text-amber-500" title="To'lov kutilmoqda" value={dashboardStats.paymentPending}
             total={dashboardStats.total} badge="To'lov" badgeColor="text-amber-500" barColor="bg-amber-400"
             footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />To'lov kutilmoqda</span>} />
-          <StatsCard icon={<FaClock />} iconColor="text-amber-500" title="Ko'rib chiqilmoqda" value={dashboardStats.koribChiqilmoqda}
-            total={dashboardStats.total} badge="Jarayonda" badgeColor="text-amber-500" barColor="bg-amber-400"
-            footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Taqrizda</span>} />
           <StatsCard icon={<FaCheckCircle />} iconColor="text-green-500" title="Qabul qilindi" value={dashboardStats.accepted}
             total={dashboardStats.total} badge="Tasdiqlandi" badgeColor="text-green-500" barColor="bg-green-500"
             footer={<span className="flex items-center gap-1.5"><FaArrowRight className="text-[9px]" />Tasdiqlangan</span>} />

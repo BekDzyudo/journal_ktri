@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
   FaNewspaper, FaUsers, FaUserShield, FaCheckCircle, FaTimesCircle,
-  FaUserTimes, FaSearch, FaTag, FaFileAlt,
+  FaSearch, FaTag, FaFileAlt,
   FaDownload, FaExternalLinkAlt, FaClock,
   FaSyncAlt, FaCalendarAlt, FaArrowRight, FaThLarge, FaLayerGroup,
   FaUserFriends, FaGavel, FaUserCog, FaArrowLeft, FaUser,
@@ -26,6 +26,11 @@ import {
   formatArticleDateTime,
 } from "../../../utils/articleDashboardHelpers.js";
 import { useNotifications } from "../../../context/NotificationContext.jsx";
+import {
+  getArticleAuthorEmail,
+  pushArticleStatusNotification,
+  syncArticleStatusNotifications,
+} from "../../../utils/articleStatusNotifications.js";
 import {
   ROLES, normalizeRole, ARTICLE_STATUS,
   SUPERADMIN_STATUS_DISPLAY, SUPERADMIN_STATUS_COLORS,
@@ -737,6 +742,12 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       const normalizedUsers = usersData;
       const adminUsers = normalizedUsers.filter((u) => u.role === ROLES.ADMIN);
 
+      syncArticleStatusNotifications({
+        articles: articlesData,
+        userData,
+        userRole: ROLES.SUPERADMIN,
+        scope: "superadmin-dashboard",
+      });
       setArticles(articlesData);
       setStatsData(statsApiData);
       setUsers(normalizedUsers);
@@ -788,8 +799,32 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     try {
       if (decision === "accept") {
         await sendToPayment(article);
+        const authorEmail = getArticleAuthorEmail(article);
+        if (authorEmail) {
+          pushArticleStatusNotification({
+            article,
+            status: ARTICLE_STATUS.PAYMENT_PENDING,
+            targetRole: "user",
+            targetEmail: authorEmail,
+            userRoleForLabel: ROLES.USER,
+            title: "To'lov bosqichi ochildi",
+            message: `"${article.articleTitle}" maqolangiz qabul qilindi. CLICK orqali to'lov qiling.`,
+          });
+        }
       } else {
         await sendArticleMessage(article, message);
+        const authorEmail = getArticleAuthorEmail(article);
+        if (authorEmail) {
+          pushArticleStatusNotification({
+            article,
+            status: ARTICLE_STATUS.REJECTED,
+            targetRole: "user",
+            targetEmail: authorEmail,
+            userRoleForLabel: ROLES.USER,
+            title: "Maqolangiz rad etildi",
+            message: message || `"${article.articleTitle}" dastlabki ko'rikdan o'tmadi.`,
+          });
+        }
       }
       toast.success(`Maqola "${label}"!`);
       refreshNotifications();
@@ -815,6 +850,22 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
         article,
         message || "Maqola bo'yicha yakuniy qaror qabul qilindi."
       );
+      const authorEmail = getArticleAuthorEmail(article);
+      if (authorEmail) {
+        pushArticleStatusNotification({
+          article,
+          status: decision === "accept" ? ARTICLE_STATUS.ACCEPTED : ARTICLE_STATUS.REJECTED,
+          targetRole: "user",
+          targetEmail: authorEmail,
+          userRoleForLabel: ROLES.USER,
+          title: decision === "accept" ? "Maqolangiz qabul qilindi" : "Maqolangiz rad etildi",
+          message:
+            message ||
+            (decision === "accept"
+              ? `"${article.articleTitle}" nashrga tavsiya etildi.`
+              : `"${article.articleTitle}" rad etildi.`),
+        });
+      }
       toast.success(`Maqola yakuniy "${label}"!`);
       refreshNotifications();
       setFinalDecisionModalOpen(false);
@@ -827,21 +878,32 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     }
   };
 
-  const handleToggleAdminRole = async (targetUser) => {
-    const isAdmin = normalizeRole(targetUser.role) === ROLES.ADMIN;
-    const confirmMessage = isAdmin
-      ? `${targetUser.first_name} ${targetUser.last_name} dan taqrizchi huquqini olib qo'yasizmi?`
-      : `${targetUser.first_name} ${targetUser.last_name} ni taqrizchi qilasizmi?`;
-
-    if (!confirm(confirmMessage)) return;
-
+  const handleChangeUserRole = async (targetUser, newRole) => {
+    if (!targetUser?.id || !newRole || newRole === targetUser.role) return;
     try {
-      await fakeArticleApi.toggleAdminRole(targetUser);
-      toast.success(isAdmin ? "Taqrizchi huquqi olib qo'yildi!" : "Taqrizchi huquqi berildi!");
+      const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+      if (!base) throw new Error("VITE_BASE_URL sozlanmagan");
+
+      const res = await fetchWithAuth(
+        `${base}/admin/foydalanuvchilar/${targetUser.id}/`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rol: newRole }),
+        },
+        getAccessToken,
+        refreshAccessToken
+      );
+      const text = await res.text();
+      let json = null;
+      try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+      if (!res.ok) throw new Error(parseApiError(json, "Rolni o'zgartirishda xatolik"));
+
+      toast.success("Rol o'zgartirildi");
       refreshNotifications();
       fetchData();
     } catch (error) {
-      console.error("Error toggling admin role:", error);
+      console.error("Error changing user role:", error);
       toast.error("Rolni o'zgartirishda xatolik: " + error.message);
     }
   };
@@ -895,7 +957,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       if (userRoleFilter === "all") return true;
       if (userRoleFilter === "author") return r === ROLES.USER;
       if (userRoleFilter === "reviewer") return r === ROLES.ADMIN;
-      if (userRoleFilter === "superadmin") return r === ROLES.SUPERADMIN;
+      if (userRoleFilter === "admin") return r === ROLES.SUPERADMIN;
       return true;
     });
   }, [users, userSearchQuery, userRoleFilter]);
@@ -1054,7 +1116,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               color="bg-emerald-500"
               iconColor="text-emerald-600"
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <StatsCard
                 icon={<FaNewspaper />}
                 iconColor="text-emerald-500"
@@ -1100,22 +1162,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
                     Taqrizchida
-                  </span>
-                }
-              />
-              <StatsCard
-                icon={<FaFileAlt />}
-                iconColor="text-violet-500"
-                title="Taqriz kelgan"
-                value={dashboardStats.inReview}
-                total={dashboardStats.totalArticles}
-                badge="Taqrizda"
-                badgeColor="text-violet-500"
-                barColor="bg-violet-500"
-                footer={
-                  <span className="flex items-center gap-1.5">
-                    <FaArrowRight className="text-[9px]" />
-                    Xulosa kutilmoqda
                   </span>
                 }
               />
@@ -1242,7 +1288,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                     <th className="text-left">Status</th>
                     <th className="text-left">To'lov</th>
                     <th className="text-left">Taqrizchi</th>
-                    <th className="text-center">Amallar</th>
+                    <th className="text-center">Rolni o'zgartirish</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1403,7 +1449,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               color="bg-blue-500"
               iconColor="text-blue-600"
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <StatsCard
                 icon={<FaUsers />}
                 iconColor="text-blue-500"
@@ -1421,34 +1467,18 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 }
               />
               <StatsCard
-                icon={<FaUserShield />}
-                iconColor="text-purple-500"
-                title="Taqrizchilar"
-                value={dashboardStats.totalReviewers}
-                badge="Taqrizchi"
-                badgeColor="text-purple-500"
-                barColor="bg-purple-500"
-                progress={100}
-                footer={
-                  <span className="flex items-center gap-1.5">
-                    <FaArrowRight className="text-[9px]" />
-                    Boshqarish
-                  </span>
-                }
-              />
-              <StatsCard
                 icon={<FaUserCog />}
                 iconColor="text-amber-600"
-                title="Adminlar"
+                title="Taqrizchilar"
                 value={dashboardStats.totalStaffAdmins}
-                badge="Admin"
+                badge="Taqrizchi"
                 badgeColor="text-amber-600"
                 barColor="bg-amber-500"
                 progress={100}
                 footer={
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
-                    Tizim adminlari
+                    Tizim taqrizchilar
                   </span>
                 }
               />
@@ -1489,11 +1519,11 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                     {dashboardStats.totalAuthors} muallif
                   </span>
                   <span className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-100">
-                    {dashboardStats.totalReviewers} taqrizchi
+                    {dashboardStats.totalStaffAdmins} taqrizchi
                   </span>
-                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-100">
+                  {/* <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-100">
                     {dashboardStats.totalStaffAdmins} admin
-                  </span>
+                  </span> */}
                   <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 ring-1 ring-teal-100">
                     {dashboardStats.totalAllUsers} jami
                   </span>
@@ -1521,7 +1551,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                   <option value="all">Barcha rollar</option>
                   <option value="author">Muallif</option>
                   <option value="reviewer">Taqrizchi</option>
-                  <option value="superadmin">Admin / superuser</option>
+                  <option value="admin">Admin</option>
                 </select>
                 <span className="text-center text-[11px] font-semibold text-slate-500 sm:text-right">
                   Ko&apos;rsatilmoqda: {filteredUsers.length} ta
@@ -1580,7 +1610,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                             </span>
                           ) : user.role === ROLES.SUPERADMIN ? (
                             <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
-                              Super Admin
+                              Admin
                             </span>
                           ) : (
                             <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
@@ -1589,28 +1619,17 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                           )}
                         </td>
                         <td className="text-center">
-                          {user.role !== ROLES.SUPERADMIN && user.email !== userData?.email && (
-                            <button
-                              onClick={() => handleToggleAdminRole(user)}
-                              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                                user.role === ROLES.ADMIN
-                                  ? "bg-red-50 text-red-600 hover:bg-red-100"
-                                  : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                              }`}
-                            >
-                              {user.role === ROLES.ADMIN ? (
-                                <>
-                                  <FaUserTimes />
-                                  Taqrizchi rolini olish
-                                </>
-                              ) : (
-                                <>
-                                  <FaUserShield />
-                                  Taqrizchi qilish
-                                </>
-                              )}
-                            </button>
-                          )}
+                          <select
+                            value={user.role}
+                            onChange={(e) => handleChangeUserRole(user, e.target.value)}
+                            disabled={user.email === userData?.email}
+                            className="select select-bordered select-sm rounded-xl border-slate-200 bg-slate-50 text-xs font-semibold"
+                            title={user.email === userData?.email ? "O'zingizning rolingizni o'zgartirib bo'lmaydi" : "Rolni o'zgartirish"}
+                          >
+                            <option value={ROLES.USER}>Muallif</option>
+                            <option value={ROLES.ADMIN}>Taqrizchi</option>
+                            <option value={ROLES.SUPERADMIN}>Admin</option>
+                          </select>
                         </td>
                       </tr>
                     ))

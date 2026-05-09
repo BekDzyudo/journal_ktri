@@ -17,6 +17,7 @@ import {
   formatDate,
 } from "../../../utils/articleDashboardHelpers.js";
 import { useNotifications } from "../../../context/NotificationContext.jsx";
+import { syncArticleStatusNotifications } from "../../../utils/articleStatusNotifications.js";
 
 function getTodayStr() {
   const d = new Date();
@@ -55,6 +56,12 @@ function AdminDashboard({ userData }) {
     setLoading(true);
     try {
       const data = await fakeArticleApi.getAssignedArticles(userData);
+      syncArticleStatusNotifications({
+        articles: data,
+        userData,
+        userRole: "admin",
+        scope: "admin-dashboard",
+      });
       setArticles(data);
     } catch (err) {
       console.error(err);
