@@ -1,4 +1,4 @@
-ï»¿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   FaBullseye,
   FaClipboardList,
@@ -95,7 +95,7 @@ function HomeJurnal() {
       case 1:
         return (
           <div className="prose max-w-none">
-            <h2 className="text-4xl font-bold text-gray-700 mb-6 font-serif">
+            <h2 className="text-2xl sm:text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
               Missiya
             </h2>
             
@@ -112,27 +112,27 @@ function HomeJurnal() {
                 <h3 className="font-bold text-gray-900 mb-3 text-lg">Asosiy yo'nalishlar:</h3>
                 <ul className="space-y-3 list-none">
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">â€¢</span>
+                    <span className="text-info font-bold mt-1">•</span>
                     <span>Mamlakatda Kasbiy ta'lim va ta'lim uzluksizligi yo'nalishlarida olib borilayotgan islohotlarning mazmun-mohiyatidan, zamonaviy pedagogik texnologiyalarining yaratilishi va ularni keng tatbiq etish borasida amalga oshirilayotgan ishlar haqida</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">â€¢</span>
+                    <span className="text-info font-bold mt-1">•</span>
                     <span>Kasbiy ta'limga oid yagona milliy axborot makonini yaratish hamda umumiy o'rta ta'limning nazariy-amaliy jarayonlariga iqtidorli yoshlar hamda tajribali ustozlarni faol jalb etish</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">â€¢</span>
+                    <span className="text-info font-bold mt-1">•</span>
                     <span>Xalqaro tendensiyalar va ilmiy izlanishlar bilan muvofiqlikni ta'minlash maqsadida Kasbiy ta'limning dolzarb muammolari yuzasidan tizimli asosda amalga oshilayotgan xalqaro ilmiy-tadqiqotlar tahlilini yetkazib borish</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">â€¢</span>
+                    <span className="text-info font-bold mt-1">•</span>
                     <span>Kasbiy ta'lim tizimini rivojlantirishning strategik yo'nalishlari, maqsad va dasturlarini ishlab chiqish hamda amalga oshirishning istiqbolli yo'nalishlarini belgilovchi masalalarni muhokama qilish</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">â€¢</span>
+                    <span className="text-info font-bold mt-1">•</span>
                     <span>Xalqaro baholash tadqiqotlarida yetakchi o'rinni egallab kelayotgan mamlakatlar erishgan ilm-fan, yuqori texnologik yutuqlar hamda O'zbekistonning xalqaro tadqiqotda ishtirok etish natijalari, muammolar, yechimlarini yoritish</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">â€¢</span>
+                    <span className="text-info font-bold mt-1">•</span>
                     <span>Kadrlar tayyorlash, malakasini oshirish, qayta tayyorlash, ta'lim menejmenti, boshqaruvga doir dolzarb muammolar va xalqaro tajriba natijalarini yoritish</span>
                   </li>
                 </ul>
@@ -144,8 +144,8 @@ function HomeJurnal() {
       case 2:
         return (
           <div className="prose max-w-none">
-            <h2 className="text-4xl font-bold text-gray-700 mb-6 font-serif">
-              Koâ€˜rib chiqish tartibi
+            <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
+              Ko‘rib chiqish tartibi
             </h2>
             
             <div className="space-y-5 text-gray-800 text-[17px] leading-relaxed">
@@ -233,7 +233,7 @@ function HomeJurnal() {
       case 3:
         return (
           <div className="prose max-w-none">
-            <h2 className="text-4xl font-bold text-gray-700 mb-6 font-serif">
+            <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
               Ochiq ma'lumotlar
             </h2>
             
@@ -245,7 +245,7 @@ function HomeJurnal() {
                 <p className="text-justify">
                   Jurnal <span className="font-bold text-blue-600">DOAJ tamoyillari</span> asosida nashr etilgan bo'lib, 
                   dunyoning istalgan nuqtasida o'zining barcha nashrlariga <span className="font-bold">bepul ochiq kirishni</span> ta'minlab, 
-                  Internetga kirish imkoniga ega bo'lib, bugungi dunyo tendensiyalari va talablariga javob beradi â€“ 
+                  Internetga kirish imkoniga ega bo'lib, bugungi dunyo tendensiyalari va talablariga javob beradi – 
                   axborot almashinuvini tezlashtirish imkonini beradi.
                 </p>
               </div>
@@ -261,11 +261,11 @@ function HomeJurnal() {
                 <h4 className="font-bold text-gray-900 mb-2">Mualliflar huquqlari:</h4>
                 <ul className="list-none space-y-2">
                   <li className="flex gap-2">
-                    <span className="text-green-600 font-bold">âœ“</span>
+                    <span className="text-green-600 font-bold">?</span>
                     <span>Nashrning havolasini ko'rsatgan holda tarqatish (jumladan, ijtimoiy tarmoqlarda)</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-green-600 font-bold">âœ“</span>
+                    <span className="text-green-600 font-bold">?</span>
                     <span>Almashish va o'z maqolasiga havola qilish</span>
                   </li>
                 </ul>
@@ -277,7 +277,7 @@ function HomeJurnal() {
       case 4:
         return (
           <div className="prose max-w-none">
-            <h2 className="text-4xl font-bold text-gray-700 mb-6 font-serif">
+            <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
               Nashr qilish shartlari
             </h2>
             
@@ -440,7 +440,7 @@ function HomeJurnal() {
       case 5:
         return (
           <div className="prose max-w-none">
-            <h2 className="text-4xl font-bold text-gray-700 mb-6 font-serif">
+            <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
               Ruknlar
             </h2>
 
@@ -451,11 +451,11 @@ function HomeJurnal() {
             )}
             {ruknlarError && !ruknlarLoading && (
               <p className="text-red-600">
-                Ruknlarni yuklashda xatolik yuz berdi. Keyinroq qayta urinib koâ€˜ring.
+                Ruknlarni yuklashda xatolik yuz berdi. Keyinroq qayta urinib ko‘ring.
               </p>
             )}
             {!ruknlarLoading && !ruknlarError && ruknlar.length === 0 && (
-              <p className="text-gray-600">Hozircha ruknlar roâ€˜yxati boâ€˜sh.</p>
+              <p className="text-gray-600">Hozircha ruknlar ro‘yxati bo‘sh.</p>
             )}
             {!ruknlarLoading && !ruknlarError && ruknlar.length > 0 && (
               <div className="grid md:grid-cols-2 gap-4">
@@ -491,8 +491,8 @@ function HomeJurnal() {
       />
 
       <HomeJurnalHero />
-      <section className="relative flex flex-col items-center -mt-10 z-20 mb-25 sm:mb-40">
-        <div className="w-full mx-5 xl:max-w-7xl 2xl:max-w-10/12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-5 xl:gap-6 px-3 sm:px-4 shadow-xl rounded-2xl bg-base-100 py-4 sm:py-6 lg:py-8">
+      <section className="relative flex flex-col items-center -mt-10 z-20 mb-25 sm:mb-40 px-3 sm:px-5">
+        <div className="w-full xl:max-w-7xl 2xl:max-w-[96%] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-5 xl:gap-6 px-3 sm:px-4 shadow-xl rounded-2xl bg-base-100 py-4 sm:py-6 lg:py-8">
           {navigationCards.map((card) => {
             const Icon = card.icon;
             const isActive = card.id === activeCard;
@@ -536,7 +536,7 @@ function HomeJurnal() {
         </div>
 
         {/* Content va Sidebar */}
-        <div className="w-full mx-5 xl:max-w-7xl 2xl:max-w-10/12 mt-10 grid grid-cols-1 lg:grid-cols-12 gap-6 px-3 sm:px-4">
+        <div className="w-full xl:max-w-7xl 2xl:max-w-[96%] mt-10 grid grid-cols-1 lg:grid-cols-12 gap-6 px-3 sm:px-4">
         {/* Chap tomon - Content */}
           <div className="lg:col-span-9 bg-white rounded-2xl shadow-md p-6 sm:p-8 h-min">
             {renderContent()}

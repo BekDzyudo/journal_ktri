@@ -306,7 +306,7 @@ function FloatingActionButton() {
 
       {/* Auto Help Popup Notification */}
       {showAutoPopup && (
-        <div className="fixed bottom-24 right-6 z-50 animate-slideUp">
+        <div className="fixed bottom-28 right-6 z-50 animate-slideUp">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm border-t-4 border-blue-600">
             <div className="flex items-start gap-4">
               <div className="bg-blue-100 p-3 rounded-full shrink-0">
@@ -346,7 +346,7 @@ function FloatingActionButton() {
       )}
 
       {/* FAB Container */}
-      <div className="fixed bottom-[48px] right-6 z-50 flex flex-col items-end gap-2.5">
+      <div className="fixed bottom-14 right-4 sm:right-6 z-50 flex flex-col items-end gap-2.5">
         {/* Speed Dial Options */}
         {isOpen && (
           <div className="flex flex-col items-end gap-2.5 animate-slideUp">

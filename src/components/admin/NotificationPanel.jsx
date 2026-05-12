@@ -54,7 +54,7 @@ export default function NotificationPanel({ isOpen, onClose, onOpenNotification 
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-full z-50 mt-2 w-[360px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+      className="absolute right-0 top-full z-50 mt-2 w-[calc(100vw-2rem)] max-w-[360px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">

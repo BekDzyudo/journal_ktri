@@ -541,7 +541,7 @@ function Contact() {
               </div>
 
               {/* Real-time Calendar Card */}
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 sticky top-64">
+              <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 sticky top-24 lg:top-28">
                 <div 
                   className="p-6 bg-gradient-to-br from-[#194882] to-info"
                   // style={{

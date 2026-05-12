@@ -924,9 +924,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   );
 
   useEffect(() => {
-    console.log("[statistika] API (statsData)", statsData);
-    console.log("[statistika] fallback (maqola/ro'yxatdan)", fallbackStats);
-    console.log("[statistika] panel (kartalar uchun)", dashboardStats);
   }, [statsData, fallbackStats, dashboardStats]);
 
   const filteredArticles = useMemo(
@@ -1072,7 +1069,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
             </div>
           </div>
 
-          <div className="flex shrink-0 gap-2">
+          <div className="flex flex-wrap shrink-0 gap-2">
             <button
               onClick={() => {
                 const today = getTodayStr();

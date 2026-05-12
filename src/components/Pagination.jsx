@@ -31,7 +31,7 @@ const Pagination = ({ current_page, total_pages, onPageChange }) => {
   const pages = generatePages();
 
   return (
-    <div className="flex items-center justify-center gap-2 mt-10">
+    <div className="flex flex-wrap items-center justify-center gap-2 mt-10 px-2">
 
       {/* Prev */}
       <button

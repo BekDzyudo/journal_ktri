@@ -251,7 +251,7 @@ function AnnouncementDetail() {
             {/* Article - Main Content */}
             <article className="flex-1 bg-white rounded-2xl shadow-xl border-2 border-gray-100 overflow-hidden">
               {/* Featured Image */}
-              <div className="relative h-[700px] overflow-hidden">
+              <div className="relative h-52 sm:h-80 md:h-[420px] lg:h-[500px] overflow-hidden">
                 <img
                   src={announcement?.rasm}
                   alt={announcement?.sarlavha}

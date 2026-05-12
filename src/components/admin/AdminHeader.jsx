@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBars, FaBell, FaCog, FaNewspaper, FaSearch, FaSignOutAlt, FaUser } from "react-icons/fa";
+import { FaBars, FaBell, FaCog, FaNewspaper, FaSearch, FaSignOutAlt, FaTimes, FaUser } from "react-icons/fa";
 import { ROLE_NAMES, ROLES } from "../../constants/roles.js";
 import { useNotifications } from "../../context/NotificationContext.jsx";
 import NotificationPanel from "./NotificationPanel.jsx";
@@ -19,6 +19,18 @@ function AdminHeader({
 }) {
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const sidebarRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
+        setMobileSidebarOpen(false);
+      }
+    };
+    if (mobileSidebarOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [mobileSidebarOpen]);
 
   const { unreadCount, refresh } = useNotifications();
 
@@ -65,25 +77,43 @@ function AdminHeader({
 
   return (
     <>
-      {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-        <button
-          onClick={() => navigate("/")}
-          className="flex h-18 items-center gap-3 border-b border-slate-100 px-5 text-left transition hover:bg-slate-50"
-          title="Asosiy sahifaga qaytish"
-        >
-          <img src="/new_logo_white.png" alt="KTRI" className="h-11 w-11 rounded-xl object-contain" />
-          <div>
-            <p className="text-base font-black tracking-tight text-slate-950">KTRI</p>
-            <p className="text-[11px] font-semibold text-slate-500">{roleBadge}</p>
-          </div>
-        </button>
+      {/* Mobile sidebar overlay */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-60 bg-black/40 lg:hidden" onClick={() => setMobileSidebarOpen(false)} />
+      )}
 
-        <nav className="flex-1 space-y-1.5 px-4 py-5">
+      {/* Sidebar — desktop: always visible, mobile: slide-in drawer */}
+      <aside
+        ref={sidebarRef}
+        className={`fixed inset-y-0 left-0 z-70 w-72 border-r border-slate-200 bg-white flex flex-col transition-transform duration-300 ${
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0`}
+      >
+        <div className="flex h-18 items-center justify-between border-b border-slate-100 px-5">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-3 text-left transition hover:opacity-80"
+            title="Asosiy sahifaga qaytish"
+          >
+            <img src="/new_logo_white.png" alt="KTRI" className="h-11 w-11 rounded-xl object-contain" />
+            <div>
+              <p className="text-base font-black tracking-tight text-slate-950">KTRI</p>
+              <p className="text-[11px] font-semibold text-slate-500">{roleBadge}</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setMobileSidebarOpen(false)}
+            className="lg:hidden grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"
+          >
+            <FaTimes className="text-sm" />
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-1.5 overflow-y-auto px-4 py-5">
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => { setActiveTab(item.id); setMobileSidebarOpen(false); }}
               className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                 activeTab === item.id
                   ? "bg-[#eef4ff] text-[#0d4ea3] ring-1 ring-blue-100"
@@ -115,7 +145,10 @@ function AdminHeader({
         <div className="flex h-18 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           {/* Left */}
           <div className="flex min-w-0 items-center gap-4">
-            <button className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 lg:hidden">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 lg:hidden"
+            >
               <FaBars />
             </button>
             <div className="hidden min-w-56 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-400 md:flex lg:min-w-88">
