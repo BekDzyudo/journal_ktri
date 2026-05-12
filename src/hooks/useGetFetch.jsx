@@ -33,7 +33,6 @@ function useGetFetch(url) {
         if (err.name === "AbortError") return;
         if (!cancelled) {
           setError(err.message || "Unknown error");
-          console.error(err);
         }
       } finally {
         if (!cancelled) setIsPending(false);

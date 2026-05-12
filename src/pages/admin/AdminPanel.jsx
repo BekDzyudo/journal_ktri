@@ -1,9 +1,8 @@
 import React, { useContext, useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi";
-import useGetFetchProfile from "../../hooks/useGetFetchProfile";
 import { formatPhoneNumber } from "../../utils/phoneFormatter";
 import { getAccessToken } from "../../utils/authStorage";
 import { ROLES, normalizeRole } from "../../constants/roles.js";
@@ -37,7 +36,31 @@ function normalizeProfilUser(payload) {
 function AdminPanel() {
   const { auth, userData, logout, userRole: contextUserRole, refresh: refreshAccessToken } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("dashboard");
+
+  // CLICK to'lovdan qaytganda redirect qilish
+  useEffect(() => {
+    const paymentStatus = searchParams.get("payment_status");
+    const paymentId = searchParams.get("payment_id");
+    
+    // Agar CLICK parametrlari mavjud bo'lsa, payment-result ga yo'naltirish
+    if (paymentStatus && paymentId) {
+      // SessionStorage dan maqola_id ni olish (handlePay da saqlangan)
+      const articleId = sessionStorage.getItem('pending_payment_article_id');
+      
+      // Maqola ID bilan birga payment-result ga yo'naltirish
+      if (articleId) {
+        navigate(`/payment-result?maqola_id=${articleId}&payment_id=${paymentId}&payment_status=${paymentStatus}`, { replace: true });
+        // Tozalash
+        sessionStorage.removeItem('pending_payment_article_id');
+      } else {
+        // Maqola ID topilmasa, faqat payment ma'lumotlari bilan
+        navigate(`/payment-result?payment_id=${paymentId}&payment_status=${paymentStatus}`, { replace: true });
+      }
+    }
+  }, [searchParams, navigate]);
+
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [profilPayload, setProfilPayload] = useState(null);
   const [profilError, setProfilError] = useState("");
@@ -61,11 +84,8 @@ function AdminPanel() {
   const [updateSuccess, setUpdateSuccess] = useState("");
   const [passwordFieldErrors, setPasswordFieldErrors] = useState({});
 
-  const { data: user } = useGetFetchProfile(
-    `${import.meta.env.VITE_BASE_URL}/user-data/`
-  );
   const profilUser = useMemo(() => normalizeProfilUser(profilPayload), [profilPayload]);
-  const profileUser = profilUser || user || userData || {};
+  const profileUser = profilUser || userData || {};
   const userRole = normalizeRole(profilPayload?.rol || contextUserRole || profileUser?.role || userData?.role);
 
   useEffect(() => {
@@ -111,10 +131,10 @@ function AdminPanel() {
   useEffect(() => {
     if (!auth) {
       navigate("/login");
-    } else if (user && user.is_verified === false) {
+    } else if (profileUser?.is_verified === false) {
       navigate("/verify");
     }
-  }, [auth, navigate, user]);
+  }, [auth, navigate, profileUser]);
 
   const roleConfig = useMemo(() => {
     switch (userRole) {
@@ -413,15 +433,15 @@ function AdminPanel() {
 
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={handleOpenEditModal}
-                  className="btn btn-primary gap-2"
+                  disabled
+                  className="btn btn-primary gap-2 opacity-50 cursor-not-allowed"
                 >
                   <FaEdit />
                   Ma'lumotlarni tahrirlash
                 </button>
                 <button
-                  onClick={() => setPasswordModalOpen(true)}
-                  className="btn btn-secondary gap-2"
+                  disabled
+                  className="btn btn-secondary gap-2 opacity-50 cursor-not-allowed"
                 >
                   <FaLock />
                   Parolni o'zgartirish

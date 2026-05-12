@@ -240,7 +240,6 @@ function SendJournal() {
       if (inputEl) inputEl.value = null
       navigate('/profile')
     } catch (error) {
-      console.error('Error submitting article:', error)
       toast.error(error.message || 'Maqola yuborishda xatolik yuz berdi', {
         position: 'top-center',
         autoClose: 5000,

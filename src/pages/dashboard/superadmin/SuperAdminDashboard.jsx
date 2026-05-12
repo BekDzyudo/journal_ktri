@@ -648,16 +648,11 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       }
 
       if (!res.ok) {
-        console.warn(
-          "[admin/statistika/] xatolik:",
-          parseApiError(json, `${res.status} ${res.statusText || ""}`.trim())
-        );
         return null;
       }
 
       return json;
     } catch (err) {
-      console.warn("[admin/statistika/] so'rov xatoligi:", err?.message);
       return null;
     }
   }, [refreshAccessToken]);
@@ -753,7 +748,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       setUsers(normalizedUsers);
       setAdmins(adminUsers);
     } catch (error) {
-      console.error("Error fetching data:", error);
       toast.error(
         "Ma'lumotlarni yuklashda xatolik" +
           (error?.message ? `: ${error.message}` : "")
@@ -784,7 +778,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       setSelectedAdmin("");
       fetchData();
     } catch (error) {
-      console.error("Error assigning article:", error);
       toast.error("Tayinlashda xatolik: " + error.message);
     }
   };
@@ -833,7 +826,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       setDecisionDescription("");
       fetchData();
     } catch (error) {
-      console.error("Error making decision:", error);
       toast.error("Xatolik: " + error.message);
     }
   };
@@ -873,7 +865,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       setFinalDecisionDescription("");
       fetchData();
     } catch (error) {
-      console.error("Error final decision:", error);
       toast.error("Xatolik: " + error.message);
     }
   };
@@ -903,7 +894,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       refreshNotifications();
       fetchData();
     } catch (error) {
-      console.error("Error changing user role:", error);
       toast.error("Rolni o'zgartirishda xatolik: " + error.message);
     }
   };

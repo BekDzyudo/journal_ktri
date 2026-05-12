@@ -208,7 +208,7 @@ function AnnouncementDetail() {
           text: announcement?.sarlavha,
           url: window.location.href,
         })
-        .catch((error) => console.log("Ulashishda xato:", error));
+        .catch(() => {});
     } else {
       // Fallback: URL ni clipboard ga nusxalash
       navigator.clipboard.writeText(window.location.href);

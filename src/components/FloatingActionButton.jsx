@@ -122,7 +122,6 @@ function FloatingActionButton() {
         setIsQuickModalOpen(false);
       }, 3000);
     } catch (error) {
-      console.error("Xatolik:", error);
       setQuickSubmitMessage({
         type: "error",
         text: "Xabar yuborishda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.",

@@ -81,7 +81,6 @@ export const AuthProvider = ({ children }) => {
       const currentTime = Date.now() / 1000;
       return decoded.exp <= currentTime + skewSeconds;
     } catch (error) {
-      console.error("Error decoding token:", error);
       return true;
     }
   }, []);
@@ -123,14 +122,13 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    console.warn("Profil ma'lumotlari olinmadi:", lastError);
+    // Profil yuklanmadi
     return baseUser;
   }, []);
 
   // Login - access va refresh tokenlarni saqlash; ixtiyoriy user — login javobidan
   const login = async (access, refresh, role = ROLES.USER, userFromLogin = null) => {
     if (!access || !refresh) {
-      console.error("login: access va refresh token talab qilinadi");
       return;
     }
 
@@ -190,7 +188,6 @@ export const AuthProvider = ({ children }) => {
         return null;
       }
     } catch (error) {
-      console.error("Error refreshing token:", error);
       logout();
       return null;
     }

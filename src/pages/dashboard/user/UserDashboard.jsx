@@ -16,7 +16,6 @@ import {
   MUALLIF_API_HOLAT_COLORS,
   MUALLIF_API_HOLAT,
 } from "../../../constants/roles.js";
-import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import { inferMuallifHolatKeyForPanel, normalizeMaqolaForDashboard, normalizeMaqolalarList } from "../../../utils/maqolaApi.js";
 import { fetchWithAuth } from "../../../utils/authenticatedFetch.js";
 import { getAccessToken } from "../../../utils/authStorage.js";
@@ -49,6 +48,14 @@ function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** To'lov uchun id resolver - maqola obyektidan ID ni chiqarib olish */
+function resolveArticleIdForPayment(input) {
+  if (input == null) return null;
+  if (typeof input !== "object" || Array.isArray(input)) return input;
+  const id = input.id ?? input.pk ?? input.uuid;
+  return id != null && id !== "" ? id : null;
+}
+
 function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-blue-600" }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
@@ -71,7 +78,7 @@ function InfoBlock({ label, value, className = "" }) {
   );
 }
 
-function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay }) {
+function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTestClickPay = false }) {
   const { refresh: refreshAccessToken } = useContext(AuthContext);
   const [data, setData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
@@ -299,7 +306,7 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay }) {
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <SectionHeader icon={<FaFileAlt />} title="Fayl va amallar" color="bg-sky-500" iconColor="text-sky-600" />
             <div className="flex flex-wrap gap-3">
-              {data.holat === "TOLOV_KUTILMOQDA" && (
+              {enableTestClickPay && data.holat === "TOLOV_KUTILMOQDA" && (
                 <button
                   onClick={() => onPay({ id: data.id, articleTitle: data.sarlavha })}
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
@@ -369,12 +376,10 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
         if (!cancelled) {
           if (res.ok) {
             if (json) setStats(json);
-          } else {
-            console.warn("[profil/statistika/] xatolik:", res.status, json ?? text);
           }
         }
       } catch (e) {
-        if (!cancelled) console.warn("[profil/statistika/] so'rov xatolik:", e?.message || e);
+        // Silent error
       }
     };
     load();
@@ -387,38 +392,16 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
 
     if (!base || !getAccessToken()) {
-      // Token yo'q — fake data
-      try {
-        const data = await fakeArticleApi.getMyArticles(userData);
-        const normalized = data.map((a) => normalizeMaqolaForDashboard(a));
-        syncArticleStatusNotifications({
-          articles: normalized,
-          userData,
-          userRole: "user",
-          scope: "user-dashboard",
-        });
-        setArticles(normalized);
-      } catch { /* ignore */ }
+      // Token yo'q — login sahifasiga yo'naltirish
+      setArticles([]);
       setLoading(false);
       return;
     }
 
     try {
-      // 1-urinish: profil/maqolalar/ (dedicated list endpoint)
       let list = null;
-      const listRes = await fetchWithAuth(`${base}/profil/maqolalar/`, { method: "GET" }, getAccessToken, refreshAccessToken);
-      if (listRes.ok) {
-        const t = await listRes.text();
-        let j = null;
-        try { j = t ? JSON.parse(t) : null; } catch { j = null; }
-        const arr = normalizeMaqolalarList(j);
-        if (arr.length > 0) {
-          list = arr;
-          console.info(`[UserDashboard] profil/maqolalar/ → ${arr.length} ta maqola`);
-        }
-      }
 
-      // 2-urinish: profil/ (agar list endpoint bo'sh yoki yo'q bo'lsa)
+      // profil/ dan maqolalar olish
       if (!list) {
         const profilRes = await fetchWithAuth(`${base}/profil/`, { method: "GET" }, getAccessToken, refreshAccessToken);
         const t = await profilRes.text();
@@ -427,9 +410,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
         if (profilRes.ok && j) {
           setProfilePayload(j);
           list = normalizeMaqolalarList(j);
-          console.info(`[UserDashboard] profil/ → ${list.length} ta maqola`);
         } else {
-          console.warn("[UserDashboard] profil/", profilRes.status, parseApiError(j, ""));
           toast.error(parseApiError(j, "Maqolalar ro'yxatini yuklashda xatolik"));
           list = [];
         }
@@ -443,7 +424,6 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
       });
       setArticles(list);
     } catch (err) {
-      console.error("[UserDashboard] fetchArticles xatolik:", err);
       toast.error("Maqolalarni yuklashda xatolik yuz berdi");
       setArticles([]);
     } finally {
@@ -500,16 +480,65 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     [dateFilteredArticles, searchQuery, filterStatus]
   );
 
-  const muallifHolatLabel = (article) => MUALLIF_API_HOLAT_LABELS[inferMuallifHolatKeyForPanel(article)];
+  const viteBase = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+
   const muallifHolatBadgeClass = (article) =>
     MUALLIF_API_HOLAT_COLORS[inferMuallifHolatKeyForPanel(article)] || "bg-gray-100 text-gray-800 border-gray-200";
 
+  const muallifHolatLabel = (article) => {
+    const holatKey = inferMuallifHolatKeyForPanel(article);
+    return MUALLIF_API_HOLAT_LABELS[holatKey] || article?.holat || article?.status || "—";
+  };
+
   const handlePay = async (article) => {
-    await fakeArticleApi.payArticle(article.id);
-    toast.success("CLICK test to'lovi muvaffaqiyatli bajarildi. Maqola superadminga yuborildi.");
-    refreshNotifications();
-    fetchArticles();
-    setSelectedArticle(null);
+    const payId = resolveArticleIdForPayment(article);
+    if (payId == null || payId === "") {
+      toast.error("Maqola ID topilmadi — ro'yxat yoki ma'lumotlarni yangilang.");
+      return;
+    }
+
+    if (!viteBase || !getAccessToken()) {
+      toast.error("Backend konfiguratsiyasi yoki token mavjud emas.");
+      return;
+    }
+
+    try {
+      // Real CLICK to'lov API ga so'rov yuborish (GET metodi)
+      const res = await fetchWithAuth(
+        `${viteBase}/v1/tolov/boshlash/${payId}/`,
+        { method: "GET" },
+        getAccessToken,
+        refreshAccessToken
+      );
+      const text = await res.text();
+      let json = null;
+      try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+      
+      if (!res.ok) {
+        throw new Error(parseApiError(json, "To'lovni boshlashda xatolik"));
+      }
+      
+      // Backend dan CLICK URL qaytishi kerak
+      if (json?.click_url) {
+        // CLICK ga borishdan oldin maqola ID ni saqlash (return_url da kerak bo'ladi)
+        sessionStorage.setItem('pending_payment_article_id', payId);
+        // CLICK to'lov sahifasiga yo'naltirish
+        window.location.href = json.click_url;
+      } else if (json?.payment_url) {
+        sessionStorage.setItem('pending_payment_article_id', payId);
+        window.location.href = json.payment_url;
+      } else {
+        toast.success("To'lov so'rovi yuborildi. Iltimos, kuting...");
+        // To'lov holati tekshirish
+        setTimeout(() => {
+          refreshNotifications();
+          fetchArticles();
+          setSelectedArticle(null);
+        }, 2000);
+      }
+    } catch (e) {
+      toast.error(e?.message || "To'lovni boshlashda xatolik");
+    }
   };
 
   const handleSelectArticle = (article) => {
@@ -524,9 +553,11 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
         profilePayload={profilePayload}
         onBack={() => setSelectedArticle(null)}
         onPay={handlePay}
+        enableTestClickPay={true}
       />
     );
   }
+console.log(filteredArticles);
 
   /* ---- List view ---- */
   return (

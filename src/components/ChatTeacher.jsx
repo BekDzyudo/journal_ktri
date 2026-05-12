@@ -104,7 +104,7 @@ function Chat({ materialId }) {
           return res;
         })
         .then((data) => {})
-        .catch((err) => console.log(err))
+        .catch(() => {})
         .finally(() => {
           setInputText("");
           enterInput.current.value = "";

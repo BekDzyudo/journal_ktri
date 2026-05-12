@@ -21,6 +21,7 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import NewPassword from "./pages/auth/NewPassword";
 import AdminPanel from "./pages/admin/AdminPanel";
 import UserArticleDetail from "./pages/dashboard/user/UserArticleDetail";
+import PaymentResult from "./pages/payment/PaymentResult";
 
 function LegacyAdminArticlesRedirect({ auth }) {
   const { articleId } = useParams();
@@ -92,6 +93,10 @@ function App() {
         {
           path: "dashboard",
           element: <Navigate to="/profile" replace />
+        },
+        {
+          path: "payment-result",
+          element: <PaymentResult />
         },
       ],
     },

@@ -203,7 +203,6 @@ function Contact() {
       // Clear message after 5 seconds
       setTimeout(() => setSubmitMessage(null), 7000);
     } catch (error) {
-      console.error("Xatolik:", error);
       setSubmitMessage({
         type: "error",
         text: "Xabar yuborishda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.",

@@ -64,7 +64,7 @@ function AdminDashboard({ userData }) {
       });
       setArticles(data);
     } catch (err) {
-      console.error(err);
+
       toast.error("Maqolalarni yuklashda xatolik");
     } finally {
       setLoading(false);
@@ -115,7 +115,6 @@ function AdminDashboard({ userData }) {
       closeReviewModal();
       fetchArticles();
     } catch (err) {
-      console.error(err);
       toast.error("Taqriz yuborishda xatolik: " + err.message);
     } finally {
       setIsSubmittingReview(false);

@@ -108,6 +108,14 @@ const getSuperAdminEmails = () => {
     .map((u) => u.email);
 };
 
+/** String id dan ref qismi; massiv `.slice()` ishlatiladi (raqam/tur xatolari uchun xavfsiz). */
+function paymentRefTailFromId(idKey) {
+  const chars = [...String(idKey).replace(/\s+/g, "")];
+  const last = chars.length <= 6 ? chars : chars.slice(-6);
+  const joined = last.join("");
+  return joined.length ? joined.toUpperCase() : "XXXXXX";
+}
+
 export const fakeArticleApi = {
   async getUsers(userData) {
     const users = ensureCurrentUser(readJson(USERS_KEY, defaultUsers), userData);
@@ -261,12 +269,24 @@ export const fakeArticleApi = {
     return result;
   },
 
-  /** Muallif CLICK orqali to'lov qiladi */
-  async payArticle(articleId) {
-    const now = new Date().toISOString();
-    const ref = `CLICK-${articleId.slice(-6).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+  /** Muallif CLICK (mahalliy test) — bildirishnomada xatolik konsolga tushadi, to'lov oqimi ishda qoladi */
+  async payArticle(articleOrId) {
+    let raw = articleOrId;
+    if (raw != null && typeof raw === "object" && !Array.isArray(raw)) {
+      raw = raw.id ?? raw.pk ?? raw.uuid;
+    }
+    const idKey =
+      raw != null && raw !== "" ? String(raw).trim() : "";
 
-    const result = await this.updateArticle(articleId, (a) => ({
+    if (!idKey || idKey === "undefined" || idKey === "null" || idKey === "[object Object]") {
+      throw new Error("Maqola ID topilmadi.");
+    }
+
+    const now = new Date().toISOString();
+    const suffix = paymentRefTailFromId(idKey);
+    const ref = `CLICK-${suffix}-${Date.now().toString(36).toUpperCase()}`;
+
+    const result = await this.updateArticle(idKey, (a) => ({
       ...a,
       status:           ARTICLE_STATUS.PAID,
       paymentStatus:    "paid",
@@ -281,17 +301,20 @@ export const fakeArticleApi = {
       ],
     }));
 
-    // Superadminga bildirishnoma
-    const articles = readJson(ARTICLES_KEY, []);
-    const article  = articles.find((a) => a.id === articleId);
-    fakeNotificationApi.push({
-      type:         NOTIFICATION_TYPES.ARTICLE_PAID,
-      title:        "To'lov qabul qilindi",
-      message:      `"${article?.articleTitle}" maqolasi uchun CLICK to'lovi keldi. Ref: ${ref}`,
-      targetRole:   "superadmin",
-      articleId,
-      articleTitle: article?.articleTitle,
-    });
+    try {
+      const articles = readJson(ARTICLES_KEY, []);
+      const article  = articles.find((a) => String(a.id) === idKey);
+      fakeNotificationApi.push({
+        type:         NOTIFICATION_TYPES.ARTICLE_PAID,
+        title:        "To'lov qabul qilindi",
+        message:      `"${article?.articleTitle}" maqolasi uchun CLICK to'lovi keldi. Ref: ${ref}`,
+        targetRole:   "superadmin",
+        articleId:    idKey,
+        articleTitle: article?.articleTitle,
+      });
+    } catch (e) {
+      console.warn("[fakeArticleApi.payArticle] bildirishnoma:", e);
+    }
 
     return result;
   },
@@ -480,10 +503,11 @@ export const fakeArticleApi = {
   },
 
   async updateArticle(articleId, updater) {
+    const key = articleId != null ? String(articleId) : "";
     const articles = readJson(ARTICLES_KEY, []);
     let updatedArticle = null;
     const next = articles.map((a) => {
-      if (a.id !== articleId) return a;
+      if (String(a.id) !== key) return a;
       updatedArticle = updater(a);
       return updatedArticle;
     });

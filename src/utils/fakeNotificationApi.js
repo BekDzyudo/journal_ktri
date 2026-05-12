@@ -33,7 +33,8 @@ export const NOTIFICATION_ICONS = {
 
 function readAll() {
   try {
-    return JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || "[]");
+    const raw = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || "[]");
+    return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
   }
@@ -54,7 +55,8 @@ function normalizeEmail(email) {
 
 function saveAll(list) {
   try {
-    const trimmed = list.slice(0, 500);
+    const arr = Array.isArray(list) ? list : [];
+    const trimmed = arr.slice(0, 500);
     localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(trimmed));
     window.dispatchEvent(new CustomEvent(NOTIFICATION_CHANGED_EVENT));
   } catch {}
@@ -65,8 +67,10 @@ export const fakeNotificationApi = {
    * Yangi xabar qo'shish.
    */
   push({ type, title, message, targetRole, targetEmail = null, articleId = null, articleTitle = null }) {
+    const rnd = Math.random().toString(36);
+    const shortId = rnd.length > 6 ? rnd.substring(2, 6) : rnd.substring(2);
     const notification = {
-      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `notif-${Date.now()}-${shortId}`,
       type,
       icon: NOTIFICATION_ICONS[type] || "🔔",
       title,
