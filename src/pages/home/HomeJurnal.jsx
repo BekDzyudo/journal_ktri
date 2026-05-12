@@ -95,7 +95,7 @@ function HomeJurnal() {
       case 1:
         return (
           <div className="prose max-w-none">
-            <h2 className="text-2xl sm:text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
+            <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
               Missiya
             </h2>
             
@@ -112,27 +112,27 @@ function HomeJurnal() {
                 <h3 className="font-bold text-gray-900 mb-3 text-lg">Asosiy yo'nalishlar:</h3>
                 <ul className="space-y-3 list-none">
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">•</span>
+                    <span className="text-info font-bold mt-1">?</span>
                     <span>Mamlakatda Kasbiy ta'lim va ta'lim uzluksizligi yo'nalishlarida olib borilayotgan islohotlarning mazmun-mohiyatidan, zamonaviy pedagogik texnologiyalarining yaratilishi va ularni keng tatbiq etish borasida amalga oshirilayotgan ishlar haqida</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">•</span>
+                    <span className="text-info font-bold mt-1">?</span>
                     <span>Kasbiy ta'limga oid yagona milliy axborot makonini yaratish hamda umumiy o'rta ta'limning nazariy-amaliy jarayonlariga iqtidorli yoshlar hamda tajribali ustozlarni faol jalb etish</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">•</span>
+                    <span className="text-info font-bold mt-1">?</span>
                     <span>Xalqaro tendensiyalar va ilmiy izlanishlar bilan muvofiqlikni ta'minlash maqsadida Kasbiy ta'limning dolzarb muammolari yuzasidan tizimli asosda amalga oshilayotgan xalqaro ilmiy-tadqiqotlar tahlilini yetkazib borish</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">•</span>
+                    <span className="text-info font-bold mt-1">?</span>
                     <span>Kasbiy ta'lim tizimini rivojlantirishning strategik yo'nalishlari, maqsad va dasturlarini ishlab chiqish hamda amalga oshirishning istiqbolli yo'nalishlarini belgilovchi masalalarni muhokama qilish</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">•</span>
+                    <span className="text-info font-bold mt-1">?</span>
                     <span>Xalqaro baholash tadqiqotlarida yetakchi o'rinni egallab kelayotgan mamlakatlar erishgan ilm-fan, yuqori texnologik yutuqlar hamda O'zbekistonning xalqaro tadqiqotda ishtirok etish natijalari, muammolar, yechimlarini yoritish</span>
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">•</span>
+                    <span className="text-info font-bold mt-1">?</span>
                     <span>Kadrlar tayyorlash, malakasini oshirish, qayta tayyorlash, ta'lim menejmenti, boshqaruvga doir dolzarb muammolar va xalqaro tajriba natijalarini yoritish</span>
                   </li>
                 </ul>
@@ -145,7 +145,7 @@ function HomeJurnal() {
         return (
           <div className="prose max-w-none">
             <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
-              Ko‘rib chiqish tartibi
+              Ko?rib chiqish tartibi
             </h2>
             
             <div className="space-y-5 text-gray-800 text-[17px] leading-relaxed">
@@ -245,7 +245,7 @@ function HomeJurnal() {
                 <p className="text-justify">
                   Jurnal <span className="font-bold text-blue-600">DOAJ tamoyillari</span> asosida nashr etilgan bo'lib, 
                   dunyoning istalgan nuqtasida o'zining barcha nashrlariga <span className="font-bold">bepul ochiq kirishni</span> ta'minlab, 
-                  Internetga kirish imkoniga ega bo'lib, bugungi dunyo tendensiyalari va talablariga javob beradi – 
+                  Internetga kirish imkoniga ega bo'lib, bugungi dunyo tendensiyalari va talablariga javob beradi ? 
                   axborot almashinuvini tezlashtirish imkonini beradi.
                 </p>
               </div>
@@ -451,11 +451,11 @@ function HomeJurnal() {
             )}
             {ruknlarError && !ruknlarLoading && (
               <p className="text-red-600">
-                Ruknlarni yuklashda xatolik yuz berdi. Keyinroq qayta urinib ko‘ring.
+                Ruknlarni yuklashda xatolik yuz berdi. Keyinroq qayta urinib ko?ring.
               </p>
             )}
             {!ruknlarLoading && !ruknlarError && ruknlar.length === 0 && (
-              <p className="text-gray-600">Hozircha ruknlar ro‘yxati bo‘sh.</p>
+              <p className="text-gray-600">Hozircha ruknlar ro?yxati bo?sh.</p>
             )}
             {!ruknlarLoading && !ruknlarError && ruknlar.length > 0 && (
               <div className="grid md:grid-cols-2 gap-4">
