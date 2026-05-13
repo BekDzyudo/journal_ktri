@@ -13,22 +13,43 @@ function extractArrayFromMaybePaginated(val) {
   return null;
 }
 
+function looksLikeArticle(item) {
+  if (!item || typeof item !== "object") return false;
+  return !!(item.sarlavha || item.holat || item.id || item.pk || item.title);
+}
+
 /** API javobidan maqolalar massivini ajratib oladi */
 export function parseMaqolalarListPayload(raw) {
   if (raw == null) return [];
   if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw.results)) return raw.results;
-  if (Array.isArray(raw.data)) return raw.data;
 
-  const fromTop = extractArrayFromMaybePaginated(raw.maqolalar);
-  if (fromTop) return fromTop;
+  // DRF paginated list (results is array of articles, not a profile object)
+  if (Array.isArray(raw.results) && raw.results.length > 0 && looksLikeArticle(raw.results[0])) {
+    return raw.results;
+  }
 
-  const listKeys = ["maqolalar", "articles", "my_articles", "myArticles", "user_maqolalar"];
+  if (Array.isArray(raw.data) && raw.data.length > 0 && looksLikeArticle(raw.data[0])) {
+    return raw.data;
+  }
+
+  // Known article list keys (prioritised)
+  const listKeys = [
+    "maqolalar", "articles", "my_articles", "myArticles", "user_maqolalar",
+    "maqola_set", "maqola_list", "submissions", "submitted", "my_submissions",
+    "user_articles", "muallif_maqolalar", "muallif_articles",
+  ];
   const dataObj = raw.data != null && typeof raw.data === "object" && !Array.isArray(raw.data) ? raw.data : null;
   for (const key of listKeys) {
     const v = raw[key] ?? dataObj?.[key];
     const arr = extractArrayFromMaybePaginated(v);
     if (arr) return arr;
+  }
+
+  // Last resort: scan all object keys for an array of article-like items
+  for (const key of Object.keys(raw)) {
+    const v = raw[key];
+    const arr = extractArrayFromMaybePaginated(v);
+    if (arr && arr.length > 0 && looksLikeArticle(arr[0])) return arr;
   }
 
   return [];

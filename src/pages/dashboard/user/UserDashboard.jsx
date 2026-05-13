@@ -124,13 +124,31 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
 
   const pdfUrl = resolveMediaUrl(data?.pdf || data?.fayl || data?.articleFileUrl || null);
 
-  const downloadFile = () => {
+  const downloadFile = async () => {
     if (!pdfUrl) return;
-    const iframe = document.createElement("iframe");
-    iframe.style.cssText = "display:none;position:fixed;width:0;height:0;";
-    iframe.src = pdfUrl;
-    document.body.appendChild(iframe);
-    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 30000);
+    try {
+      const res = await fetchWithAuth(pdfUrl, { method: "GET" }, getAccessToken, refreshAccessToken);
+      if (!res.ok) throw new Error("fetch_failed");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = data?.fayl_nomi || data?.fileName || "maqola.doc";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } catch {
+      // CORS yoki xatolik: to'g'ridan-to'g'ri URL orqali yuklab olish
+      const a = document.createElement("a");
+      a.href = pdfUrl;
+      a.download = data?.fayl_nomi || data?.fileName || "maqola.doc";
+      // a.target = "_blank";
+      a.rel = "noreferrer noopener";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   return (

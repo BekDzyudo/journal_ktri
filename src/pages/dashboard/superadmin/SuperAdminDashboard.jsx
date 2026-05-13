@@ -305,21 +305,10 @@ function SuperAdminDetailPanel({ articleId, onBack, onActionDone }) {
             <SectionHeader icon={<FaFileAlt />} title="Fayl" color="bg-sky-500" iconColor="text-sky-600" />
             {pdfUrl ? (
               <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const win = window.open(pdfUrl, "_blank", "noopener,noreferrer");
-                    if (!win) toast.info("Yangi oynani ochib bo'lmadi. Yuklab oling.");
-                  }}
-                  className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
-                >
-                  <FaExternalLinkAlt className="text-xs" />
-                  Faylni ko'rish
-                </button>
                 <a
                   href={pdfUrl}
                   download=""
-                  target="_blank"
+                  // target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
                 >
