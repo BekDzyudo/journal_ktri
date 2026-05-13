@@ -9,8 +9,13 @@ import {
   FaGraduationCap,
   FaBrain,
   FaLandmark,
+  FaNewspaper,
 } from "react-icons/fa";
 import useGetFetch from "../../hooks/useGetFetch";
+
+// ✏️ Shu yerda joriy jurnal soni va qabul tugash sanasini o'zgartiring
+const JOURNAL_ISSUE = "2026-yil, 2-son";
+const SUBMISSION_DEADLINE = new Date("2026-06-15T23:59:59");
 
 function HomeJurnalHero() {
      const heroRef = useRef(null);
@@ -37,7 +42,29 @@ function HomeJurnalHero() {
       
       // Muhim sanalarni ko'rsatish/yashirish
       const showDeadlines = true; // false qilib qo'ysangiz, faqat OAK ko'rinadi
-      
+
+      // Countdown timer
+      const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
+      useEffect(() => {
+        const tick = () => {
+          const diff = SUBMISSION_DEADLINE.getTime() - Date.now();
+          if (diff <= 0) {
+            setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: true });
+            return;
+          }
+          setCountdown({
+            days: Math.floor(diff / 86400000),
+            hours: Math.floor((diff % 86400000) / 3600000),
+            minutes: Math.floor((diff % 3600000) / 60000),
+            seconds: Math.floor((diff % 60000) / 1000),
+            expired: false,
+          });
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+      }, []);
+
       useEffect(() => {
         setShowHeading(false);
         setShowDesc(false);
@@ -120,7 +147,6 @@ function HomeJurnalHero() {
                               <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-gradient-to-t from-black/20 to-transparent" />
                               <FaCalendarCheck className="text-white text-base sm:text-lg md:text-xl relative z-10 drop-shadow-lg" />
                             </div>
-                            
                             <div className="flex-1">
                               <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-white">
                                 Muhim sanalar
@@ -128,13 +154,13 @@ function HomeJurnalHero() {
                               <div className="h-0.5 w-10 sm:w-12 md:w-16 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full mt-0.5 sm:mt-1"></div>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm md:text-base text-gray-50">
                             <div className="backdrop-blur-sm bg-white/5 rounded-lg sm:rounded-xl p-2.5 sm:p-3 md:p-3.5 border border-white/10 hover:bg-white/10 transition-colors">
                               <p className="flex items-start gap-1.5 sm:gap-2">
                                 <span className="text-base sm:text-lg shrink-0">📝</span>
                                 <span className="leading-relaxed">
-                                  Maqolalar <strong className="text-emerald-300">25-aprelgacha</strong> qabul qilinadi
+                                  Maqolalar <strong className="text-emerald-300">15-iyungacha</strong> qabul qilinadi
                                 </span>
                               </p>
                             </div>
@@ -142,7 +168,7 @@ function HomeJurnalHero() {
                               <p className="flex items-start gap-1.5 sm:gap-2">
                                 <span className="text-base sm:text-lg shrink-0">📢</span>
                                 <span className="leading-relaxed">
-                                  Natijalar <strong className="text-cyan-300">2025-yil 30-aprelda</strong> e'lon qilinadi
+                                  Natijalar <strong className="text-cyan-300">2026-yil 30-iyunda</strong> e'lon qilinadi
                                 </span>
                               </p>
                             </div>
@@ -150,48 +176,74 @@ function HomeJurnalHero() {
                         </div>
                       )}
 
-                      {/* OAK - Always rendered */}
+                      {/*Qabul */}
                       <div className={`flex flex-col ${showDeadlines ? 'md:border-l md:border-white/10 md:pl-6 lg:pl-8' : ''}`}>
-                        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-white/10">
-                          <div className="relative w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-400 to-rose-400 flex items-center justify-center shadow-lg transform transition-all duration-300 group-hover:scale-105">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-amber-400/30">
+                          <div className="relative w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-400 to-rose-400 flex items-center justify-center shadow-lg shadow-amber-500/30 transform transition-all duration-300 group-hover:scale-105">
+                            <span className="absolute inset-0 rounded-lg sm:rounded-xl animate-ping bg-amber-400/30" />
                             <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-gradient-to-t from-black/20 to-transparent" />
                             <FaAward className="text-white text-base sm:text-lg md:text-xl relative z-10 drop-shadow-lg" />
                           </div>
-                          
                           <div className="flex-1">
-                            <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-white">
-                              OAK tan olingan
-                            </h3>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-white">
+                                Qabul davom etmoqda
+                              </h3>
+                              <span className="inline-flex items-center gap-1 bg-emerald-500/20 border border-emerald-400/40 rounded-full px-2 py-0.5">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
+                                </span>
+                                <span className="text-[9px] sm:text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Faol</span>
+                              </span>
+                            </div>
                             <div className="h-0.5 w-10 sm:w-12 md:w-16 bg-gradient-to-r from-amber-400 to-rose-400 rounded-full mt-0.5 sm:mt-1"></div>
                           </div>
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 md:gap-3 text-xs sm:text-[15px] text-gray-50">
-                          <div className="backdrop-blur-sm bg-white/5 rounded-lg sm:rounded-xl p-2 sm:p-2.5 md:p-3.5 border border-white/10 hover:bg-white/10 transition-colors">
-                            <p className="flex items-center gap-1.5 sm:gap-2">
-                              <FaCog className="text-amber-400 text-sm sm:text-base md:text-lg shrink-0" />
-                              <span className="leading-snug"><strong>05.00.00</strong> — Texnika fanlari</span>
-                            </p>
+
+                        {/* Joriy jurnal soni badge */}
+                        <div className="mb-3 backdrop-blur-sm bg-white/5 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 border border-white/10 flex items-center gap-2.5">
+                          <FaNewspaper className="text-cyan-300 shrink-0 text-base sm:text-lg" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] sm:text-[11px] text-gray-400 font-semibold uppercase tracking-wider leading-none">Joriy son</p>
+                            <p className="text-white font-bold text-sm sm:text-base leading-tight mt-0.5">{JOURNAL_ISSUE}</p>
                           </div>
-                          <div className="backdrop-blur-sm bg-white/5 rounded-lg sm:rounded-xl p-2 sm:p-2.5 md:p-3.5 border border-white/10 hover:bg-white/10 transition-colors">
-                            <p className="flex items-center gap-1.5 sm:gap-2">
-                              <FaChartLine className="text-emerald-400 text-sm sm:text-base md:text-lg shrink-0" />
-                              <span className="leading-snug"><strong>08.00.00</strong> — Iqtisodiyot fanlari</span>
-                            </p>
-                          </div>
-                          <div className="backdrop-blur-sm bg-white/5 rounded-lg sm:rounded-xl p-2 sm:p-2.5 md:p-3.5 border border-white/10 hover:bg-white/10 transition-colors">
-                            <p className="flex items-center gap-1.5 sm:gap-2">
-                              <FaGraduationCap className="text-blue-400 text-sm sm:text-base md:text-lg shrink-0" />
-                              <span className="leading-snug"><strong>13.00.00</strong> — Pedagogika fanlari</span>
-                            </p>
-                          </div>
-                          <div className="backdrop-blur-sm bg-white/5 rounded-lg sm:rounded-xl p-2 sm:p-2.5 md:p-3.5 border border-white/10 hover:bg-white/10 transition-colors">
-                            <p className="flex items-center gap-1.5 sm:gap-2">
-                              <FaBrain className="text-purple-400 text-sm sm:text-base md:text-lg shrink-0" />
-                              <span className="leading-snug"><strong>19.00.00</strong> — Psixologiya fanlari</span>
-                            </p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                            </span>
+                            <span className="text-[10px] sm:text-xs text-emerald-300 font-semibold">Qabul faol</span>
                           </div>
                         </div>
+
+                        {/* Countdown */}
+                        {!countdown.expired ? (
+                          <div className="mb-3">
+                            <p className="text-[11px] sm:text-xs text-gray-400 mb-2">Qabul muddatigacha qoldi:</p>
+                            <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+                              {[
+                                { val: countdown.days, label: "kun" },
+                                { val: countdown.hours, label: "soat" },
+                                { val: countdown.minutes, label: "daqiqa" },
+                                { val: countdown.seconds, label: "soniya" },
+                              ].map(({ val, label }) => (
+                                <div key={label} className="backdrop-blur-sm bg-white/10 rounded-lg border border-white/20 py-2 px-1 text-center">
+                                  <div className="text-xl sm:text-2xl md:text-3xl font-black text-white tabular-nums leading-none">
+                                    {String(val).padStart(2, "0")}
+                                  </div>
+                                  <div className="text-[9px] sm:text-[10px] text-gray-400 font-semibold uppercase tracking-wide mt-1">
+                                    {label}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mb-3 backdrop-blur-sm bg-red-400/15 rounded-xl border border-red-400/30 px-4 py-3 text-center">
+                            <p className="text-red-300 font-bold text-sm">Qabul muddati tugadi</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     

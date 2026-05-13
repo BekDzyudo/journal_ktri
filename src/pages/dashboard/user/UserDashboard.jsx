@@ -362,7 +362,6 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
   const { refresh: refreshAccessToken } = useContext(AuthContext);
   const { refresh: refreshNotifications } = useNotifications();
   const [articles, setArticles] = useState([]);
-  console.log(articles);
   
   const [profilePayload, setProfilePayload] = useState(null);
   const [loading, setLoading] = useState(true);

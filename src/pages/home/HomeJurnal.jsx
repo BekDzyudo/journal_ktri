@@ -221,7 +221,7 @@ function HomeJurnal() {
                     <div>
                       <p className="font-semibold mb-2">Nashr uchun to'lov:</p>
                       <p>Nashr uchun qabul qilingan maqolalar to'lov amalga oshirilgandan so'ng nashr qilinadi. To'lovni amalga oshirib bo'lganingizdan keyin chekni rasm yoki pdf formatida elektron pochtangizga yuborilgan bir martalik havola orqali yuborishingizni so'raymiz.</p>
-                      <p className="mt-3 font-bold text-green-700 text-lg">To'lov summasi: 404 120 so'm</p>
+                      <p className="mt-3 font-bold text-green-700 text-lg">To'lov summasi: 309 000 so'm</p>
                     </div>
                   </div>
                 </div>
@@ -426,9 +426,9 @@ function HomeJurnal() {
                     <p className="mb-3">To'lovni amalga oshirib bo'lganingizdan keyin chekni <span className="font-bold">rasm yoki PDF formatida</span> elektron pochtangizga yuborilgan bir martalik havola orqali yuborishingizni so'raymiz.</p>
                     <div className="bg-green-50 p-4 rounded-lg mt-3 border-2 border-green-300">
                       <p className="font-bold text-green-700 text-2xl text-center">
-                        To'lov summasi: 404 120 so'm
+                        To'lov summasi: 309 000 so'm
                       </p>
-                      <p className="text-center text-gray-600 text-sm mt-1">(to'rt yuz to'rt ming bir yuz yigirma so'm)</p>
+                      <p className="text-center text-gray-600 text-sm mt-1">(uch yuz to'qqiz ming so'm)</p>
                     </div>
                   </div>
                 </div>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { FaPaperPlane, FaUser, FaFileUpload, FaCheckCircle, FaBook, FaTimes, FaFilePdf, FaGraduationCap, FaLightbulb, FaFileAlt } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import SEO from '../../components/SEO'
-import { getAccessToken } from '../../utils/authStorage'
+import { getAccessToken, getUserData } from '../../utils/authStorage'
 import { parseApiError } from '../../utils/apiError'
 import useRuknlar from '../../hooks/useRuknlar'
 
@@ -53,7 +53,11 @@ function SendJournal() {
   const navigate = useNavigate()
   const { ruknlar, isPending: ruknlarLoading, error: ruknlarError } = useRuknlar()
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
-  const [authors, setAuthors] = useState([{ ...INITIAL_AUTHOR }])
+
+  const currentUser = getUserData()
+  const currentUserEmail = currentUser?.email || ''
+
+  const [authors, setAuthors] = useState([{ ...INITIAL_AUTHOR, email: currentUserEmail }])
   const [file, setFile] = useState(null)
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -396,9 +400,9 @@ function SendJournal() {
                           </div>
 
                           <div>
-                            <label className="mb-2 flex text-sm font-semibold text-slate-700">
+                            <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
                               Gmail
-                              <span className="ml-1 text-red-500">*</span>
+                              <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="email"
@@ -712,7 +716,7 @@ function SendJournal() {
                       { t: <>Originallik kamida <strong className="text-slate-800">65%</strong></> },
                       { t: <>Adabiyotlar kamida <strong className="text-slate-800">8–10</strong> manba</> },
                       { t: <>Ko‘rib chiqish: taxminan <strong className="text-slate-800">5 kun</strong></> },
-                      { t: <>Nashr to‘lovi: <strong className="text-slate-800">404 120 so‘m</strong></> },
+                      { t: <>Nashr to‘lovi: <strong className="text-slate-800">309 000 so‘m</strong></> },
                     ].map((row, idx) => (
                       <li key={idx} className="flex gap-3 rounded-xl bg-slate-50/90 px-3 py-2.5 ring-1 ring-slate-100">
                         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-xs font-bold text-teal-700">

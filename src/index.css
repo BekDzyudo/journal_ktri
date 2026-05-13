@@ -5,6 +5,12 @@
   themes: all;
 }
 
+@layer base {
+  button, [role="button"], a, label[for], select, input[type="checkbox"], input[type="radio"], input[type="file"] {
+    cursor: pointer;
+  }
+}
+
 @layer components {
   .align-elements {
     @apply max-w-[1700px] mx-auto px-5;

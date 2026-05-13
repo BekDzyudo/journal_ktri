@@ -14,6 +14,7 @@ const INITIAL = {
   volume: "",
   issue: "",
   year: "",
+  views_count: "",
   faol: false,
 };
 
@@ -56,6 +57,7 @@ export default function JurnalSonQoshish() {
       formData.append("volume", form.volume);
       formData.append("issue", form.issue);
       formData.append("year", form.year);
+      if (form.views_count !== "") formData.append("views_count", form.views_count);
       formData.append("faol", form.faol ? "true" : "false");
       if (imageFile) formData.append("image", imageFile);
       if (pdfFile) formData.append("pdfUrl", pdfFile);
@@ -84,7 +86,7 @@ export default function JurnalSonQoshish() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-5 sm:px-20 py-8 pt-10 sm:pt-20 pb-20 sm:pb-40">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -240,6 +242,22 @@ export default function JurnalSonQoshish() {
                 }`}
               />
               {errors.year && <p className="mt-1 text-xs text-red-500">{errors.year}</p>}
+            </div>
+
+            {/* Ko'rishlar soni */}
+            <div>
+              <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
+                Ko'rishlar soni
+              </label>
+              <input
+                type="number"
+                name="views_count"
+                value={form.views_count}
+                onChange={handleChange}
+                min="0"
+                placeholder="Masalan: 0"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
             </div>
 
             {/* Faol */}
