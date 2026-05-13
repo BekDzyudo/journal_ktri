@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBars, FaBell, FaCog, FaNewspaper, FaSearch, FaSignOutAlt, FaTimes, FaUser } from "react-icons/fa";
+import { FaBars, FaCog, FaNewspaper, FaSearch, FaSignOutAlt, FaTimes, FaUser } from "react-icons/fa";
 import { ROLE_NAMES, ROLES } from "../../constants/roles.js";
-import { useNotifications } from "../../context/NotificationContext.jsx";
-import NotificationPanel from "./NotificationPanel.jsx";
-import { NOTIFICATION_TYPES } from "../../utils/fakeNotificationApi.js";
 
 function AdminHeader({
   userRole,
@@ -18,7 +15,6 @@ function AdminHeader({
   onLogout,
 }) {
   const navigate = useNavigate();
-  const [notifOpen, setNotifOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const sidebarRef = useRef(null);
 
@@ -32,8 +28,6 @@ function AdminHeader({
     return () => document.removeEventListener("mousedown", handler);
   }, [mobileSidebarOpen]);
 
-  const { unreadCount, refresh } = useNotifications();
-
   const firstName = userData?.first_name || userData?.ism || "";
   const lastName  = userData?.last_name  || userData?.familiya || "";
   const fullName  = `${firstName} ${lastName}`.trim() || userData?.email || "";
@@ -45,34 +39,8 @@ function AdminHeader({
     : userRole === ROLES.ADMIN    ? "Taqrizchi"
     : "Muallif";
 
-  const handleBellClick = () => {
-    refresh();
-    setNotifOpen((prev) => !prev);
-    if (profileDropdownOpen) setProfileDropdownOpen(false);
-  };
-
   const handleProfileClick = () => {
     setProfileDropdownOpen(!profileDropdownOpen);
-    if (notifOpen) setNotifOpen(false);
-  };
-
-  const handleOpenNotification = (notification) => {
-    if (notification.type === NOTIFICATION_TYPES.ROLE_CHANGED) {
-      setActiveTab("users");
-      return;
-    }
-
-    setActiveTab("dashboard");
-    setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("ktri:open-article", {
-          detail: {
-            articleId: notification.articleId,
-            notificationType: notification.type,
-          },
-        })
-      );
-    }, 120);
   };
 
   return (
@@ -163,28 +131,6 @@ function AdminHeader({
 
           {/* Right */}
           <div className="flex items-center gap-3">
-            {/* Bell with badge */}
-            <div className="relative">
-              <button
-                onClick={handleBellClick}
-                className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
-                title="Bildirishnomalar"
-              >
-                <FaBell />
-                {unreadCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              <NotificationPanel
-                isOpen={notifOpen}
-                onClose={() => setNotifOpen(false)}
-                onOpenNotification={handleOpenNotification}
-              />
-            </div>
-
             {/* Profile dropdown */}
             <div className="relative">
               <button

@@ -58,6 +58,7 @@ function SendJournal() {
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -93,25 +94,36 @@ function SendJournal() {
     })
   }
 
+  const processFile = (selectedFile) => {
+    const fileExtension = selectedFile.name.split('.').pop().toLowerCase()
+    const isDoc =
+      fileExtension === 'doc' ||
+      fileExtension === 'docx' ||
+      selectedFile.type === 'application/msword' ||
+      selectedFile.type === 'application/vnd.ms-word' ||
+      selectedFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+    if (isDoc) {
+      setFile(selectedFile)
+      if (errors.file) setErrors(prev => ({ ...prev, file: '' }))
+    } else {
+      setErrors(prev => ({ ...prev, file: 'Faqat .doc yoki .docx (Word) formatdagi faylni yuklash mumkin' }))
+    }
+  }
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
     if (selectedFile) {
-      const fileExtension = selectedFile.name.split('.').pop().toLowerCase()
-      const isDoc =
-        fileExtension === 'doc' ||
-        selectedFile.type === 'application/msword' ||
-        selectedFile.type === 'application/vnd.ms-word'
-
-      if (isDoc) {
-        setFile(selectedFile)
-        if (errors.file) {
-          setErrors(prev => ({ ...prev, file: '' }))
-        }
-      } else {
-        setErrors(prev => ({ ...prev, file: 'Faqat .doc (Word 97–2003) formatdagi faylni yuklash mumkin' }))
-        e.target.value = null
-      }
+      processFile(selectedFile)
+      e.target.value = null
     }
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setDragOver(false)
+    const droppedFile = e.dataTransfer.files[0]
+    if (droppedFile) processFile(droppedFile)
   }
 
   const removeFile = () => {
@@ -276,7 +288,7 @@ function SendJournal() {
             </h1>
             <p className="mx-auto max-w-3xl text-base text-slate-600 sm:text-lg">
               Ilmiy maqolangizni jurnalimizda chop etish uchun arizani quyidagi qadamlarga boʻlib toʻldiring. Fayl{' '}
-              <strong className="font-semibold text-slate-800">.doc</strong> formatida yuboriladi; texnik talablar uchun o‘ngdagi blokni unutmang.
+              <strong className="font-semibold text-slate-800">.doc / .docx</strong> formatida yuboriladi; texnik talablar uchun o'ngdagi blokni unutmang.
             </p>
             <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-3 text-sm">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-slate-700 shadow-md backdrop-blur-md">
@@ -285,7 +297,7 @@ function SendJournal() {
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-slate-700 shadow-md backdrop-blur-md">
                 <FaLightbulb className="text-amber-500" />
-                Word .doc format
+                Word .doc / .docx format
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-slate-700 shadow-md backdrop-blur-md">
                 <FaCheckCircle className="text-emerald-600" />
@@ -565,27 +577,33 @@ function SendJournal() {
                   </div>
                 </div>
 
-                {/* Maqola fayli .doc */}
+                {/* Maqola fayli .doc/.docx */}
                 <div className="mt-10">
                   <label className="mb-2 flex text-sm font-semibold text-slate-700">
-                    Maqola fayli (faqat .doc)
+                    Maqola fayli (.doc yoki .docx)
                     <span className="ml-1 text-red-500">*</span>
                   </label>
                   <input
                     type="file"
                     id="fileInput"
-                    accept=".doc,application/msword"
+                    accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     onChange={handleFileChange}
                     className="hidden"
                   />
                   <label
                     htmlFor="fileInput"
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
                     className={`relative block cursor-pointer overflow-hidden rounded-[1.35rem] border-2 border-dashed p-6 transition-all duration-300 sm:p-8 ${
                       errors.file
                         ? 'border-red-400 bg-red-50/90'
                         : file
                           ? 'border-emerald-400 bg-gradient-to-br from-emerald-50/95 to-teal-50/80 shadow-inner'
-                          : 'border-slate-300/90 bg-gradient-to-br from-white to-slate-50 hover:border-[#0d4ea3]/70 hover:shadow-[0_0_0_4px_rgba(13,78,163,0.12)]'
+                          : dragOver
+                            ? 'border-[#0d4ea3] bg-blue-50/70 shadow-[0_0_0_4px_rgba(13,78,163,0.12)]'
+                            : 'border-slate-300/90 bg-gradient-to-br from-white to-slate-50 hover:border-[#0d4ea3]/70 hover:shadow-[0_0_0_4px_rgba(13,78,163,0.12)]'
                     }`}
                   >
                     <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
@@ -593,7 +611,7 @@ function SendJournal() {
                         <FaFileAlt className="text-2xl" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-lg font-bold text-slate-800">{file ? file.name : '.doc faylni bu yerga torting yoki tanlang'}</p>
+                        <p className="text-lg font-bold text-slate-800">{file ? file.name : dragOver ? 'Faylni tashlang...' : '.doc / .docx faylni bu yerga tashlang yoki tanlang'}</p>
                         <p className="mt-1 text-sm text-slate-500">
                           Maksimal hajmdan oldin server cheklovi mavjud bo‘lishi mumkin — agar muammo chiqsa bizga yozing.
                         </p>

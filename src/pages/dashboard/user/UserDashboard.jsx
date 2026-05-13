@@ -126,13 +126,11 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
 
   const downloadFile = () => {
     if (!pdfUrl) return;
-    const a = document.createElement("a");
-    a.href = pdfUrl;
-    a.target = "_blank";
-    a.rel = "noreferrer noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = "display:none;position:fixed;width:0;height:0;";
+    iframe.src = pdfUrl;
+    document.body.appendChild(iframe);
+    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 30000);
   };
 
   return (
@@ -388,6 +386,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
       setArticles([]);
       setLoading(false);
       return;
+
     }
 
     try {
