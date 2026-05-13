@@ -92,14 +92,15 @@ function PaymentResult() {
     verifyPayment();
   }, [verifyPayment]);
 
-  // Agar holat "KUTILMOQDA" bo'lsa, polling qilish (CLICK webhook kechikishi mumkin)
+  // Agar holat "TOLOV_KUTILMOQDA" bo'lsa, polling qilish (CLICK webhook kechikishi mumkin)
   useEffect(() => {
     if (!paymentData) return;
     
-    const isPending = paymentData.holat === "KUTILMOQDA" || paymentData.status === "KUTILMOQDA";
+    const holat = (paymentData.maqola_holat || paymentData.holat || "").toUpperCase();
+    const isPendingPoll = holat === "TOLOV_KUTILMOQDA" || (holat === "YUBORILGAN" && !paymentData.tolov_amalga_oshirildi);
     const maxPolls = 10; // Maksimum 10 marta tekshirish (30 soniya)
     
-    if (isPending && pollingCount < maxPolls) {
+    if (isPendingPoll && pollingCount < maxPolls) {
       const timer = setTimeout(() => {
         setPollingCount(prev => prev + 1);
         verifyPayment();
@@ -109,17 +110,18 @@ function PaymentResult() {
     }
   }, [paymentData, pollingCount, verifyPayment]);
 
-  // Backend dan kelgan holat: "MUVAFFAQIYATLI" yoki "KUTILMOQDA" yoki "XATOLIK"
-  // CLICK payment_status: 2=success, -1=error, -2=cancelled
-  const isSuccess = 
-    paymentData?.holat === "MUVAFFAQIYATLI" || 
-    paymentData?.status === "MUVAFFAQIYATLI" ||
-    paymentStatus === "2"; // CLICK success
-    
-  const isPending = 
-    (paymentData?.holat === "KUTILMOQDA" || paymentData?.status === "KUTILMOQDA") &&
-    paymentStatus !== "2" && // Agar CLICK success desa, pending emas
-    paymentStatus !== "-1"; // Agar CLICK error desa, pending emas
+  // Backend dan kelgan holat: maqola_holat field (QABUL_QILINGAN, TOLOV_KUTILMOQDA, RAD_ETILGAN, NASHR_ETILGAN, YUBORILGAN)
+  // CLICK ClickReturnView maqola.holat = QABUL_QILINGAN qilib qaytaradi
+  const maqolaHolat = (paymentData?.maqola_holat || paymentData?.holat || "").toUpperCase();
+
+  const isSuccess =
+    maqolaHolat === "QABUL_QILINGAN" ||
+    maqolaHolat === "NASHR_ETILGAN" ||
+    paymentData?.tolov_amalga_oshirildi === true;
+
+  const isPending =
+    maqolaHolat === "TOLOV_KUTILMOQDA" ||
+    (maqolaHolat === "YUBORILGAN" && !paymentData?.tolov_amalga_oshirildi);
   
   // Maqola ID (URL dan yoki backend javobidan)
   const articleId = maqolaId || paymentData?.maqola_id || paymentData?.article_id;
