@@ -371,6 +371,7 @@ function computeSuperAdminStats(submittedArticles, allUsers) {
     inReview: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.IN_EDITING).length,
     accepted: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.ACCEPTED).length,
     rejected: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.REJECTED).length,
+    published: submittedArticles.filter((a) => a.status === ARTICLE_STATUS.PUBLISHED).length,
     totalAuthors: authors.length,
     totalReviewers: reviewers.length,
     totalStaffAdmins: staffAdmins.length,
@@ -440,6 +441,11 @@ function normalizeStatistikaPayload(raw, fallbackStats) {
         maq || {},
         ["rad_etilgan", "rejected", "rad_qilingan", "bekor_qilingan"],
         fallbackStats.rejected
+      ),
+      published: pickStatsNumber(
+        maq || {},
+        ["nashr_etilgan", "published", "nashr_qilingan"],
+        fallbackStats.published ?? 0
       ),
       totalUsers: pickStatsNumber(
         usersBlock || {},
@@ -518,6 +524,11 @@ function normalizeStatistikaPayload(raw, fallbackStats) {
       source,
       ["rejected", "rad_etilgan", "rad_qilingan", "bekor_qilingan"],
       fallbackStats.rejected
+    ),
+    published: pickStatsNumber(
+      source,
+      ["nashr_etilgan", "published", "nashr_qilingan"],
+      fallbackStats.published ?? 0
     ),
     totalUsers: pickStatsNumber(
       source,
@@ -1163,7 +1174,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               color="bg-green-500"
               iconColor="text-green-600"
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatsCard
                 icon={<FaCheckCircle />}
                 iconColor="text-green-500"
@@ -1212,11 +1223,27 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                   </span>
                 }
               />
+              <StatsCard
+                icon={<FaBookOpen />}
+                iconColor="text-teal-500"
+                title="Nashr etilgan"
+                value={dashboardStats.published}
+                total={dashboardStats.totalArticles}
+                badge="Nashr"
+                badgeColor="text-teal-500"
+                barColor="bg-teal-400"
+                footer={
+                  <span className="flex items-center gap-1.5">
+                    <FaArrowRight className="text-[9px]" />
+                    Jurnalda chop etilgan
+                  </span>
+                }
+              />
             </div>
           </div>
 
           {/* Articles Table */}
-          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm md:mt-20">
             <div className="border-b border-slate-100 p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -1275,7 +1302,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                     <th className="text-left">Status</th>
                     <th className="text-left">To'lov</th>
                     <th className="text-left">Taqrizchi</th>
-                    <th className="text-center">Rolni o'zgartirish</th>
+                    <th className="text-center">Amallar</th>
                   </tr>
                 </thead>
                 <tbody>

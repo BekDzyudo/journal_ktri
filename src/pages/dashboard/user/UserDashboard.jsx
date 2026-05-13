@@ -124,10 +124,15 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
 
   const pdfUrl = resolveMediaUrl(data?.pdf || data?.fayl || data?.articleFileUrl || null);
 
-  const openPdfInNewTab = () => {
+  const downloadFile = () => {
     if (!pdfUrl) return;
-    const win = window.open(pdfUrl, "_blank", "noopener,noreferrer");
-    if (!win) toast.info("Yangi oynani ochib bo'lmadi. Yuklab olish tugmasidan foydalaning.");
+    const a = document.createElement("a");
+    a.href = pdfUrl;
+    a.target = "_blank";
+    a.rel = "noreferrer noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   return (
@@ -282,14 +287,14 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
           )}
 
           {/* How to cite */}
-          {data.how_to_cite && (
+          {/* {data.how_to_cite && (
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
               <SectionHeader icon={<FaQuoteLeft />} title="Iqtibos keltirish" color="bg-slate-500" iconColor="text-slate-600" />
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                 <p className="text-sm italic leading-7 text-slate-600">{data.how_to_cite}</p>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Rejection reason */}
           {data.rad_sababi && (
@@ -316,26 +321,14 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
                 </button>
               )}
               {pdfUrl && (
-                <>
-                  <button
-                    type="button"
-                    onClick={openPdfInNewTab}
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
-                  >
-                    <FaExternalLinkAlt className="text-xs" />
-                    Faylni ko'rish
-                  </button>
-                  <a
-                    href={pdfUrl}
-                    download=""
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
-                  >
-                    <FaDownload className="text-xs" />
-                    Yuklab olish
-                  </a>
-                </>
+                <button
+                  type="button"
+                  onClick={downloadFile}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
+                >
+                  <FaDownload className="text-xs" />
+                  Yuklab olish
+                </button>
               )}
               {!pdfUrl && data.holat !== "TOLOV_KUTILMOQDA" && (
                 <p className="text-sm text-slate-400">Fayl hali yuklanmagan.</p>
@@ -392,7 +385,6 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
 
     if (!base || !getAccessToken()) {
-      // Token yo'q — login sahifasiga yo'naltirish
       setArticles([]);
       setLoading(false);
       return;
@@ -401,19 +393,17 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     try {
       let list = null;
 
-      // profil/ dan maqolalar olish
-      if (!list) {
-        const profilRes = await fetchWithAuth(`${base}/profil/`, { method: "GET" }, getAccessToken, refreshAccessToken);
-        const t = await profilRes.text();
-        let j = null;
-        try { j = t ? JSON.parse(t) : null; } catch { j = null; }
-        if (profilRes.ok && j) {
-          setProfilePayload(j);
-          list = normalizeMaqolalarList(j);
-        } else {
-          toast.error(parseApiError(j, "Maqolalar ro'yxatini yuklashda xatolik"));
-          list = [];
-        }
+      // profil/ dan maqolalar olamiz
+      const profilRes = await fetchWithAuth(`${base}/profil/`, { method: "GET" }, getAccessToken, refreshAccessToken);
+      const t = await profilRes.text();
+      let j = null;
+      try { j = t ? JSON.parse(t) : null; } catch { j = null; }
+      if (profilRes.ok && j) {
+        setProfilePayload(j);
+        list = normalizeMaqolalarList(j);
+      } else {
+        toast.error(parseApiError(j, "Maqolalar ro'yxatini yuklashda xatolik"));
+        list = [];
       }
 
       syncArticleStatusNotifications({
@@ -557,7 +547,6 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
       />
     );
   }
-console.log(filteredArticles);
 
   /* ---- List view ---- */
   return (

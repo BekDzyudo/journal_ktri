@@ -22,6 +22,7 @@ import NewPassword from "./pages/auth/NewPassword";
 import AdminPanel from "./pages/admin/AdminPanel";
 import UserArticleDetail from "./pages/dashboard/user/UserArticleDetail";
 import PaymentResult from "./pages/payment/PaymentResult";
+import JurnalSonQoshish from "./pages/dashboard/superadmin/JurnalSonQoshish";
 
 function LegacyAdminArticlesRedirect({ auth }) {
   const { articleId } = useParams();
@@ -97,6 +98,10 @@ function App() {
         {
           path: "payment-result",
           element: <PaymentResult />
+        },
+        {
+          path: "admin/jurnal-son-qoshish",
+          element: auth ? <JurnalSonQoshish /> : <Navigate to="/login" replace />
         },
       ],
     },

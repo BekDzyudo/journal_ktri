@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
-import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock } from "react-icons/fa";
+import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock, FaNewspaper, FaBook } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { formatPhoneNumber } from "../../utils/phoneFormatter";
 import { getAccessToken } from "../../utils/authStorage";
@@ -10,6 +10,8 @@ import AdminHeader from "../../components/admin/AdminHeader.jsx";
 import UserDashboard from "../dashboard/user/UserDashboard.jsx";
 import AdminDashboard from "../dashboard/admin/AdminDashboard.jsx";
 import SuperAdminDashboard from "../dashboard/superadmin/SuperAdminDashboard.jsx";
+import MaqolalarView from "../dashboard/superadmin/MaqolalarView.jsx";
+import JurnalSonlariView from "../dashboard/superadmin/JurnalSonlariView.jsx";
 import Modal from "../../components/Modal.jsx";
 import { NotificationProvider } from "../../context/NotificationContext.jsx";
 import { fetchWithAuth } from "../../utils/authenticatedFetch.js";
@@ -171,6 +173,8 @@ function AdminPanel() {
 
     if (userRole === ROLES.SUPERADMIN) {
       baseItems.splice(1, 0, { id: "users", label: "Foydalanuvchilar", icon: <FaUsers /> });
+      baseItems.splice(2, 0, { id: "maqolalar", label: "Maqolalar", icon: <FaNewspaper /> });
+      baseItems.splice(3, 0, { id: "jurnal-sonlar", label: "Jurnal sonlari", icon: <FaBook /> });
     }
 
     return baseItems;
@@ -463,6 +467,14 @@ function AdminPanel() {
         {/* Foydalanuvchilar — faqat SUPERADMIN uchun (dashboard bilan bir xil SuperAdminDashboard) */}
         {activeTab === "users" && userRole === ROLES.SUPERADMIN && (
           <SuperAdminDashboard userData={profileUser} view="users" />
+        )}
+
+        {activeTab === "maqolalar" && userRole === ROLES.SUPERADMIN && (
+          <MaqolalarView />
+        )}
+
+        {activeTab === "jurnal-sonlar" && userRole === ROLES.SUPERADMIN && (
+          <JurnalSonlariView />
         )}
       </main>
 
