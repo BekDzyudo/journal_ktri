@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   FaCheckCircle,
   FaTimesCircle,
@@ -140,7 +140,7 @@ function PaymentResult() {
   // Agar holat "KUTILMOQDA" bo'lsa, pending UI ko'rsatish
   if (isPending) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-yellow-50 py-12 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-yellow-50 py-12 px-4 mb-20">
         <div className="mx-auto max-w-2xl">
           {/* Pending Icon */}
           <div className="mb-8 text-center">
@@ -219,8 +219,8 @@ function PaymentResult() {
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <FaPhone className="text-slate-400" />
-                <a href="tel:+998712345678" className="font-semibold text-slate-700 hover:underline">
-                  +998 (71) 234-56-78
+                <a href="tel:+998900913099" className="font-semibold text-slate-700 hover:underline">
+                  +998 90 091 30 99
                 </a>
               </div>
             </div>
@@ -442,9 +442,9 @@ function PaymentResult() {
               <FaArrowRight className="mt-1 text-blue-600 text-sm shrink-0" />
               <p className="text-sm text-slate-700">
                 Agar muammo davom etsa,{" "}
-                <a href="mailto:info@ktri.uz" className="font-semibold text-blue-600 hover:underline">
+                <Link to="/contact" className="font-semibold text-blue-600 hover:underline">
                   qo'llab-quvvatlash xizmatiga
-                </a>{" "}
+                </Link>{" "}
                 murojaat qiling.
               </p>
             </li>
@@ -453,7 +453,7 @@ function PaymentResult() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          {articleId && (
+          {/* {articleId && (
             <button
               onClick={() => navigate(`/profile?article=${articleId}`)}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-blue-700"
@@ -461,7 +461,7 @@ function PaymentResult() {
               <FaClock className="text-sm" />
               Qaytadan to'lash
             </button>
-          )}
+          )} */}
           <button
             onClick={() => navigate("/profile")}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -484,7 +484,7 @@ function PaymentResult() {
             <div className="flex items-center gap-2 text-sm">
               <FaPhone className="text-slate-400" />
               <a href="tel:+998712345678" className="font-semibold text-slate-700 hover:underline">
-                +998 (71) 234-56-78
+                +998 90 091 30 99
               </a>
             </div>
           </div>
