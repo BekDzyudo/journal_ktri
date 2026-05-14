@@ -128,29 +128,17 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
 
   const pdfUrl = resolveMediaUrl(data?.pdf || data?.fayl || data?.articleFileUrl || null);
 
-  const downloadFile = async () => {
+  const downloadFile = () => {
     if (!pdfUrl) return;
-
-    // Media fayl cross-origin bo'lganda fetchWithAuth CORS preflightini
-    // ishga tushiradi va server redirect'i uni bloklaydi.
-    // Shuning uchun avval no-credentials fetch bilan urinib ko'ramiz;
-    // agar CORS ruxsat etilmagan bo'lsa, to'g'ridan-to'g'ri oyna ochamiz.
-    try {
-      const res = await fetch(pdfUrl, { method: "GET", credentials: "omit" });
-      if (!res.ok) throw new Error("fetch_failed");
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = data?.fayl_nomi || data?.fileName || "maqola.doc";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-    } catch {
-      // CORS yopiq bo'lsa yoki fetch xatolik bersa — yangi tabda ochib yuklatamiz
-      window.open(pdfUrl, "_blank", "noopener,noreferrer");
-    }
+    // Server CORS headers bermaydi — to'g'ridan-to'g'ri yangi tabda ochamiz.
+    // Async fetch ishlatmaymiz: sahifaning titrab qolishiga olib keladi.
+    const a = document.createElement("a");
+    a.href = pdfUrl;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (

@@ -145,28 +145,26 @@ function HomeJurnal() {
         return (
           <div className="prose max-w-none">
             <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
-              Ko?rib chiqish tartibi
+              Ko‘rib chiqish tartibi
             </h2>
             
             <div className="space-y-5 text-gray-800 text-[17px] leading-relaxed">
               <p className="font-semibold text-lg text-gray-900">
-                "Kasbiy ta'lim: muammolar, izlanishlar, yechimlar" jurnalidagi maqolalarni ko'rib chiqish tartibi:
+                "O'zbekistonda professional ta'lim" jurnali maqolalarni ko'rib chiqish tartibi:
               </p>
 
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
                   <div className="flex gap-3">
                     <span className="font-bold text-blue-600 text-xl shrink-0">1.</span>
-                    <div>
-                      <p>Barcha maqolalar <span className="font-bold">plagiat uchun tekshiriladi (originalligi kamida 65%)</span>, tahririyat a'zolari yoki tashqi taqrizchilar tomonidan ko'rib chiqiladi va adabiy muharrir tomonidan korrektoriyadan o'tkaziladi.</p>
-                    </div>
+                    <p>Barcha maqolalar <span className="font-bold">plagiat uchun tekshiriladi (originalligi kamida 65%)</span>, tahririyat a'zolari yoki tashqi taqrizchilar — tegishli mutaxassislik bo'yicha <span className="font-bold">fan nomzodlari, falsafa doktorlari (PhD) yoki fan doktorlari (DSc)</span> tomonidan ko'rib chiqiladi va adabiy muharrir tomonidan korrektoriyadan o'tkaziladi.</p>
                   </div>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
                   <div className="flex gap-3">
                     <span className="font-bold text-blue-600 text-xl shrink-0">2.</span>
-                    <p>Maqolani ko'rib chiqish muddati - <span className="font-bold text-info">5 kun</span>.</p>
+                    <p>Maqolani ko'rib chiqish muddati — <span className="font-bold text-info">5 ish kunigacha</span>.</p>
                   </div>
                 </div>
 
@@ -174,14 +172,32 @@ function HomeJurnal() {
                   <div className="flex gap-3">
                     <span className="font-bold text-blue-600 text-xl shrink-0">3.</span>
                     <div>
-                      <p className="mb-2">Tahririyat hay'ati a'zosi yoki tashqi taqrizchi quyidagi masalalarni qamrab oladi:</p>
-                      <ul className="list-none space-y-2 ml-4">
-                        <li className="flex gap-2"><span className="text-info font-bold">a)</span> Maqola mazmuni sarlavhaga mos keladimi</li>
-                        <li className="flex gap-2"><span className="text-info font-bold">b)</span> Zamonaviy yutuqlarga qay darajada mos keladi</li>
-                        <li className="flex gap-2"><span className="text-info font-bold">v)</span> Materialning o'quvchilar uchun ochiqligi</li>
-                        <li className="flex gap-2"><span className="text-info font-bold">d)</span> Maqolani chop etish maqsadga muvofiqmi</li>
-                        <li className="flex gap-2"><span className="text-info font-bold">e)</span> Qanday tuzatishlar kiritish zarurligi</li>
-                        <li className="flex gap-2"><span className="text-info font-bold">f)</span> Nashrga tavsiya etiladi yoki tavsiya etilmaydi</li>
+                      <p className="mb-3">Tahririyat hay'ati a'zosi yoki tashqi taqrizchi quyidagi masalalarni qamrab oladi:</p>
+                      <ul className="list-none space-y-2.5 ml-1">
+                        <li className="flex gap-2 bg-white rounded-lg p-2.5 border border-gray-200">
+                          <span className="text-info font-bold shrink-0">a)</span>
+                          <span>Maqola mazmuni sarlavhada keltirilgan mavzuga <span className="font-semibold">mos keladimi</span></span>
+                        </li>
+                        <li className="flex gap-2 bg-white rounded-lg p-2.5 border border-gray-200">
+                          <span className="text-info font-bold shrink-0">b)</span>
+                          <span>Kasb-hunar va professional ta'lim sohasidagi <span className="font-semibold">zamonaviy yutuqlarga</span> qay darajada mos keladi</span>
+                        </li>
+                        <li className="flex gap-2 bg-white rounded-lg p-2.5 border border-gray-200">
+                          <span className="text-info font-bold shrink-0">v)</span>
+                          <span>Til, uslub, materialning joylashuvi, jadvallar, diagrammalar, chizmalar va formulalarning ravshanligi nuqtai nazaridan <span className="font-semibold">maqola materialining o'quvchilar uchun ochiqligi</span></span>
+                        </li>
+                        <li className="flex gap-2 bg-white rounded-lg p-2.5 border border-gray-200">
+                          <span className="text-info font-bold shrink-0">d)</span>
+                          <span>Maqola materiallarining yangiligini hisobga olgan holda <span className="font-semibold">maqolani chop etish maqsadga muvofiqmi</span></span>
+                        </li>
+                        <li className="flex gap-2 bg-white rounded-lg p-2.5 border border-gray-200">
+                          <span className="text-info font-bold shrink-0">e)</span>
+                          <span>Maqola muallifi tomonidan qanday <span className="font-semibold">kamchiliklar, tuzatishlar va qo'shimchalar</span> kiritish zarurligi</span>
+                        </li>
+                        <li className="flex gap-2 bg-white rounded-lg p-2.5 border border-gray-200">
+                          <span className="text-info font-bold shrink-0">f)</span>
+                          <span>Taqrizchi tomonidan qayd etilgan kamchiliklarni tuzatishni hisobga olgan holda maqola <span className="font-semibold text-green-700">nashrga tavsiya etiladi</span> yoki <span className="font-semibold text-red-600">tavsiya etilmaydi</span></span>
+                        </li>
                       </ul>
                     </div>
                   </div>
@@ -190,38 +206,41 @@ function HomeJurnal() {
                 <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
                   <div className="flex gap-3">
                     <span className="font-bold text-blue-600 text-xl shrink-0">4.</span>
-                    <p>Barcha taqrizlar belgilangan tartibda rasmiylashtiriladi.</p>
+                    <p>Tahririyat a'zolari tomonidan amalga oshirilgan barcha taqrizlar <span className="font-bold">nashriyot tomonidan</span>, tashqi taqrizchilar tomonidan bajarilgan taqrizlar esa <span className="font-bold">taqrizchi ishlayotgan muassasada</span> belgilangan tartibda rasmiylashtiriladi.</p>
                   </div>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
                   <div className="flex gap-3">
                     <span className="font-bold text-blue-600 text-xl shrink-0">5.</span>
-                    <p>Agar taqrizda tuzatish bo'yicha tavsiyalar mavjud bo'lsa, muallifga sharhlovchining sharhlari yuboriladi. Qayta ishlangan maqola qayta ko'rib chiqish uchun yuboriladi.</p>
+                    <p>Agar taqrizda maqolani tuzatish va yakunlash bo'yicha tavsiyalar mavjud bo'lsa, tahririyatning mas'ul muharriri taqrizchining sharhlarini muallifga yuboradi va ularni hisobga olgan holda <span className="font-bold">maqolaning yangi tahririni tayyorlashni taklif etadi</span>. Muallif taqrizchi izohlarini qabul qilishi yoki ularga asoslangan e'tirozini (qisman yoki to'liq) bildirishi mumkin. Muallif tomonidan qayta ishlangan maqola <span className="font-bold">takroriy taqrizga</span> yuboriladi.</p>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
+                <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-red-400">
                   <div className="flex gap-3">
-                    <span className="font-bold text-blue-600 text-xl shrink-0">6.</span>
-                    <p>Taqrizchi tomonidan nashrga tavsiya etilmagan hollarda maqola qayta ko'rib chiqishga qabul qilinmaydi. Salbiy xulosa matni muallifga elektron pochta orqali yuboriladi.</p>
+                    <span className="font-bold text-red-500 text-xl shrink-0">6.</span>
+                    <p>Taqrizchi tomonidan nashrga <span className="font-bold text-red-600">tavsiya etilmagan hollarda</span> maqola qayta ko'rib chiqishga qabul qilinmaydi. Salbiy xulosa matni muallifga <span className="font-bold">elektron pochta yoki saytdagi profil</span> orqali yuboriladi.</p>
                   </div>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
                   <div className="flex gap-3">
                     <span className="font-bold text-blue-600 text-xl shrink-0">7.</span>
-                    <p>Maqolani chop etishga qabul qilgandan so'ng, muallifga nashr to'lovi uchun hisob-faktura beriladi. Elektron pochta orqali to'lov va nashr etish muddati haqida xabar beriladi.</p>
+                    <p>Tahririyat maqolani chop etishga qabul qilish to'g'risida qaror qabul qilgandan so'ng, muallifga <span className="font-bold">nashr xarajatlarini qoplaydigan to'lov uchun hisob-faktura</span> beriladi. Muallifga <span className="font-bold">SMS orqali</span> to'lovni qabul qilish to'g'risida, shuningdek <span className="font-bold">nashr etish muddati</span> haqida xabar beriladi.</p>
                   </div>
                 </div>
 
-                <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                <div className="bg-green-50 p-5 rounded-lg border-l-4 border-green-500">
                   <div className="flex gap-3">
                     <span className="font-bold text-green-600 text-xl shrink-0">8.</span>
-                    <div>
-                      <p className="font-semibold mb-2">Nashr uchun to'lov:</p>
-                      <p>Nashr uchun qabul qilingan maqolalar to'lov amalga oshirilgandan so'ng nashr qilinadi. To'lovni amalga oshirib bo'lganingizdan keyin chekni rasm yoki pdf formatida elektron pochtangizga yuborilgan bir martalik havola orqali yuborishingizni so'raymiz.</p>
-                      <p className="mt-3 font-bold text-green-700 text-lg">To'lov summasi: 309 000 so'm</p>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-3 text-gray-900">Nashr uchun to'lov tartibi:</p>
+                      <p className="mb-3 text-gray-700">Nashr uchun qabul qilingan maqolalar to'lov amalga oshirilgandan so'ng nashr qilinadi. To'lovni amalga oshirib bo'lganingizdan keyin <span className="font-bold">chekni rasm yoki PDF formatida</span> tahririyat tomonidan elektron pochtangizga yuborilgan bir martalik havola orqali yuborishingizni so'raymiz.</p>
+                      <div className="bg-white border-2 border-green-300 rounded-xl p-4 mt-3 text-center shadow-sm">
+                        <p className="font-black text-green-700 text-2xl">309 000 so'm</p>
+                        <p className="text-gray-500 text-sm mt-1">(uch yuz to'qqiz ming so'm)</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -848,7 +867,7 @@ function HomeJurnal() {
             </div>
 
             {/* Guvohnoma */}
-            <a href="#" target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl shadow-lg p-6 border-2 border-green-100 hover:border-green-300 transition-all duration-300 cursor-pointer hover:shadow-xl">
+            <Link to="/Jurnal_Guvohnoma.pdf" target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl shadow-lg p-6 border-2 border-green-100 hover:border-green-300 transition-all duration-300 cursor-pointer hover:shadow-xl">
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center shrink-0">
                   <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -862,13 +881,13 @@ function HomeJurnal() {
               <div className="bg-green-50 rounded-lg p-4">
                 <p className="text-sm text-gray-700 leading-relaxed">
                   <span className="font-bold text-gray-800">O'zbekiston Respublikasi Prezidenti Administratsiyasi</span> huzuridagi Axborot va ommaviy kommunikatsiyalar Agentligining 
-                  <span className="font-bold text-green-700"> 2024-yil 11-sentyabrdagi 392864-raqamli</span> guvohnoma berilgan.
+                  <span className="font-bold text-green-700"> 2022-yil 24-apreldagi 1591-raqamli</span> guvohnoma berilgan.
                 </p>
               </div>
-            </a>
+            </Link>
 
             {/* Oliy attestatsya */}
-            <a href="#" target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl shadow-lg p-6 border-2 border-purple-100 hover:border-purple-300 transition-all duration-300 cursor-pointer hover:shadow-xl">
+            <Link to="/OAKA_ruxsat.pdf" target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl shadow-lg p-6 border-2 border-purple-100 hover:border-purple-300 transition-all duration-300 cursor-pointer hover:shadow-xl">
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-14 h-14 bg-purple-50 rounded-xl flex items-center justify-center shrink-0">
                   <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -876,17 +895,17 @@ function HomeJurnal() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-bold text-gray-800 flex-1">
-                  Oliy attestatsya
+                  Oliy attestatsiya
                 </h3>
               </div>
               <div className="bg-purple-50 rounded-lg p-4">
                 <p className="text-sm text-gray-700 leading-relaxed">
                   <span className="font-bold text-gray-800">Oliy attestatsiya komissiyasi Rayosatining</span> 
-                  <span className="font-bold text-purple-700"> 2024-yil 30-oktyabrdagi 353/5-son</span> qaroriga asosan 
-                  <span className="font-bold text-gray-800">ilmiy nashrlar ro'yxatiga kiritilgan</span>
+                  <span className="font-bold text-purple-700"> 2023-yil 29-avgustdagi 342/2-son</span> qaroriga asosan 
+                  <span className="font-bold text-gray-800"> ilmiy nashrlar ro'yxatiga kiritilgan</span>
                 </p>
               </div>
-            </a>
+            </Link>
           </div>
         </div>
       </section>
