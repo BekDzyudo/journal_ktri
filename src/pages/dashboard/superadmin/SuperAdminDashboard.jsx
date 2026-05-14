@@ -60,13 +60,18 @@ function InfoBlock({ label, value, className = "" }) {
   );
 }
 
+function forceHttps(url) {
+  return url ? String(url).replace(/^http:\/\//i, "https://") : url;
+}
+
 function resolveAdminMediaUrl(raw) {
   if (raw == null || raw === "") return null;
   const s = String(raw).trim();
   if (!s) return null;
-  if (/^https?:\/\//i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) return forceHttps(s);
   const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
-  return s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
+  const resolved = s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
+  return forceHttps(resolved);
 }
 
 // ─── SuperAdminDetailPanel ──────────────────────────────────────────────────
@@ -1382,7 +1387,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                             </button>
                             {article.articleFileUrl && (
                               <a
-                                href={article.articleFileUrl}
+                                href={forceHttps(article.articleFileUrl)}
                                 download={article.fileName}
                                 className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-50"
                                 title="Yuklab olish"
@@ -1731,7 +1736,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               {selectedArticle.reviewFileUrl && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   <a
-                    href={selectedArticle.reviewFileUrl}
+                    href={forceHttps(selectedArticle.reviewFileUrl)}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors text-sm font-medium"
@@ -1740,7 +1745,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                     Faylni ko'rish
                   </a>
                   <a
-                    href={selectedArticle.reviewFileUrl}
+                    href={forceHttps(selectedArticle.reviewFileUrl)}
                     download={selectedArticle.reviewFile}
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
                   >
@@ -1825,7 +1830,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                   <FaFileUpload className="text-[10px]" />
                   {selectedArticle.reviewFile}
                   {selectedArticle.reviewFileUrl && (
-                    <a href={selectedArticle.reviewFileUrl} download className="ml-1 underline hover:text-purple-800">
+                    <a href={forceHttps(selectedArticle.reviewFileUrl)} download className="ml-1 underline hover:text-purple-800">
                       Yuklab olish
                     </a>
                   )}

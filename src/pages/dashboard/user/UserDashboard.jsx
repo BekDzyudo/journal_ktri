@@ -37,10 +37,14 @@ function resolveMediaUrl(raw) {
   if (raw == null || raw === "") return null;
   const s = String(raw).trim();
   if (!s) return null;
-  if (/^https?:\/\//i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) {
+    // HTTP → HTTPS majburiy: redirect preflightda ishlamaydi
+    return s.replace(/^http:\/\//i, "https://");
+  }
   const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
   if (!base) return s;
-  return s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
+  const resolved = s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
+  return resolved.replace(/^http:\/\//i, "https://");
 }
 
 function getTodayStr() {
@@ -126,8 +130,13 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
 
   const downloadFile = async () => {
     if (!pdfUrl) return;
+
+    // Media fayl cross-origin bo'lganda fetchWithAuth CORS preflightini
+    // ishga tushiradi va server redirect'i uni bloklaydi.
+    // Shuning uchun avval no-credentials fetch bilan urinib ko'ramiz;
+    // agar CORS ruxsat etilmagan bo'lsa, to'g'ridan-to'g'ri oyna ochamiz.
     try {
-      const res = await fetchWithAuth(pdfUrl, { method: "GET" }, getAccessToken, refreshAccessToken);
+      const res = await fetch(pdfUrl, { method: "GET", credentials: "omit" });
       if (!res.ok) throw new Error("fetch_failed");
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -139,15 +148,8 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
     } catch {
-      // CORS yoki xatolik: to'g'ridan-to'g'ri URL orqali yuklab olish
-      const a = document.createElement("a");
-      a.href = pdfUrl;
-      a.download = data?.fayl_nomi || data?.fileName || "maqola.doc";
-      // a.target = "_blank";
-      a.rel = "noreferrer noopener";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // CORS yopiq bo'lsa yoki fetch xatolik bersa — yangi tabda ochib yuklatamiz
+      window.open(pdfUrl, "_blank", "noopener,noreferrer");
     }
   };
 

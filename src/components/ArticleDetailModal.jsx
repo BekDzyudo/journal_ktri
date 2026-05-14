@@ -25,7 +25,8 @@ const SUPERADMIN_STATUS_STEPS = [
 
 function ArticleDetailModal({ isOpen, onClose, article, role }) {
   if (!isOpen || !article) return null;
-  const articleFileUrl = article.articleFileUrl || article.fileUrl || article.file || article.articleFile;
+  const toHttps = (url) => url ? String(url).replace(/^http:\/\//i, "https://") : url;
+  const articleFileUrl = toHttps(article.articleFileUrl || article.fileUrl || article.file || article.articleFile);
   const statusSteps = role === "superadmin" ? SUPERADMIN_STATUS_STEPS : USER_STATUS_STEPS;
   const showTimeline = role !== "admin";
 
@@ -288,7 +289,7 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
                 {role === "superadmin" && article.reviewFileUrl && (
                   <div className="flex flex-wrap gap-2 pt-1">
                     <a
-                      href={article.reviewFileUrl}
+                      href={toHttps(article.reviewFileUrl)}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors text-sm font-medium"
@@ -297,7 +298,7 @@ function ArticleDetailModal({ isOpen, onClose, article, role }) {
                       Ko'rish
                     </a>
                     <a
-                      href={article.reviewFileUrl}
+                      href={toHttps(article.reviewFileUrl)}
                       download={article.reviewFile}
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
                     >

@@ -55,10 +55,14 @@ export function parseMaqolalarListPayload(raw) {
   return [];
 }
 
+function forceHttps(url) {
+  return url ? String(url).replace(/^http:\/\//i, "https://") : url;
+}
+
 function resolveFileUrl(f) {
   if (f == null) return null;
-  if (typeof f === "string") return f;
-  if (typeof f === "object" && f.url) return f.url;
+  if (typeof f === "string") return forceHttps(f);
+  if (typeof f === "object" && f.url) return forceHttps(f.url);
   if (typeof f === "object" && f.file) return resolveFileUrl(f.file);
   return null;
 }

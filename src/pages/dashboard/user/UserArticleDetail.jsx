@@ -233,7 +233,7 @@ function UserArticleDetail() {
           {article.pdf && (
             <div className="border-t border-slate-100 p-6">
               <a
-                href={article.pdf}
+                href={String(article.pdf).replace(/^http:\/\//i, "https://")}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"

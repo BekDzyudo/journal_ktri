@@ -236,40 +236,153 @@ function HomeJurnal() {
             <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
               Ochiq ma'lumotlar
             </h2>
-            
+
             <div className="space-y-5 text-gray-800 text-[17px] leading-relaxed">
-              <div className="bg-linear-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
-                <h3 className="font-bold text-gray-900 text-lg mb-3">
-                  Ochiq ma'lumotlar, litsenziyalash va mualliflik huquqi siyosati
-                </h3>
-                <p className="text-justify">
-                  Jurnal <span className="font-bold text-blue-600">DOAJ tamoyillari</span> asosida nashr etilgan bo'lib, 
-                  dunyoning istalgan nuqtasida o'zining barcha nashrlariga <span className="font-bold">bepul ochiq kirishni</span> ta'minlab, 
-                  Internetga kirish imkoniga ega bo'lib, bugungi dunyo tendensiyalari va talablariga javob beradi ? 
-                  axborot almashinuvini tezlashtirish imkonini beradi.
-                </p>
+
+              {/* Jurnal haqida */}
+              <div className="bg-gradient-to-r from-blue-500 to-blue-400 p-6 rounded-xl text-white shadow-md">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xl mb-1 text-white">
+                      "O'zbekistonda professional ta'lim"
+                    </h3>
+                    <p className="text-blue-100 text-base leading-relaxed">
+                      Ilmiy, ma'naviy-ma'rifiy jurnal
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/20">
+                  <p className="text-sm text-blue-100 font-semibold uppercase tracking-wide mb-1">Nashr qilish tillari:</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {["O'zbek tili", "Rus tili", "Ingliz tili"].map((lang) => (
+                      <span key={lang} className="bg-white/20 text-white text-sm font-medium px-3 py-1 rounded-full border border-white/30">
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <p className="text-justify">
-                <span className="font-bold text-gray-900">"Kasbiy ta'lim: muammolar, izlanishlar, yechimlar"</span> jurnalida 
-                nashr etishga rozilik bildirgan holda, mualliflar o'z maqolalari haqidagi ma'lumotlarni, 
-                shu jumladan uning to'liq matnli joylashuvini jurnalning veb-saytida ko'rsatilgan 
-                uchinchi tomon manbalariga o'tkazishga rozilik bildiradilar.
-              </p>
-
-              <div className="bg-green-50 p-5 rounded-lg border-l-4 border-green-500">
-                <h4 className="font-bold text-gray-900 mb-2">Mualliflar huquqlari:</h4>
-                <ul className="list-none space-y-2">
-                  <li className="flex gap-2">
-                    <span className="text-green-600 font-bold">?</span>
-                    <span>Nashrning havolasini ko'rsatgan holda tarqatish (jumladan, ijtimoiy tarmoqlarda)</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-green-600 font-bold">?</span>
-                    <span>Almashish va o'z maqolasiga havola qilish</span>
-                  </li>
-                </ul>
+              {/* Indekslash va identifikatorlar */}
+              <div className="bg-white border-2 border-indigo-100 rounded-xl p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-indigo-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                    </svg>
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg">Indekslash va identifikatorlar</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 bg-indigo-50 p-3 rounded-lg">
+                    <span className="text-indigo-600 font-black text-sm bg-indigo-100 px-2 py-1 rounded">ISSN</span>
+                    <span className="font-bold text-gray-900 text-lg tracking-widest">2181-3841</span>
+                  </div>
+                  <div className="bg-indigo-50 p-3 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <span className="text-indigo-600 font-black text-sm bg-indigo-100 px-2 py-1 rounded shrink-0">DOI</span>
+                      <p className="text-gray-700 text-base">
+                        <span className="font-semibold text-indigo-700">Crossref</span>{" "}
+                        <span className="text-gray-500 text-sm">(doi.crossref.org)</span> va{" "}
+                        <span className="font-semibold text-indigo-700">Zenodo</span>{" "}
+                        <span className="text-gray-500 text-sm">(zenodo.org)</span> orqali maqolalarga raqamli identifikator (DOI) beriladi
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 bg-indigo-50 p-3 rounded-lg">
+                    <span className="text-green-600 mt-0.5 shrink-0">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <p className="text-gray-700 text-base">
+                      Maqolalar xalqaro ochiq kirish repozitoriylarida indekslanadi va doimiy saqlanadi
+                    </p>
+                  </div>
+                </div>
               </div>
+
+              {/* OAK ro'yxatidagi maqomi */}
+              <div className="bg-amber-50 border-l-4 border-amber-500 rounded-xl p-6 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                    <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-lg mb-2">OAK ro'yxatidagi maqomi</h3>
+                    <p className="text-gray-700 text-base leading-relaxed mb-2">
+                      Jurnal O'zbekiston Respublikasi Oliy attestatsiya komissiyasining{" "}
+                      <span className="font-semibold text-amber-800">
+                        "Dissertatsiyalar asosiy ilmiy natijalarini chop etish tavsiya etilgan milliy ilmiy nashrlar ro'yxati"
+                      </span>
+                      ga kiritilgan.
+                    </p>
+                    <p className="text-sm text-amber-700 font-semibold bg-amber-100 inline-block px-3 py-1 rounded-full">
+                      Asos: OAK Rayosatining 2023-yil 29-avgustdagi №342/2-son qarori
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Huquqiy maqom va Muassis */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-green-50 border-l-4 border-green-500 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-base">Huquqiy maqomi</h3>
+                  </div>
+                  <p className="text-gray-700 text-sm leading-relaxed">
+                    O'zbekiston Respublikasi Prezidenti Administratsiyasi huzuridagi Axborot va ommaviy kommunikatsiyalar agentligi tomonidan davlat ro'yxatidan o'tkazilgan.
+                  </p>
+                  <p className="mt-2 text-green-700 font-bold text-sm bg-green-100 inline-block px-3 py-1 rounded-full">
+                    2022-yil 24-apreldagi №1591-sonli guvohnoma
+                  </p>
+                </div>
+
+                <div className="bg-purple-50 border-l-4 border-purple-500 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-base">Muassis</h3>
+                  </div>
+                  <p className="text-gray-700 text-sm leading-relaxed">
+                    <span className="font-bold text-purple-800">Kasbiy ta'limni rivojlantirish instituti (KTRI)</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Tahririyat manzili */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center shrink-0">
+                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-lg mb-1">Tahririyat manzili</h3>
+                    <p className="text-gray-700 text-base">
+                      100095, Toshkent shahar, Olmazor tumani, Chimboy 2, 96-uy
+                    </p>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         );
