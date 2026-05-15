@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBook, FaSearch, FaSync, FaChevronLeft, FaChevronRight,
-  FaCalendarAlt, FaHashtag, FaFileAlt,
+  FaCalendarAlt, FaHashtag,
   FaEye, FaArrowLeft, FaSave, FaTrash,
+  FaBold, FaItalic, FaUnderline, FaStrikethrough,
+  FaListUl, FaListOl, FaRemoveFormat, FaLink, FaUnlink,
 } from "react-icons/fa";
+import DOMPurify from "dompurify";
 import { fetchWithAuth } from "../../../utils/authenticatedFetch.js";
 import { getAccessToken } from "../../../utils/authStorage.js";
 import { parseApiError } from "../../../utils/apiError.js";
@@ -24,15 +27,213 @@ function formatDate(str) {
   }
 }
 
+function forceHttps(url) {
+  return url ? String(url).replace(/^http:\/\//i, "https://") : url;
+}
+
+/** Ro'yxat va batafsil GET uchun turli URL variantlari */
+function resolveJurnalMediaUrl(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return forceHttps(s);
+  const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+  const resolved = s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
+  return forceHttps(resolved);
+}
+
+function fileDisplayNameFromUrl(url) {
+  if (!url) return "";
+  try {
+    const path = String(url).includes("://") ? new URL(url).pathname : String(url);
+    const seg = path.split("/").filter(Boolean).pop() || path;
+    return decodeURIComponent(seg);
+  } catch {
+    const parts = String(url).split(/[/\\]/);
+    return parts[parts.length - 1] || String(url);
+  }
+}
+
+/** Backend ba'zan `views`, ba'zan `views_count` yuboradi */
+function pickJurnalViewsCount(raw) {
+  if (raw == null || typeof raw !== "object") return null;
+  const v =
+    raw.views_count ??
+    raw.views ??
+    raw.view_count ??
+    raw.korishlar_soni ??
+    raw.korishlar ??
+    null;
+  if (v === "" || v === undefined || v === null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : String(v);
+}
+
+const DESCRIPTION_PURIFY = {
+  ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "s", "strike", "del", "ul", "ol", "li", "a", "h2", "h3", "blockquote"],
+  ALLOWED_ATTR: ["href", "target", "rel"],
+};
+
+function sanitizeDescriptionHtml(html) {
+  return DOMPurify.sanitize(html || "", DESCRIPTION_PURIFY);
+}
+
+/** Oddiy HTML tavsif maydoni (bold / italic va hokazo) */
+function HtmlDescriptionField({ value, onChange, placeholder }) {
+  const editorRef = useRef(null);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el || focused) return;
+    const sanitized = sanitizeDescriptionHtml(value);
+    const next = sanitized || "<br>";
+    if (el.innerHTML !== next) el.innerHTML = next;
+  }, [value, focused]);
+
+  const syncFromDom = () => {
+    const el = editorRef.current;
+    if (!el) return;
+    let html = el.innerHTML.replace(/^\s*<br\s*\/?>\s*$/i, "").trim();
+    if (!html || html === "<br>") html = "";
+    onChange(sanitizeDescriptionHtml(html));
+  };
+
+  const runCmd = (command, cmdValue = null) => {
+    editorRef.current?.focus();
+    try {
+      document.execCommand(command, false, cmdValue);
+    } catch {
+      /* eski brauzerlar */
+    }
+    syncFromDom();
+  };
+
+  const insertLink = () => {
+    const url = typeof window !== "undefined" ? window.prompt("Havola URL manzili:", "https://") : "";
+    if (!url?.trim()) return;
+    runCmd("createLink", url.trim());
+  };
+
+  const ToolBtn = ({ onClick, title, children }) => (
+    <button
+      type="button"
+      title={title}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+    >
+      {children}
+    </button>
+  );
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+      <div className="flex flex-wrap gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
+        <ToolBtn title="Qalin" onClick={() => runCmd("bold")}>
+          <FaBold />
+        </ToolBtn>
+        <ToolBtn title="Qiya" onClick={() => runCmd("italic")}>
+          <FaItalic />
+        </ToolBtn>
+        <ToolBtn title="Chiziq ostidan" onClick={() => runCmd("underline")}>
+          <FaUnderline />
+        </ToolBtn>
+        <ToolBtn title="Chizilgan" onClick={() => runCmd("strikeThrough")}>
+          <FaStrikethrough />
+        </ToolBtn>
+        <ToolBtn title="Ro'yxat" onClick={() => runCmd("insertUnorderedList")}>
+          <FaListUl />
+        </ToolBtn>
+        <ToolBtn title="Raqamli ro'yxat" onClick={() => runCmd("insertOrderedList")}>
+          <FaListOl />
+        </ToolBtn>
+        <ToolBtn title="Havola" onClick={insertLink}>
+          <FaLink />
+        </ToolBtn>
+        <ToolBtn title="Havolani olib tashlash" onClick={() => runCmd("unlink")}>
+          <FaUnlink />
+        </ToolBtn>
+        <ToolBtn title="Formatlashni tozalash" onClick={() => runCmd("removeFormat")}>
+          <FaRemoveFormat />
+        </ToolBtn>
+      </div>
+      <div
+        ref={editorRef}
+        role="textbox"
+        aria-multiline="true"
+        aria-label={placeholder}
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder={placeholder}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false);
+          syncFromDom();
+        }}
+        onInput={syncFromDom}
+        className="min-h-[192px] w-full px-4 py-3 text-sm leading-relaxed text-slate-800 outline-none"
+      />
+    </div>
+  );
+}
+
+/** `<input type="date">` uchun yyyy-mm-dd */
+function toDateInputValue(raw) {
+  if (raw == null || raw === "") return "";
+  const s = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const dm = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+  const m = s.match(dm);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) {
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const da = String(d.getDate()).padStart(2, "0");
+    return `${y}-${mo}-${da}`;
+  }
+  return "";
+}
+
+function pickExistingImageUrl(json) {
+  if (!json || typeof json !== "object") return null;
+  const v =
+    json.image ??
+    json.cover ??
+    json.cover_image ??
+    json.muqova ??
+    json.muqova_rasm ??
+    null;
+  if (v && typeof v === "object" && v.url) return String(v.url).trim() || null;
+  return v ? String(v).trim() || null : null;
+}
+
+function pickExistingPdfUrl(json) {
+  if (!json || typeof json !== "object") return null;
+  const v =
+    json.pdfUrl ??
+    json.pdf ??
+    json.pdf_url ??
+    json.file ??
+    json.fayl ??
+    null;
+  if (v && typeof v === "object" && v.url) return String(v.url).trim() || null;
+  return v ? String(v).trim() || null : null;
+}
+
 // ─── Edit / Delete panel ─────────────────────────────────────────────────────
 function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
   const EMPTY = {
     title: "", description: "", nashr_sanasi: "", volume: "",
-    issue: "", year: "", views_count: "", faol: false,
+    issue: "", year: "", views_count: "", faol: true,
   };
   const [form, setForm] = useState(EMPTY);
+  const [faolTouched, setFaolTouched] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
+  const [existingImageUrl, setExistingImageUrl] = useState(null);
+  const [existingPdfUrl, setExistingPdfUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -57,15 +258,21 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
         try { json = text ? JSON.parse(text) : null; } catch { json = null; }
         if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
         if (!cancelled && json) {
+          const vc = pickJurnalViewsCount(json);
+          setExistingImageUrl(pickExistingImageUrl(json));
+          setExistingPdfUrl(pickExistingPdfUrl(json));
+          setImageFile(null);
+          setPdfFile(null);
+          setFaolTouched(false);
           setForm({
             title: json.title ?? "",
-            description: json.description ?? "",
-            nashr_sanasi: json.date ?? json.nashr_sanasi ?? "",
+            description: sanitizeDescriptionHtml(json.description ?? ""),
+            nashr_sanasi: toDateInputValue(json.date ?? json.nashr_sanasi ?? ""),
             volume: json.volume != null ? String(json.volume) : "",
             issue: json.issue != null ? String(json.issue) : "",
             year: json.year != null ? String(json.year) : "",
-            views_count: json.views_count != null ? String(json.views_count) : "",
-            faol: !!json.faol,
+            views_count: vc != null ? String(vc) : "",
+            faol: true,
           });
         }
       } catch (err) {
@@ -80,6 +287,7 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (name === "faol") setFaolTouched(true);
     setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
@@ -98,13 +306,15 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
       const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
       const formData = new FormData();
       formData.append("title", form.title.trim());
-      if (form.description.trim()) formData.append("description", form.description.trim());
+      const descClean = sanitizeDescriptionHtml(form.description).trim();
+      if (descClean) formData.append("description", descClean);
       if (form.nashr_sanasi) formData.append("date", form.nashr_sanasi);
       formData.append("volume", form.volume);
       formData.append("issue", form.issue);
       formData.append("year", form.year);
       if (form.views_count !== "") formData.append("views_count", form.views_count);
-      formData.append("faol", form.faol ? "true" : "false");
+      const faolEffective = faolTouched ? form.faol : true;
+      formData.append("faol", faolEffective ? "true" : "false");
       if (imageFile) formData.append("image", imageFile);
       if (pdfFile) formData.append("pdfUrl", pdfFile);
 
@@ -165,7 +375,7 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col items-start gap-4">
         <button
           onClick={onBack}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -206,25 +416,61 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
             </div>
 
             {/* Image */}
-            <div>
+            <div className="sm:col-span-2">
               <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
-                Muqova rasmi (yangi)
+                Muqova rasmi
               </label>
+              {existingImageUrl && (
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-semibold text-slate-600">Hozirda:</span>
+                  <a
+                    href={resolveJurnalMediaUrl(existingImageUrl) || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all font-medium text-blue-600 underline-offset-2 hover:underline"
+                  >
+                    {fileDisplayNameFromUrl(existingImageUrl)}
+                  </a>
+                </div>
+              )}
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                O&apos;zgartirish
+              </p>
               <input
-                type="file" accept="image/*"
-                onChange={(e) => setImageFile(e.target.files[0] || null)}
+                key={`cover-${jurnalId}`}
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700"
               />
             </div>
 
             {/* PDF */}
-            <div>
+            <div className="sm:col-span-2">
               <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
-                PDF fayl (yangi)
+                PDF fayl
               </label>
+              {existingPdfUrl && (
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-semibold text-slate-600">Hozirda:</span>
+                  <a
+                    href={resolveJurnalMediaUrl(existingPdfUrl) || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all font-medium text-blue-600 underline-offset-2 hover:underline"
+                  >
+                    {fileDisplayNameFromUrl(existingPdfUrl)}
+                  </a>
+                </div>
+              )}
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                O&apos;zgartirish
+              </p>
               <input
-                type="file" accept="application/pdf"
-                onChange={(e) => setPdfFile(e.target.files[0] || null)}
+                key={`pdf-${jurnalId}`}
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-blue-700"
               />
             </div>
@@ -234,11 +480,17 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
               <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
                 Tavsif
               </label>
-              <textarea
-                name="description" value={form.description} onChange={handleChange}
-                rows={3} placeholder="Qisqacha tavsif..."
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              <HtmlDescriptionField
+                value={form.description}
+                onChange={(html) => {
+                  setForm((prev) => ({ ...prev, description: html }));
+                  setErrors((prev) => ({ ...prev, description: "" }));
+                }}
+                placeholder="Qisqacha tavsif..."
               />
+              <p className="mt-1.5 text-[11px] text-slate-400">
+                Yuqoridagi tugmalar yordamida qalin, qiya, ro&apos;yxat va havola qo&apos;shishingiz mumkin.
+              </p>
             </div>
 
             {/* Nashr sanasi */}
@@ -561,7 +813,9 @@ export default function JurnalSonlariView({ onAddNew }) {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5">
                           <FaEye className="text-[10px] text-slate-400" />
-                          <span className="text-slate-600">{j.views ?? "—"}</span>
+                          <span className="text-slate-600">
+                            {j.views ?? j.views_count ?? j.view_count ?? "—"}
+                          </span>
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
