@@ -373,10 +373,10 @@ function PaymentResult() {
               <div className="flex items-center gap-2 text-sm">
                 <FaPhone className="text-amber-600" />
                 <a
-                  href="tel:+998712345678"
+                  href="tel:+998900913099"
                   className="font-semibold text-amber-900 hover:underline"
                 >
-                  +998 (71) 234-56-78
+                  +998 90 091 30 99
                 </a>
               </div>
             </div>

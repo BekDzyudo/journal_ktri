@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock, FaNewspaper, FaBook } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi";
@@ -12,6 +12,7 @@ import AdminDashboard from "../dashboard/admin/AdminDashboard.jsx";
 import SuperAdminDashboard from "../dashboard/superadmin/SuperAdminDashboard.jsx";
 import MaqolalarView from "../dashboard/superadmin/MaqolalarView.jsx";
 import JurnalSonlariView from "../dashboard/superadmin/JurnalSonlariView.jsx";
+import JurnalSonQoshish from "../dashboard/superadmin/JurnalSonQoshish.jsx";
 import Modal from "../../components/Modal.jsx";
 import { NotificationProvider } from "../../context/NotificationContext.jsx";
 import { fetchWithAuth } from "../../utils/authenticatedFetch.js";
@@ -38,8 +39,9 @@ function normalizeProfilUser(payload) {
 function AdminPanel() {
   const { auth, userData, logout, userRole: contextUserRole, refresh: refreshAccessToken } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "dashboard");
 
   // CLICK to'lovdan qaytganda redirect qilish
   useEffect(() => {
@@ -474,7 +476,14 @@ function AdminPanel() {
         )}
 
         {activeTab === "jurnal-sonlar" && userRole === ROLES.SUPERADMIN && (
-          <JurnalSonlariView />
+          <JurnalSonlariView onAddNew={() => setActiveTab("jurnal-son-qoshish")} />
+        )}
+
+        {activeTab === "jurnal-son-qoshish" && userRole === ROLES.SUPERADMIN && (
+          <JurnalSonQoshish
+            onBack={() => setActiveTab("jurnal-sonlar")}
+            onSuccess={() => setActiveTab("jurnal-sonlar")}
+          />
         )}
       </main>
 

@@ -18,9 +18,11 @@ const INITIAL = {
   faol: false,
 };
 
-export default function JurnalSonQoshish() {
+export default function JurnalSonQoshish({ onBack, onSuccess }) {
   const navigate = useNavigate();
   const { refresh: refreshAccessToken } = useContext(AuthContext);
+
+  const handleBack = () => (onBack ? onBack() : navigate(-1));
 
   const [form, setForm] = useState(INITIAL);
   const [imageFile, setImageFile] = useState(null);
@@ -74,7 +76,11 @@ export default function JurnalSonQoshish() {
 
       if (res.ok) {
         toast.success("Jurnal soni muvaffaqiyatli qo'shildi!");
-        navigate("/profile", { state: { activeTab: "jurnal-sonlar" } });
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          navigate("/profile", { state: { activeTab: "jurnal-sonlar" } });
+        }
       } else {
         throw new Error(parseApiError(json, `${res.status}`));
       }
@@ -86,11 +92,11 @@ export default function JurnalSonQoshish() {
   };
 
   return (
-    <div className="space-y-6 px-5 sm:px-20 py-8 pt-10 sm:pt-20 pb-20 sm:pb-40">
+    <div className={`space-y-6 ${onBack ? "py-6" : "px-5 sm:px-20 py-8 pt-10 sm:pt-20 pb-20 sm:pb-40"}`}>
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
         >
           <FaArrowLeft className="text-xs" />
@@ -280,7 +286,7 @@ export default function JurnalSonQoshish() {
           <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={handleBack}
               className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
               Bekor qilish
