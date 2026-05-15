@@ -288,7 +288,7 @@ function Contact() {
                         href="tel:+998712024516"
                         className="text-gray-600 hover:text-green-700 transition-colors block"
                       >
-                        +998 (91) 601-72-22
+                        +998 (90) 091 30 99
                       </a>
                     </div>
                   </div>
@@ -521,7 +521,7 @@ function Contact() {
                     <FaInstagram className="text-xl" />
                   </a>
                   <a
-                    href="https://t.me/profedu"
+                    href="https://t.me/Journal_KTRI"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-white/20 hover:bg-white hover:text-blue-500 p-3 rounded-lg transition-all duration-300 hover:scale-110"

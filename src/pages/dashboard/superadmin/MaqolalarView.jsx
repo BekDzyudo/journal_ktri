@@ -241,7 +241,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
       const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
       const url = `${base}/admin/maqolalar/${articleId}/`;
 
-      const mualliflar = authors.map((a, i) => {
+      const mualliflarData = authors.map((a, i) => {
         const row = {
           tartib: i,
           ism_familya: a.fullName.trim(),
@@ -254,63 +254,34 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
         return row;
       });
 
-      const parseRes = async (res) => {
-        const text = await res.text();
-        let json = null;
-        try {
-          json = text ? JSON.parse(text) : null;
-        } catch {
-          json = null;
-        }
-        return { json };
-      };
+      const fd = new FormData();
+      fd.append("sarlavha", sarlavha.trim());
+      fd.append("rukn", String(ruknNum));
+      fd.append("kalit_sozlar", kalitSozlar.trim());
+      fd.append("annotatsiya", annotatsiya.trim());
+      fd.append("adabiyotlar", adabiyotlar.trim());
+      fd.append("sahifalar", sahifalar.trim());
+      fd.append("holat", holat);
+      fd.append("rad_sababi", radSababi.trim());
+      fd.append("nashr_sanasi", nashrSanasi || "");
+      fd.append("mualliflar", JSON.stringify(mualliflarData));
+      if (file) fd.append("fayl", file, file.name);
 
-      const patchJson = async (partial) => {
-        const res = await fetchWithAuth(
-          url,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(partial),
-          },
-          getAccessToken,
-          refreshAccessToken
-        );
-        const parsed = await parseRes(res);
-        if (!res.ok) throw new Error(parseApiError(parsed.json, `${res.status}`));
-      };
-
-      /**
-       * Ba'zi backendlar bitta PATCH da `holat` bilan boshqa maydonlarni birga yuborganimizda
-       * faqat holatni yangilaydi. Shuning uchun avval matn maydonlari va mualliflar, oxirida holat.
-       */
-      await patchJson({
-        sarlavha: sarlavha.trim(),
-        rukn: ruknNum,
-        kalit_sozlar: kalitSozlar.trim(),
-        annotatsiya: annotatsiya.trim(),
-        adabiyotlar: adabiyotlar.trim(),
-        sahifalar: sahifalar.trim(),
-        rad_sababi: radSababi.trim(),
-        nashr_sanasi: nashrSanasi || null,
-      });
-
-      await patchJson({ mualliflar });
-
-      await patchJson({ holat });
-
-      if (file) {
-        const fd = new FormData();
-        fd.append("fayl", file, file.name);
-        const resFile = await fetchWithAuth(
-          url,
-          { method: "PATCH", body: fd },
-          getAccessToken,
-          refreshAccessToken
-        );
-        const parsed = await parseRes(resFile);
-        if (!resFile.ok) throw new Error(parseApiError(parsed.json, `${resFile.status}`));
+      const res = await fetchWithAuth(
+        url,
+        { method: "PATCH", body: fd },
+        getAccessToken,
+        refreshAccessToken
+      );
+      const text = await res.text();
+      
+      let json = null;
+      try {
+        json = text ? JSON.parse(text) : null;
+      } catch {
+        json = null;
       }
+      if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
 
       toast.success("Saqlandi!");
       onDone();

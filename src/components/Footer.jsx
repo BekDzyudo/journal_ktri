@@ -143,7 +143,7 @@ function Footer() {
               <div>
                 <p className="text-xs text-white/60">Telefon</p>
                 <a href="tel:+998712469037" className="text-sm text-white hover:text-cyan-300 transition-colors">
-                  +998 91 601 72 22
+                  +998 90 091 30 99
                 </a>
               </div>
             </div>
@@ -173,7 +173,7 @@ function Footer() {
           <h4 className="font-bold text-lg text-cyan-400 mb-2">Ijtimoiy tarmoqlar</h4>
           <div className="flex gap-3 mb-4">
             <Link 
-              to="https://t.me/ipi_uz" 
+              to="https://t.me/Journal_KTRI" 
               target="_blank"
               className="w-10 h-10 bg-white/10 hover:bg-cyan-400 rounded-full flex items-center justify-center transition-all hover:scale-110"
             >
