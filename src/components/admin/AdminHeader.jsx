@@ -63,7 +63,7 @@ function AdminHeader({
             className="flex items-center gap-3 text-left transition hover:opacity-80"
             title="Asosiy sahifaga qaytish"
           >
-            <img src="/new_logo_white.png" alt="KTRI" className="h-11 w-11 rounded-xl object-contain" />
+            <img src="/new_logo_blue.png" alt="KTRI" className="h-11 w-11 rounded-xl object-contain" />
             <div>
               <p className="text-base font-black tracking-tight text-slate-950">KTRI</p>
               <p className="text-[11px] font-semibold text-slate-500">{roleBadge}</p>

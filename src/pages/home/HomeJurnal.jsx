@@ -95,46 +95,68 @@ function HomeJurnal() {
       case 1:
         return (
           <div className="prose max-w-none">
-            <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-6 font-serif">
+            <h2 className="text-2xl sm:text-4xl font-bold text-gray-700 mb-2 font-serif">
               Missiya
             </h2>
-            
+            <p className="text-xs font-semibold uppercase tracking-widest text-info mb-6">
+              Maqsad va vazifalar
+            </p>
+
             <div className="space-y-6 text-gray-800 text-[17px] leading-relaxed">
               <p className="text-justify">
-                <span className="font-bold text-gray-900">"Kasbiy ta'lim: muammolar, izlanishlar, yechimlar"</span> jurnali 
-                ijtimoiy-gumanitar va boshqa sohalarga mo'ljallangan ixtisoslashgan nashr bo'lib, 
-                quyida ko'rsatilgan sohalardagi ilmiy-amaliy innovatsion yangiliklarni har tomonlama yoritish, 
-                jurnalxonlarning ta'limiy-ilmiy innovatsion axborotga bo'lgan talab-ehtiyojlarini yanada to'laroq qondirish, 
-                jurnal imkoniyatlaridan keng va samarali foydalanishni o'z oldiga asosiy maqsad qilib qo'yadi.
+                <span className="font-bold text-gray-900">"O'zbekistonda professional ta'lim"</span> jurnali —
+                kasb-hunar ta'limi, ta'lim menejmenti, pedagogika, ijtimoiy-gumanitar va aloqador sohalarga
+                mo'ljallangan ixtisoslashgan ilmiy nashr bo'lib, professional ta'lim sohasidagi ilmiy-amaliy
+                innovatsion yangiliklarni xalqaro standartlar darajasida har tomonlama yoritish,
+                jurnalxonlarning ta'limiy-ilmiy innovatsion axborotga bo'lgan talab-ehtiyojlarini to'laroq
+                qondirish, milliy ilmiy maktabni xalqaro ilmiy hamjamiyatga integratsiya qilish hamda jurnalni{" "}
+                <span className="font-semibold text-info">Scopus, Web of Science (ESCI/SSCI)</span> va boshqa
+                nufuzli xalqaro sitatalash bazalariga kiritishni o'z oldiga asosiy maqsad qilib qo'yadi:
               </p>
 
               <div className="bg-blue-50 border-l-4 border-info p-5 rounded-r-lg">
-                <h3 className="font-bold text-gray-900 mb-3 text-lg">Asosiy yo'nalishlar:</h3>
+                <h3 className="font-bold text-gray-900 mb-4 text-lg">Asosiy vazifalar:</h3>
                 <ul className="space-y-3 list-none">
-                  <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">?</span>
-                    <span>Mamlakatda Kasbiy ta'lim va ta'lim uzluksizligi yo'nalishlarida olib borilayotgan islohotlarning mazmun-mohiyatidan, zamonaviy pedagogik texnologiyalarining yaratilishi va ularni keng tatbiq etish borasida amalga oshirilayotgan ishlar haqida</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">?</span>
-                    <span>Kasbiy ta'limga oid yagona milliy axborot makonini yaratish hamda umumiy o'rta ta'limning nazariy-amaliy jarayonlariga iqtidorli yoshlar hamda tajribali ustozlarni faol jalb etish</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">?</span>
-                    <span>Xalqaro tendensiyalar va ilmiy izlanishlar bilan muvofiqlikni ta'minlash maqsadida Kasbiy ta'limning dolzarb muammolari yuzasidan tizimli asosda amalga oshilayotgan xalqaro ilmiy-tadqiqotlar tahlilini yetkazib borish</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">?</span>
-                    <span>Kasbiy ta'lim tizimini rivojlantirishning strategik yo'nalishlari, maqsad va dasturlarini ishlab chiqish hamda amalga oshirishning istiqbolli yo'nalishlarini belgilovchi masalalarni muhokama qilish</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">?</span>
-                    <span>Xalqaro baholash tadqiqotlarida yetakchi o'rinni egallab kelayotgan mamlakatlar erishgan ilm-fan, yuqori texnologik yutuqlar hamda O'zbekistonning xalqaro tadqiqotda ishtirok etish natijalari, muammolar, yechimlarini yoritish</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-info font-bold mt-1">?</span>
-                    <span>Kadrlar tayyorlash, malakasini oshirish, qayta tayyorlash, ta'lim menejmenti, boshqaruvga doir dolzarb muammolar va xalqaro tajriba natijalarini yoritish</span>
-                  </li>
+                  {[
+                    "Mamlakatda kasbiy ta'lim, kasb-hunar ta'limi va ta'lim uzluksizligi yo'nalishlarida olib borilayotgan islohotlarning mazmun-mohiyatidan, zamonaviy pedagogik texnologiyalarning yaratilishi va ularni keng tatbiq etish borasida amalga oshirilayotgan ishlar, jahonda mazkur sohalarda ro'y berayotgan jarayonlar va so'nggi yangiliklardan keng ommani xabardor qilib borish;",
+                    "Kasbiy ta'limga oid yagona milliy axborot makonini yaratish hamda kasb-hunar ta'limi tizimining nazariy-amaliy jarayonlariga iqtidorli yoshlar, tajribali ustozlar va xorijiy mutaxassislarni faol jalb etish maqsadida turli mavzudagi ilmiy-amaliy maqola va ilmiy ijodning eng ilg'or namunalarini chop etib borish;",
+                    "Xalqaro tendensiyalar va ilmiy izlanishlar bilan muvofiqlikni ta'minlash maqsadida professional ta'limning dolzarb muammolari yuzasidan tizimli asosda amalga oshirilayotgan xalqaro ilmiy-tadqiqotlar tahlilini yetkazib borish, xorijiy mualliflar bilan hamkorlikni rivojlantirish va jurnal kontentining xalqaro tilda ulushini izchil oshirib borish;",
+                    "O'zbekistonda kasbiy ta'limni tashkil qilishning ilmiy-nazariy va amaliy-texnologik asoslarini tahlil qilish, kasbiy ta'lim standartlari, o'quv reja va dasturlarini ishlab chiqish, tajriba-sinovdan o'tkazish hamda dual ta'lim, WorldSkills standartlari va mehnat bozori talablari asosida takomillashtirishning dolzarb masalalarini yoritish;",
+                    "Kadrlar tayyorlash, malakasini oshirish, qayta tayyorlash, ta'lim menejmenti, raqamli transformatsiya va boshqaruvga doir dolzarb muammolar, xalqaro tajriba, amalga oshirilayotgan ishlarning ilmiy-amaliy tadqiqot natijalarini tahlil qilishga doir innovatsion ishlarini yoritish;",
+                    "Raqamli iqtisodiyot, sun'iy intellekt va Industry 4.0 sharoitida kasbiy kompetensiyalarni shakllantirish, mehnat bozori bilan ta'lim tizimi o'rtasidagi muvofiqlikni ta'minlash bo'yicha ilmiy izlanishlar natijalarini yoritish;",
+                    "Professional ta'lim sohasida tahliliy ma'lumotlar, ilmiy maqolalar va tadqiqotlarning natijalari hamda yangi g'oyalarini aks ettiruvchi materiallar va O'zbekiston Respublikasi Maktabgacha va maktab ta'limi vazirligi, Oliy ta'lim, fan va innovatsiyalar vazirligi, Kasbiy ta'limni rivojlantirish instituti va ularning tizimidagi tashkilotlarning rasmiy axborotlarini yoritish ishlarini amalga oshiradi.",
+                  ].map((text, i) => (
+                    <li key={i} className="flex gap-3 bg-white/60 rounded-lg px-3 py-2.5">
+                      <span className="shrink-0 mt-1 w-6 h-6 rounded-full bg-info/10 text-info flex items-center justify-center font-black text-xs">
+                        {i + 1}
+                      </span>
+                      <span className="text-gray-700 text-[15px] leading-relaxed">{text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-indigo-50 border-l-4 border-indigo-500 p-5 rounded-r-lg">
+                <h3 className="font-bold text-gray-900 mb-4 text-lg">Jurnalning strategik maqsadi</h3>
+                <p className="text-gray-700 text-[15px] mb-4">
+                  Jurnal o'rta muddatli istiqbolda quyidagi yo'nalishlarda izchil ishlash orqali xalqaro ilmiy
+                  hamjamiyatga integratsiyani ta'minlashga harakat qiladi:
+                </p>
+                <ul className="space-y-2.5 list-none">
+                  {[
+                    "Maqolalarni o'zbek, rus va ingliz tillarida chop etish, ingliz tilidagi maqolalar ulushini bosqichma-bosqich oshirish;",
+                    "Har bir maqolaga Crossref DOI raqami berish va metadatani xalqaro standartlarga (COPE, ICMJE, DOAJ) muvofiq rasmiylashtirish;",
+                    "Ikki bosqichli yashirin taqrizlash (double-blind peer review) tartibini izchil qo'llash;",
+                    "Xalqaro tahririyat hay'atini shakllantirish, xorijiy taqrizchilar va mualliflarni jalb etish;",
+                    "Ochiq kirish (Open Access) siyosatini qo'llab, kontentni CC BY 4.0 litsenziyasi asosida tarqatish;",
+                    "Zenodo repozitoriyasida arxivlash orqali kontentning xalqaro ko'rinishi va saqlanishini ta'minlash;",
+                    "Jurnalning iqtibos darajasi (CiteScore, h-index) va xalqaro tan olinishini izchil oshirib borish.",
+                  ].map((text, i) => (
+                    <li key={i} className="flex gap-3 items-start">
+                      <span className="shrink-0 mt-2 w-2 h-2 rounded-full bg-indigo-500" />
+                      <span className="text-gray-700 text-[15px] leading-relaxed">{text}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
