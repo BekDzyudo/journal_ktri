@@ -74,6 +74,30 @@ function resolveAdminMediaUrl(raw) {
   return forceHttps(resolved);
 }
 
+/**
+ * Admin ro'yxatidagi "To'lov" ustuni uchun.
+ * Backend ro'yxatda `paidAt` / `paymentStatus` bermasligi mumkin; CLICK dan keyin `holat`
+ * ko'pincha `paid` o'rniga `accepted` (masalan QABUL_QILINGAN), `assigned` va hokazo bo'ladi.
+ */
+function articlePaymentLooksCompleted(article) {
+  if (!article) return false;
+  if (article.paymentStatus === "paid" || article.paidAt) return true;
+  if (article.tolov_amalga_oshirildi === true) return true;
+  if (article.paid === true || article.tolangan === true || article.is_paid === true) return true;
+  if (article.status === ARTICLE_STATUS.PAID) return true;
+  const statusesPastPayment = [
+    ARTICLE_STATUS.ASSIGNED,
+    ARTICLE_STATUS.UNDER_REVIEW,
+    ARTICLE_STATUS.IN_EDITING,
+    ARTICLE_STATUS.REVIEW_ACCEPTED,
+    ARTICLE_STATUS.REVIEW_REJECTED,
+    ARTICLE_STATUS.ACCEPTED,
+    ARTICLE_STATUS.REVISION_REQUIRED,
+    ARTICLE_STATUS.PUBLISHED,
+  ];
+  return statusesPastPayment.includes(article.status);
+}
+
 // ─── SuperAdminDetailPanel ──────────────────────────────────────────────────
 function SuperAdminDetailPanel({ articleId, onBack, onActionDone }) {
   const { refresh: refreshAccessToken } = useContext(AuthContext);
@@ -966,7 +990,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   };
 
   const getPaymentBadge = (article) => {
-    if (article.paymentStatus === "paid" || article.paidAt) {
+    if (articlePaymentLooksCompleted(article)) {
       return "bg-emerald-100 text-emerald-800 border-emerald-200";
     }
     if (article.status === ARTICLE_STATUS.PAYMENT_PENDING) {
@@ -976,7 +1000,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   };
 
   const getPaymentLabel = (article) => {
-    if (article.paymentStatus === "paid" || article.paidAt) return "To'langan";
+    if (articlePaymentLooksCompleted(article)) return "To'langan";
     if (article.status === ARTICLE_STATUS.PAYMENT_PENDING) return "Kutilmoqda";
     return "Ochilmadi";
   };

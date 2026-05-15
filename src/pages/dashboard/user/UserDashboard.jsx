@@ -109,6 +109,7 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
         const text = await res.text();
         let json = null;
         try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+        
         if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
         if (!cancelled) setData(json);
       } catch (err) {
