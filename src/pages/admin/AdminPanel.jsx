@@ -11,6 +11,7 @@ import UserDashboard from "../dashboard/user/UserDashboard.jsx";
 import AdminDashboard from "../dashboard/admin/AdminDashboard.jsx";
 import SuperAdminDashboard from "../dashboard/superadmin/SuperAdminDashboard.jsx";
 import MaqolalarView from "../dashboard/superadmin/MaqolalarView.jsx";
+import MaqolaQoshish from "../dashboard/superadmin/MaqolaQoshish.jsx";
 import JurnalSonlariView from "../dashboard/superadmin/JurnalSonlariView.jsx";
 import JurnalSonQoshish from "../dashboard/superadmin/JurnalSonQoshish.jsx";
 import Modal from "../../components/Modal.jsx";
@@ -472,7 +473,14 @@ function AdminPanel() {
         )}
 
         {activeTab === "maqolalar" && userRole === ROLES.SUPERADMIN && (
-          <MaqolalarView />
+          <MaqolalarView onAddNew={() => setActiveTab("maqola-qoshish")} />
+        )}
+
+        {activeTab === "maqola-qoshish" && userRole === ROLES.SUPERADMIN && (
+          <MaqolaQoshish
+            onBack={() => setActiveTab("maqolalar")}
+            onSuccess={() => setActiveTab("maqolalar")}
+          />
         )}
 
         {activeTab === "jurnal-sonlar" && userRole === ROLES.SUPERADMIN && (
