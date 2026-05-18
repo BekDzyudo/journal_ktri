@@ -15,7 +15,6 @@ import MaqolaQoshish from "../dashboard/superadmin/MaqolaQoshish.jsx";
 import JurnalSonlariView from "../dashboard/superadmin/JurnalSonlariView.jsx";
 import JurnalSonQoshish from "../dashboard/superadmin/JurnalSonQoshish.jsx";
 import Modal from "../../components/Modal.jsx";
-import { NotificationProvider } from "../../context/NotificationContext.jsx";
 import { fetchWithAuth } from "../../utils/authenticatedFetch.js";
 import { parseApiError } from "../../utils/apiError.js";
 
@@ -346,7 +345,6 @@ function AdminPanel() {
   };
 
   return (
-    <NotificationProvider userData={profileUser} userRole={userRole}>
     <div className={`min-h-screen ${roleConfig.gradient}`}>
       <AdminHeader
         userRole={userRole}
@@ -700,7 +698,6 @@ function AdminPanel() {
         </form>
       </Modal>
     </div>
-    </NotificationProvider>
   );
 }
 

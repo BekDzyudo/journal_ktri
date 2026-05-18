@@ -160,7 +160,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
         setAdabiyotlar(json.adabiyotlar ?? "");
         setSahifalar(json.sahifalar != null ? String(json.sahifalar) : "");
         const h = json.holat != null ? String(json.holat).trim() : "";
-        setHolat(HOLAT_OPTIONS.includes(h) ? h : h || MUALLIF_API_HOLAT.YUBORILGAN);
+        setHolat(HOLAT_OPTIONS.includes(h) ? h : MUALLIF_API_HOLAT.YUBORILGAN);
         setRadSababi(json.rad_sababi ?? "");
         setNashrSanasi(toDateInputValue(json.nashr_sanasi ?? ""));
         setAuthors(mualliflarToAuthors(json.mualliflar));

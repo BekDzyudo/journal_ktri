@@ -37,6 +37,7 @@ export function parseMaqolalarListPayload(raw) {
     "maqolalar", "articles", "my_articles", "myArticles", "user_maqolalar",
     "maqola_set", "maqola_list", "submissions", "submitted", "my_submissions",
     "user_articles", "muallif_maqolalar", "muallif_articles",
+    "taqrizchi_maqolalar",
   ];
   const dataObj = raw.data != null && typeof raw.data === "object" && !Array.isArray(raw.data) ? raw.data : null;
   for (const key of listKeys) {
@@ -140,12 +141,13 @@ export function normalizeApiHolatKey(holat) {
   return String(holat).trim().toUpperCase().replace(/\s+/g, "_");
 }
 
-/** Muallif panelidagi 5 ta holatdan biri; API `holat` yoki ichki status bo'yicha */
+/** Muallif panelidagi API holatlari bilan moslash; `holat` yoki ichki status bo'yicha */
 export function inferMuallifHolatKeyForPanel(article) {
   if (article?.holatKey && MUALLIF_API_HOLAT_LABELS[article.holatKey]) {
     return article.holatKey;
   }
   const fromHolat = normalizeApiHolatKey(article?.holat);
+  if (fromHolat === "KORIB_CHIQILMOQDA") return MUALLIF_API_HOLAT.YUBORILGAN;
   if (fromHolat && MUALLIF_API_HOLAT_LABELS[fromHolat]) return fromHolat;
 
   const s = article?.status;
@@ -162,9 +164,30 @@ export function inferMuallifHolatKeyForPanel(article) {
     s === ARTICLE_STATUS.REVIEW_ACCEPTED ||
     s === ARTICLE_STATUS.REVISION_REQUIRED
   ) {
-    return MUALLIF_API_HOLAT.KORIB_CHIQILMOQDA;
+    return MUALLIF_API_HOLAT.YUBORILGAN;
   }
   return MUALLIF_API_HOLAT.YUBORILGAN;
+}
+
+/** Backend TaqrizHolati (TextChoices) — ko'rinish matnlari */
+export const TAQRIZ_HOLATI_LABELS = {
+  KUTILMOQDA: "Taqriz kutilmoqda",
+  QABUL: "Taqrizchi qabul qildi",
+  RAD: "Taqrizchi rad etdi",
+};
+
+export function normalizeTaqrizHolatiKey(v) {
+  if (v == null || v === "") return null;
+  return String(v).trim().toUpperCase().replace(/\s+/g, "_");
+}
+
+export function resolveTaqrizHolatiKey(raw) {
+  return normalizeTaqrizHolatiKey(raw) || "KUTILMOQDA";
+}
+
+export function formatTaqrizHolatiLabel(raw) {
+  const key = resolveTaqrizHolatiKey(raw);
+  return TAQRIZ_HOLATI_LABELS[key] || key;
 }
 
 /** Superadmin jadvali kutgan maydonlar bilan boyitadi */
@@ -184,9 +207,13 @@ export function normalizeMaqolaForDashboard(m) {
     m?.assignedToName ||
     (m?.taqrizchi && typeof m.taqrizchi === "object"
       ? m.taqrizchi.ism_familya ||
+        [m.taqrizchi.ism, m.taqrizchi.familiya].filter(Boolean).join(" ").trim() ||
         [m.taqrizchi.first_name, m.taqrizchi.last_name].filter(Boolean).join(" ")
       : null);
 
+  const taqrizHolatiRaw = normalizeTaqrizHolatiKey(m?.taqriz_holati ?? m?.taqrizHolati);
+  const taqrizHolati = taqrizHolatiRaw || "KUTILMOQDA";
+  const taqrizIzohi = String(m?.taqriz_izohi ?? m?.taqriz_izoh ?? "").trim();
   const holatKey = normalizeApiHolatKey(m?.holat);
   const dateRaw =
     m?.yuborilgan_vaqt ||
@@ -202,6 +229,7 @@ export function normalizeMaqolaForDashboard(m) {
     id,
     pk: id,
     holatKey: holatKey || null,
+    holatNomi: m?.holat_nomi ?? null,
     yuborilganVaqt: m?.yuborilgan_vaqt ?? null,
     articleTitle: m?.sarlavha ?? m?.articleTitle ?? m?.title ?? "",
     authorNames: mualliflarString(m),
@@ -220,7 +248,96 @@ export function normalizeMaqolaForDashboard(m) {
     fileName: m?.fayl_nomi || m?.fileName || null,
     assignedTo: assignedEmail,
     assignedToName: assignedName || assignedEmail,
+    taqrizHolati,
+    taqrizIzohi,
   };
+}
+
+/** Taqrizchi paneli: muallif shaxsini ko'rsatmaydi */
+function anonymizeArticleForReviewer(article) {
+  return {
+    ...article,
+    authorNames: "Anonim muallif",
+    fullName: "Anonim muallif",
+    email: null,
+    phone: null,
+    workplace: null,
+    position: null,
+    authorEmail: null,
+    authors: Array.isArray(article.authors)
+      ? article.authors.map((a) => ({
+          ...a,
+          fullName: "Anonim muallif",
+          email: null,
+          phone: null,
+          workplace: a.workplace ? "****" : null,
+          position: a.position ? "****" : null,
+        }))
+      : article.authors,
+  };
+}
+
+/**
+ * GET /taqrizchi/maqolalar/ javobi uchun — dashboard maydonlari + tayinlangan/taqriz fayl mapping.
+ */
+export function normalizeMaqolaForReviewerDashboard(m) {
+  const base = normalizeMaqolaForDashboard(m);
+  const assignedAt =
+    m?.taqrizchi_tayinlangan_vaqt ??
+    m?.tayinlangan_vaqt ??
+    m?.tayinlangan_sana ??
+    m?.assigned_at ??
+    m?.assignedAt ??
+    base?.yuborilgan_vaqt ??
+    base?.yuborilganVaqt ??
+    base?.submittedAt ??
+    base?.createdAt ??
+    null;
+
+  const tf = m?.taqriz_fayl;
+  const reviewFileUrl =
+    resolveFileUrl(tf) ??
+    m?.taqriz_fayl_url ??
+    m?.review_file_url ??
+    m?.reviewFileUrl ??
+    null;
+
+  let reviewFile =
+    m?.taqriz_fayl_nomi ??
+    m?.taqriz_fayl_nom ??
+    m?.review_file ??
+    m?.reviewFile ??
+    null;
+  if (!reviewFile && typeof tf === "string") {
+    reviewFile = tf.split("/").filter(Boolean).pop() || null;
+  }
+  if (!reviewFile && reviewFileUrl) {
+    reviewFile =
+      String(reviewFileUrl).split("/").filter(Boolean).pop() || "Taqriz fayli";
+  }
+
+  const taqrizHolati =
+    normalizeTaqrizHolatiKey(m?.taqriz_holati ?? m?.taqrizHolati) ?? base.taqrizHolati;
+
+  return anonymizeArticleForReviewer({
+    ...base,
+    assignedAt,
+    reviewFile,
+    reviewFileUrl,
+    reviewComment: m?.taqriz_izoh ?? m?.review_comment ?? base.reviewComment,
+    reviewConclusion:
+      m?.taqriz_xulosa ?? m?.review_conclusion ?? base.reviewConclusion,
+    reviewDecision:
+      m?.taqriz_tavsiya ?? m?.review_decision ?? base.reviewDecision,
+    taqrizHolati,
+    taqrizIzohi: String(m?.taqriz_izohi ?? m?.taqriz_izoh ?? base.taqrizIzohi ?? "").trim(),
+  });
+}
+
+export function normalizeTaqrizchiMaqolalarList(raw) {
+  return parseMaqolalarListPayload(raw)
+    .map((item) => normalizeMaqolaForReviewerDashboard(item))
+    .filter((a) => a.id != null);
 }
 
 export function normalizeMaqolalarList(raw) {

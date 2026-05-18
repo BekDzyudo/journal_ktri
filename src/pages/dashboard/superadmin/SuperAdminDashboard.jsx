@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
-  FaNewspaper, FaUsers, FaUserShield, FaCheckCircle, FaTimesCircle,
+  FaNewspaper, FaUsers, FaUserShield, FaUserPlus, FaCheckCircle, FaTimesCircle,
   FaSearch, FaTag, FaFileAlt,
   FaDownload, FaExternalLinkAlt, FaClock,
   FaSyncAlt, FaCalendarAlt, FaArrowRight, FaThLarge, FaLayerGroup,
   FaUserFriends, FaGavel, FaUserCog, FaArrowLeft, FaUser,
   FaBookOpen, FaBan, FaHashtag, FaBook, FaQuoteLeft, FaJournalWhills,
   FaCreditCard, FaClipboardList, FaMoneyBillWave, FaChevronLeft, FaChevronRight,
+  FaEdit,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
@@ -14,7 +15,7 @@ import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import { fetchWithAuth } from "../../../utils/authenticatedFetch.js";
-import { normalizeMaqolalarList, inferMuallifHolatKeyForPanel, normalizeMaqolaForDashboard } from "../../../utils/maqolaApi.js";
+import { normalizeMaqolalarList, inferMuallifHolatKeyForPanel, normalizeMaqolaForDashboard, formatTaqrizHolatiLabel } from "../../../utils/maqolaApi.js";
 import { parseApiError } from "../../../utils/apiError.js";
 import { getAccessToken } from "../../../utils/authStorage.js";
 import { AuthContext } from "../../../context/AuthContext.jsx";
@@ -169,6 +170,17 @@ function prettyUpperSnakeLabel(s) {
     .replace(/_/g, " ")
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function taqrizHolatiBadgeClass(key) {
+  const k = String(key || "KUTILMOQDA").toUpperCase();
+  if (k === "QABUL") return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  if (k === "RAD") return "bg-red-100 text-red-800 border-red-200";
+  return "bg-amber-100 text-amber-900 border-amber-200";
+}
+
+function articleTaqrizKey(article) {
+  return String(article?.taqrizHolati || "KUTILMOQDA").toUpperCase();
 }
 
 // ─── SuperAdminDetailPanel ──────────────────────────────────────────────────
@@ -392,15 +404,31 @@ function SuperAdminDetailPanel({ articleId, onBack, onActionDone }) {
             </div>
           )}
 
-          {/* Taqrizchi */}
-          {normalizedArticle?.assignedTo && (
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-              <SectionHeader icon={<FaClipboardList />} title="Taqrizchi" color="bg-rose-500" iconColor="text-rose-600" />
-              <div className="grid gap-4 sm:grid-cols-2">
+          {/* Taqriz */}
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <SectionHeader icon={<FaClipboardList />} title="Taqriz" color="bg-rose-500" iconColor="text-rose-600" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">Taqriz holati</p>
+                <span
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${taqrizHolatiBadgeClass(normalizedArticle?.taqrizHolati)}`}
+                >
+                  {formatTaqrizHolatiLabel(normalizedArticle?.taqrizHolati)}
+                </span>
+              </div>
+              {normalizedArticle?.assignedTo ? (
                 <InfoBlock label="Taqrizchi" value={normalizedArticle.assignedToName || normalizedArticle.assignedTo} />
+              ) : (
+                <InfoBlock label="Taqrizchi" value="Tayinlanmagan" />
+              )}
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 sm:col-span-2">
+                <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">Taqriz izohi</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                  {normalizedArticle?.taqrizIzohi?.trim() ? normalizedArticle.taqrizIzohi : "—"}
+                </p>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Fayl */}
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -924,20 +952,19 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const [articles, setArticles] = useState([]);
   const [statsData, setStatsData] = useState(null);
   const [users, setUsers] = useState([]);
-  const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [submittingToReviewerId, setSubmittingToReviewerId] = useState(null);
+  const [taqrizIzohModalArticle, setTaqrizIzohModalArticle] = useState(null);
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
   const [finalDecisionModalOpen, setFinalDecisionModalOpen] = useState(false);
   const [finalDecisionDescription, setFinalDecisionDescription] = useState("");
   const [detailArticle, setDetailArticle] = useState(null);
   const [detailArticleId, setDetailArticleId] = useState(null);
-  const [selectedAdmin, setSelectedAdmin] = useState("");
   const [decisionDescription, setDecisionDescription] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -952,34 +979,84 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const [paymentRevenueYear, setPaymentRevenueYear] = useState("all");
   const PAYMENTS_PAGE_SIZE = 25;
 
-  const assignReviewerRequest = useCallback(
-    async (articleId, reviewerEmail) => {
-      const useRealApi = import.meta.env.VITE_USE_REAL_ASSIGN_REVIEWER_API === "true";
-      if (useRealApi) {
-        const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
-        if (!base) throw new Error("VITE_BASE_URL sozlanmagan");
-        /** Backend tayyor bo'lganda body kalitlarini moslashtiring (masalan taqrizchi, taqrizchi_email) */
-        const res = await fetchWithAuth(
-          `${base}/admin/maqolalar/${articleId}/`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ taqrizchi: reviewerEmail }),
-          },
-          getAccessToken,
-          refreshAccessToken
-        );
-        const text = await res.text();
-        let json = null;
-        try {
-          json = text ? JSON.parse(text) : null;
-        } catch {
-          json = null;
-        }
-        if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
+  /** Tayinlash: GET rukn bo'yicha taqrizchilar, keyin POST maqola taqrizchi endpointi */
+  const submitArticleToReviewerRequest = useCallback(
+    async (article) => {
+      const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+      const articleId = article?.id;
+      if (articleId == null) throw new Error("Maqola ID topilmadi");
+
+      if (!base || !getAccessToken()) {
+        await fakeArticleApi.autoAssignReviewer(articleId);
         return;
       }
-      await fakeArticleApi.assignReviewer(articleId, reviewerEmail);
+
+      const ruknId = article?.rukn?.id ?? article?.rukn_id;
+      if (ruknId == null || ruknId === "") {
+        throw new Error("Maqolada rukn (yo'nalish) aniqlanmagan — tayinlash uchun rukn kerak");
+      }
+
+      const qs = new URLSearchParams({ rukn_id: String(ruknId) });
+      const getRes = await fetchWithAuth(
+        `${base}/admin/taqrizchilar/?${qs.toString()}`,
+        { method: "GET" },
+        getAccessToken,
+        refreshAccessToken
+      );
+      const getText = await getRes.text();
+      let getJson = null;
+      try {
+        getJson = getText ? JSON.parse(getText) : null;
+      } catch {
+        getJson = null;
+      }
+      if (!getRes.ok) {
+        throw new Error(parseApiError(getJson, `${getRes.status}`));
+      }
+
+      const list = (() => {
+        if (!getJson) return [];
+        if (Array.isArray(getJson)) return getJson;
+        if (Array.isArray(getJson.results)) return getJson.results;
+        if (Array.isArray(getJson.data)) return getJson.data;
+        if (Array.isArray(getJson.taqrizchilar)) return getJson.taqrizchilar;
+        if (getJson.data && typeof getJson.data === "object" && !Array.isArray(getJson.data)) {
+          const d = getJson.data;
+          if (Array.isArray(d.results)) return d.results;
+        }
+        return [];
+      })();
+
+      const pickTaqrizchiId = (row) => {
+        if (row == null || typeof row !== "object") return null;
+        return row.id ?? row.taqrizchi_id ?? row.user_id ?? row.pk ?? null;
+      };
+
+      const taqrizchiId = list.map(pickTaqrizchiId).find((id) => id != null);
+      if (taqrizchiId == null) {
+        throw new Error("Ushbu rukn uchun mos taqrizchi topilmadi");
+      }
+
+      const assignRes = await fetchWithAuth(
+        `${base}/admin/maqolalar/${articleId}/taqrizchi/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taqrizchi_id: taqrizchiId }),
+        },
+        getAccessToken,
+        refreshAccessToken
+      );
+      const assignText = await assignRes.text();
+      let assignJson = null;
+      try {
+        assignJson = assignText ? JSON.parse(assignText) : null;
+      } catch {
+        assignJson = null;
+      }
+      if (!assignRes.ok) {
+        throw new Error(parseApiError(assignJson, `${assignRes.status}`));
+      }
     },
     [refreshAccessToken]
   );
@@ -993,7 +1070,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
         loadUsersFromApi(),
       ]);
       const normalizedUsers = usersData;
-      const adminUsers = normalizedUsers.filter((u) => u.role === ROLES.ADMIN);
 
       syncArticleStatusNotifications({
         articles: articlesData,
@@ -1004,7 +1080,6 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       setArticles(articlesData);
       setStatsData(statsApiData);
       setUsers(normalizedUsers);
-      setAdmins(adminUsers);
 
       try {
         const tolRows = await loadTolovlarFromApi();
@@ -1037,23 +1112,20 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     return () => clearTimeout(t);
   }, [fetchData]);
 
-  const handleAssignToAdmin = async () => {
-    if (!selectedAdmin) {
-      toast.error("Taqrizchini tanlang");
-      return;
-    }
+  const handleSubmitArticleToReviewer = async (article) => {
+    if (!article?.id) return;
+    setSubmittingToReviewerId(article.id);
     try {
-      await assignReviewerRequest(selectedArticle.id, selectedAdmin);
+      await submitArticleToReviewerRequest(article);
       toast.success(
-        selectedArticle.assignedTo ? "Taqrizchi yangilandi!" : "Taqrizchi tayinlandi!"
+        article.assignedTo ? "Maqola taqrizchiga qayta yuborildi." : "Maqola taqrizchiga yuborildi."
       );
       refreshNotifications();
-      setAssignModalOpen(false);
-      setSelectedArticle(null);
-      setSelectedAdmin("");
       fetchData();
     } catch (error) {
-      toast.error("Tayinlashda xatolik: " + (error?.message || ""));
+      toast.error("Yuborishda xatolik: " + (error?.message || ""));
+    } finally {
+      setSubmittingToReviewerId(null);
     }
   };
 
@@ -1661,12 +1733,12 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                     <th className="w-12 text-center">#</th>
                     <th className="text-left">Maqola nomi</th>
                     <th className="text-left">Mualliflar</th>
-                    <th className="text-left">Yo'nalish</th>
+                    <th className="max-w-28 text-left">Yo'nalish</th>
                     <th className="text-left">Yuborilgan</th>
                     <th className="text-left">Status</th>
                     <th className="text-left">To'lov</th>
                     <th className="text-left">Taqrizchi</th>
-                    <th className="text-center">Amallar</th>
+                    <th className="w-[1%] whitespace-nowrap px-1 text-center">Amallar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1701,11 +1773,14 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                           </p>
                         </td>
                         <td className="text-sm text-slate-500">{article.authorNames}</td>
-                        <td>
+                        <td className="max-w-28 align-top">
                           {article.category ? (
-                            <span className="flex items-center gap-1 text-xs text-slate-500">
-                              <FaTag className="text-slate-300 text-[10px]" />
-                              {article.category}
+                            <span
+                              className="flex min-w-0 items-start gap-1 text-xs text-slate-500"
+                              title={article.category}
+                            >
+                              <FaTag className="mt-0.5 shrink-0 text-slate-300 text-[10px]" />
+                              <span className="line-clamp-2 wrap-break-word leading-snug">{article.category}</span>
                             </span>
                           ) : (
                             <span className="text-xs text-slate-300">—</span>
@@ -1745,68 +1820,114 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                             <span className="text-slate-300">Tayinlanmagan</span>
                           )}
                         </td>
-                        <td>
-                          <div className="flex items-center justify-center gap-1">
+                        <td className="align-middle px-1">
+                          <div className="flex flex-nowrap items-center justify-center gap-0.5">
                             <button
+                              type="button"
                               onClick={() => setDetailArticleId(article.id)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-100"
-                              title="Batafsil ko'rish"
+                              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
+                              title="Batafsil"
                             >
-                              <FaClipboardList className="text-[11px]" />
-                              Batafsil
+                              <FaClipboardList className="text-sm" />
                             </button>
                             {article.articleFileUrl && (
                               <a
                                 href={forceHttps(article.articleFileUrl)}
                                 download={article.fileName}
-                                className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-50"
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
                                 title="Yuklab olish"
                               >
                                 <FaDownload className="text-sm" />
                               </a>
                             )}
-                            {canAssignReviewerAction(article) && (
+                            {canAssignReviewerAction(article) && !article.assignedTo && (
                               <button
-                                onClick={() => {
-                                  setSelectedArticle(article);
-                                  setSelectedAdmin(article.assignedTo || "");
-                                  setAssignModalOpen(true);
-                                }}
-                                className="grid h-8 w-8 place-items-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700"
-                                title={
-                                  article.assignedTo
-                                    ? "Taqrizchini almashtirish"
-                                    : "Taqrizchiga tayinlash"
-                                }
+                                type="button"
+                                onClick={() => handleSubmitArticleToReviewer(article)}
+                                disabled={submittingToReviewerId === article.id}
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                title="Taqrizchini tayinlash"
                               >
-                                <FaUserShield className="text-sm" />
+                                {submittingToReviewerId === article.id ? (
+                                  <span className="loading loading-spinner loading-xs text-white" />
+                                ) : (
+                                  <FaUserPlus className="text-sm" />
+                                )}
                               </button>
                             )}
+                            {article.assignedTo && articleTaqrizKey(article) === "KUTILMOQDA" && (
+                              <span
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700"
+                                title="Taqriz javobi kutilmoqda"
+                                role="status"
+                              >
+                                <FaClock className="text-sm" />
+                              </span>
+                            )}
+                            {articleTaqrizKey(article) === "QABUL" &&
+                              (article.taqrizIzohi?.trim() ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setTaqrizIzohModalArticle(article)}
+                                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
+                                  title="Taqriz qabul — izohni ko'rish"
+                                >
+                                  <FaCheckCircle className="text-sm" />
+                                </button>
+                              ) : (
+                                <span
+                                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  title="Taqriz qabul (izoh yo'q)"
+                                  role="status"
+                                >
+                                  <FaCheckCircle className="text-sm" />
+                                </span>
+                              ))}
+                            {articleTaqrizKey(article) === "RAD" &&
+                              (article.taqrizIzohi?.trim() ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setTaqrizIzohModalArticle(article)}
+                                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
+                                  title="Taqriz rad — izohni ko'rish"
+                                >
+                                  <FaTimesCircle className="text-sm" />
+                                </button>
+                              ) : (
+                                <span
+                                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-red-200 bg-red-50 text-red-700"
+                                  title="Taqriz rad (izoh yo'q)"
+                                  role="status"
+                                >
+                                  <FaTimesCircle className="text-sm" />
+                                </span>
+                              ))}
                             {article.status === ARTICLE_STATUS.SUBMITTED && (
                               <button
+                                type="button"
                                 onClick={() => {
                                   setSelectedArticle(article);
                                   setDecisionDescription(article.finalDecisionDescription || "");
                                   setDecisionModalOpen(true);
                                 }}
-                                className="rounded-lg bg-amber-100 px-2.5 py-1.5 text-[11px] font-bold text-amber-700 transition hover:bg-amber-200"
-                                title="Dastlabki xulosa berish"
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-amber-300 bg-amber-100 text-amber-800 transition hover:bg-amber-200"
+                                title="Dastlabki xulosa"
                               >
-                                Xulosa
+                                <FaEdit className="text-sm" />
                               </button>
                             )}
                             {article.status === ARTICLE_STATUS.IN_EDITING && (
                               <button
+                                type="button"
                                 onClick={() => {
                                   setSelectedArticle(article);
                                   setFinalDecisionDescription("");
                                   setFinalDecisionModalOpen(true);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-indigo-700"
-                                title="Taqrizchi xulosasiga asosan yakuniy qaror"
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-indigo-600 text-white transition hover:bg-indigo-700"
+                                title="Yakuniy qaror"
                               >
-                                <FaGavel className="text-[10px]" />
-                                Qaror
+                                <FaGavel className="text-sm" />
                               </button>
                             )}
                           </div>
@@ -2317,88 +2438,26 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
         </>
       )}
 
-      {/* Assign Modal — taqrizchilar admin ro'yxatidan; haqiqiy API: VITE_USE_REAL_ASSIGN_REVIEWER_API=true */}
+      {/* Taqriz izohi (faqat qabul/rad + izoh mavjud bo'lganda tugma orqali) */}
       <Modal
-        isOpen={assignModalOpen}
-        onClose={() => {
-          setAssignModalOpen(false);
-          setSelectedArticle(null);
-          setSelectedAdmin("");
-        }}
-        title={selectedArticle?.assignedTo ? "Taqrizchini almashtirish" : "Taqrizchiga tayinlash"}
+        isOpen={taqrizIzohModalArticle != null}
+        onClose={() => setTaqrizIzohModalArticle(null)}
+        title={
+          articleTaqrizKey(taqrizIzohModalArticle) === "RAD"
+            ? "Taqriz rad — izoh"
+            : "Taqriz qabul — izoh"
+        }
       >
-        <div className="space-y-4">
-          <div>
-            <h3 className="mb-1 font-semibold text-gray-900">Maqola:</h3>
-            <p className="text-gray-600">{selectedArticle?.articleTitle}</p>
-            {selectedArticle?.assignedTo && (
-              <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                <span className="font-semibold text-slate-700">Joriy taqrizchi: </span>
-                {selectedArticle.assignedToName
-                  ? `${selectedArticle.assignedToName} (${selectedArticle.assignedTo})`
-                  : selectedArticle.assignedTo}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Taqrizchini tanlang
-            </label>
-            <select
-              value={selectedAdmin}
-              onChange={(e) => setSelectedAdmin(e.target.value)}
-              className="select select-bordered w-full"
-            >
-              <option value="">Taqrizchini tanlang...</option>
-              {admins.map((admin) => {
-                const email = (admin.email || "").trim();
-                const labelName = [admin.first_name, admin.last_name].filter(Boolean).join(" ").trim();
-                const label =
-                  labelName && email ? `${labelName} · ${email}` : labelName || email || "Nomsiz";
-                const optVal = email || String(admin.id ?? "");
-                return (
-                  <option key={`reviewer-${admin.id ?? optVal}`} value={optVal}>
-                    {label}
-                  </option>
-                );
-              })}
-            </select>
-            {admins.length === 0 && (
-              <p className="mt-2 text-xs text-amber-700">
-                Taqrizchi ro&apos;yxati bo&apos;sh. &quot;Foydalanuvchilar&quot; yuklanguncha kuting yoki API ni
-                tekshiring.
-              </p>
-            )}
-            {import.meta.env.VITE_USE_REAL_ASSIGN_REVIEWER_API !== "true" && (
-              <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
-                Demo rejim: tayinlash mahalliy saqlanadi. Haqiqiy API uchun{" "}
-                <code className="rounded bg-slate-100 px-1">VITE_USE_REAL_ASSIGN_REVIEWER_API=true</code> va{" "}
-                <code className="rounded bg-slate-100 px-1">assignReviewerRequest</code> ichidagi PATCH body ni backendga
-                moslang.
-              </p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => {
-                setAssignModalOpen(false);
-                setSelectedArticle(null);
-                setSelectedAdmin("");
-              }}
-              className="btn btn-ghost"
-            >
-              Bekor qilish
-            </button>
-            <button
-              type="button"
-              onClick={handleAssignToAdmin}
-              className="btn btn-primary"
-              disabled={!selectedAdmin || admins.length === 0}
-            >
-              {selectedArticle?.assignedTo ? "Tayinlovni yangilash" : "Tayinlash"}
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-slate-500">
+            {taqrizIzohModalArticle?.articleTitle}
+          </p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+            {taqrizIzohModalArticle?.taqrizIzohi?.trim() || "—"}
+          </p>
+          <div className="flex justify-end pt-2">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setTaqrizIzohModalArticle(null)}>
+              Yopish
             </button>
           </div>
         </div>

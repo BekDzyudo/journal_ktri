@@ -362,6 +362,16 @@ export const fakeArticleApi = {
     return result;
   },
 
+  /** Backend yo'qligi (demo): birinchi mavjud taqrizchini tanlab tayinlaydi */
+  async autoAssignReviewer(articleId) {
+    const users = readJson(USERS_KEY, defaultUsers);
+    const reviewer = users.find((u) => normalizeRole(u.role) === ROLES.ADMIN);
+    if (!reviewer?.email) {
+      throw new Error("Demo rejimda taqrizchi topilmadi");
+    }
+    return this.assignReviewer(articleId, reviewer.email);
+  },
+
   /**
    * Taqrizchi xulosa va fayl yuboradi → status IN_EDITING.
    * Superadmin keyinchalik setFinalDecision() bilan yakuniy qaror chiqaradi.

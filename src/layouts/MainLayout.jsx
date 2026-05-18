@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import { HeroContext } from "../context/HeroContext";
@@ -8,12 +8,15 @@ import { CalendarProvider } from "../context/CalendarContext";
 import FloatingActionButton from "../components/FloatingActionButton";
 import CalendarModal from "../components/CalendarModal";
 import SEO from "../components/SEO";
+import { AuthContext } from "../context/AuthContext.jsx";
+import { NotificationProvider } from "../context/NotificationContext.jsx";
 
 const HERO_PAGES = ['/', '/digital-educational-resources', '/methodological-support', '/region'];
 
 function MainLayout() {
   const location = useLocation();
   const isProfilePath = location.pathname.startsWith("/profile");
+  const { userData, userRole } = useContext(AuthContext);
 
   // onHero hero bor sahifalarda default true
   const [onHero, setOnHero] = useState(HERO_PAGES.includes(location.pathname));
@@ -48,7 +51,13 @@ function MainLayout() {
             </header>
           )}
           <main className={isProfilePath || onHero ? "" : "pt-20"}>
-            <Outlet />
+            {isProfilePath ? (
+              <NotificationProvider userData={userData || {}} userRole={userRole}>
+                <Outlet />
+              </NotificationProvider>
+            ) : (
+              <Outlet />
+            )}
           </main>
           {!isProfilePath && (
             <footer>

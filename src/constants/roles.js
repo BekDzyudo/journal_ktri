@@ -138,17 +138,15 @@ export const USER_STATUS_COLORS = {
   'Rad etildi': 'bg-red-100 text-red-800 border-red-200',
   'Qayta ko\'rib chiqish': 'bg-orange-100 text-orange-800 border-orange-200',
   'Yuborilgan': 'bg-blue-100 text-blue-800 border-blue-200',
-  'Ko\'rib chiqilmoqda': 'bg-yellow-100 text-yellow-800 border-yellow-200',
   'Qabul qilingan': 'bg-green-100 text-green-800 border-green-200',
   'Rad etilgan': 'bg-red-100 text-red-800 border-red-200',
   'Nashr etilgan': 'bg-teal-100 text-teal-800 border-teal-200',
 }
 
-/** Backend `holat` qiymati — muallif paneli filtri va budjet */
+/** Backend `holat` qiymati — muallif paneli filtri va maqola tahririda tanlash */
 export const MUALLIF_API_HOLAT = {
   YUBORILGAN: "YUBORILGAN",
   TOLOV_KUTILMOQDA: "TOLOV_KUTILMOQDA",
-  KORIB_CHIQILMOQDA: "KORIB_CHIQILMOQDA",
   QABUL_QILINGAN: "QABUL_QILINGAN",
   RAD_ETILGAN: "RAD_ETILGAN",
   NASHR_ETILGAN: "NASHR_ETILGAN",
@@ -158,7 +156,6 @@ export const MUALLIF_API_HOLAT = {
 export const MUALLIF_API_HOLAT_LABELS = {
   [MUALLIF_API_HOLAT.YUBORILGAN]: "Yuborilgan",
   [MUALLIF_API_HOLAT.TOLOV_KUTILMOQDA]: "To'lov kutilmoqda",
-  [MUALLIF_API_HOLAT.KORIB_CHIQILMOQDA]: "Ko'rib chiqilmoqda",
   [MUALLIF_API_HOLAT.QABUL_QILINGAN]: "Qabul qilingan",
   [MUALLIF_API_HOLAT.RAD_ETILGAN]: "Rad etilgan",
   [MUALLIF_API_HOLAT.NASHR_ETILGAN]: "Nashr etilgan",
@@ -167,7 +164,6 @@ export const MUALLIF_API_HOLAT_LABELS = {
 export const MUALLIF_API_HOLAT_COLORS = {
   [MUALLIF_API_HOLAT.YUBORILGAN]: "bg-blue-100 text-blue-800 border-blue-200",
   [MUALLIF_API_HOLAT.TOLOV_KUTILMOQDA]: "bg-amber-100 text-amber-800 border-amber-200",
-  [MUALLIF_API_HOLAT.KORIB_CHIQILMOQDA]: "bg-yellow-100 text-yellow-800 border-yellow-200",
   [MUALLIF_API_HOLAT.QABUL_QILINGAN]: "bg-green-100 text-green-800 border-green-200",
   [MUALLIF_API_HOLAT.RAD_ETILGAN]: "bg-red-100 text-red-800 border-red-200",
   [MUALLIF_API_HOLAT.NASHR_ETILGAN]: "bg-teal-100 text-teal-800 border-teal-200",

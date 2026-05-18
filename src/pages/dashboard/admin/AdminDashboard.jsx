@@ -1,15 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
-  FaNewspaper, FaClock, FaCheckCircle, FaUpload, FaEye,
+  FaNewspaper, FaClock, FaCheckCircle,
   FaFileAlt, FaSearch, FaSyncAlt, FaCalendarAlt,
   FaArrowRight, FaLayerGroup, FaUserSecret,
+  FaDownload,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
-import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import { ARTICLE_STATUS, ADMIN_STATUS_DISPLAY, ADMIN_STATUS_COLORS } from "../../../constants/roles.js";
-import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
+import { fetchWithAuth } from "../../../utils/authenticatedFetch.js";
+import { getAccessToken } from "../../../utils/authStorage.js";
+import { parseApiError } from "../../../utils/apiError.js";
+import { normalizeTaqrizchiMaqolalarList } from "../../../utils/maqolaApi.js";
+import { AuthContext } from "../../../context/AuthContext.jsx";
 import {
   filterArticlesByDisplayStatus,
   filterArticlesByDateRange,
@@ -23,6 +27,33 @@ function getTodayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
+/** Maqola asosiy fayli (.fayl) — nisbiy yo'l bo'lsa VITE_BASE_URL ga qo'shiladi */
+function forceHttps(url) {
+  return url ? String(url).replace(/^http:\/\//i, "https://") : url;
+}
+
+function resolveArticleFileHref(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return forceHttps(s);
+  const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+  const resolved = s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
+  return forceHttps(resolved);
+}
+
+function hasSubmittedTaqrizDecision(article) {
+  const th = article?.taqrizHolati;
+  return th === "QABUL" || th === "RAD";
+}
+
+function needsTaqrizQarorAction(article) {
+  if (hasSubmittedTaqrizDecision(article)) return false;
+  if (article?.reviewFile) return false;
+  /* Muallif paneli holati (masalan QABUL_QILINGAN → accepted) taqrizchi qarorini bloklamasligi kerak */
+  return true;
+}
+
 function SectionHeader({ icon, title, color = "bg-purple-500", iconColor = "text-purple-600" }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
@@ -37,25 +68,47 @@ function SectionHeader({ icon, title, color = "bg-purple-500", iconColor = "text
 
 function AdminDashboard({ userData }) {
   const { refresh: refreshNotifications } = useNotifications();
+  const { refresh: refreshAccessToken } = useContext(AuthContext);
 
   const [articles,          setArticles]          = useState([]);
   const [loading,           setLoading]           = useState(true);
   const [searchQuery,       setSearchQuery]       = useState("");
   const [filterStatus,      setFilterStatus]      = useState("all");
   const [selectedArticle,   setSelectedArticle]   = useState(null);
-  const [detailArticle,     setDetailArticle]     = useState(null);
-  const [reviewFile,        setReviewFile]        = useState(null);
-  const [reviewComment,     setReviewComment]     = useState("");
-  const [reviewConclusion,  setReviewConclusion]  = useState("");
-  const [reviewDecision,    setReviewDecision]    = useState("accept");
-  const [isSubmittingReview,setIsSubmittingReview]= useState(false);
+  const [qarorModal, setQarorModal] = useState(null);
+  const [qarorIzoh, setQarorIzoh] = useState("");
+  const [isSubmittingQaror, setIsSubmittingQaror] = useState(false);
   const [dateFrom,          setDateFrom]          = useState("");
   const [dateTo,            setDateTo]            = useState("");
+
+  const loadTaqrizchiMaqolalar = useCallback(async () => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base || !getAccessToken()) {
+      throw new Error("Backend konfiguratsiyasi yoki token mavjud emas");
+    }
+    const res = await fetchWithAuth(
+      `${base}/taqrizchi/maqolalar/`,
+      { method: "GET" },
+      getAccessToken,
+      refreshAccessToken
+    );
+    const text = await res.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!res.ok) {
+      throw new Error(parseApiError(json, `${res.status}`));
+    }
+    return normalizeTaqrizchiMaqolalarList(json);
+  }, [refreshAccessToken]);
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fakeArticleApi.getAssignedArticles(userData);
+      const data = await loadTaqrizchiMaqolalar();
       syncArticleStatusNotifications({
         articles: data,
         userData,
@@ -64,70 +117,77 @@ function AdminDashboard({ userData }) {
       });
       setArticles(data);
     } catch (err) {
-
-      toast.error("Maqolalarni yuklashda xatolik");
+      toast.error(err?.message || "Maqolalarni yuklashda xatolik");
+      setArticles([]);
     } finally {
       setLoading(false);
     }
-  }, [userData]);
+  }, [userData, loadTaqrizchiMaqolalar]);
 
-  useEffect(() => {
-    if (!userData?.email) return;
-    const t = setTimeout(fetchArticles, 0);
-    return () => clearTimeout(t);
-  }, [userData?.email, fetchArticles]);
+  const postTaqrizQaror = useCallback(
+    async (articleId, qaror, izoh) => {
+      const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+      if (!base || !getAccessToken()) {
+        throw new Error("Backend konfiguratsiyasi yoki token mavjud emas");
+      }
+      const body = { qaror };
+      const trimmed = (izoh ?? "").trim();
+      if (trimmed) body.izoh = trimmed;
+      const res = await fetchWithAuth(
+        `${base}/taqrizchi/maqolalar/${articleId}/qaror/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+        getAccessToken,
+        refreshAccessToken
+      );
+      const text = await res.text();
+      let json = null;
+      try {
+        json = text ? JSON.parse(text) : null;
+      } catch {
+        json = null;
+      }
+      if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
+      return json;
+    },
+    [refreshAccessToken]
+  );
 
-  const handleReviewFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const ext = file.name.split(".").pop().toLowerCase();
-    if (["doc", "docx", "pdf"].includes(ext)) {
-      setReviewFile(file);
-    } else {
-      toast.error("Faqat .doc, .docx yoki .pdf formatdagi fayllarni yuklash mumkin");
-      e.target.value = null;
-    }
+  const openQarorModal = (article, qaror) => {
+    setSelectedArticle(article);
+    setQarorModal(qaror);
+    setQarorIzoh("");
   };
 
-  const handleSubmitReview = async () => {
-    if (!reviewFile) {
-      toast.error("Taqriz faylini yuklang");
-      return;
-    }
-    if (reviewConclusion.trim().length < 20) {
-      toast.error("Xulosa matni kamida 20 ta belgidan iborat bo'lishi kerak");
-      return;
-    }
+  const closeQarorModal = () => {
+    setSelectedArticle(null);
+    setQarorModal(null);
+    setQarorIzoh("");
+  };
 
-    setIsSubmittingReview(true);
+  const handleSubmitQaror = async () => {
+    if (!selectedArticle?.id || !qarorModal) return;
+    setIsSubmittingQaror(true);
     try {
-      await fakeArticleApi.submitReview({
-        articleId:       selectedArticle.id,
-        reviewer:        userData,
-        reviewFile,
-        reviewComment:   reviewComment,
-        reviewConclusion: reviewConclusion,
-        decision:        reviewDecision,
-      });
-
-      toast.success("Taqriz xulosasi superadminga yuborildi!");
+      await postTaqrizQaror(selectedArticle.id, qarorModal, qarorIzoh);
+      toast.success(qarorModal === "qabul" ? "Qabul qilindi." : "Rad etildi.");
       refreshNotifications();
-      closeReviewModal();
+      closeQarorModal();
       fetchArticles();
     } catch (err) {
-      toast.error("Taqriz yuborishda xatolik: " + err.message);
+      toast.error(err?.message || "Qaror yuborishda xatolik");
     } finally {
-      setIsSubmittingReview(false);
+      setIsSubmittingQaror(false);
     }
   };
 
-  const closeReviewModal = () => {
-    setSelectedArticle(null);
-    setReviewFile(null);
-    setReviewComment("");
-    setReviewConclusion("");
-    setReviewDecision("accept");
-  };
+  useEffect(() => {
+    const t = setTimeout(fetchArticles, 0);
+    return () => clearTimeout(t);
+  }, [fetchArticles]);
 
   const dateFilteredArticles = useMemo(
     () => filterArticlesByDateRange(articles, dateFrom, dateTo),
@@ -137,8 +197,14 @@ function AdminDashboard({ userData }) {
   const dashboardStats = useMemo(() => ({
     total: dateFilteredArticles.length,
     newAssigned: dateFilteredArticles.filter((a) => a.status === ARTICLE_STATUS.ASSIGNED).length,
-    reviewed: dateFilteredArticles.filter((a) => a.reviewFile).length,
-    pending: dateFilteredArticles.filter((a) => !a.reviewFile).length,
+    reviewed: dateFilteredArticles.filter(
+      (a) => hasSubmittedTaqrizDecision(a) || Boolean(a.reviewFile)
+    ).length,
+    pending: dateFilteredArticles.filter(
+      (a) =>
+        !hasSubmittedTaqrizDecision(a) &&
+        !a.reviewFile
+    ).length,
   }), [dateFilteredArticles]);
 
   const filteredArticles = useMemo(
@@ -146,8 +212,11 @@ function AdminDashboard({ userData }) {
     [dateFilteredArticles, searchQuery, filterStatus]
   );
 
-  const getStatusDisplay = (s) => ADMIN_STATUS_DISPLAY[s] || s;
-  const getStatusColor   = (s) => {
+  const getStatusDisplay = (article) => {
+    const s = article?.status;
+    return article?.holatNomi?.trim() || ADMIN_STATUS_DISPLAY[s] || s || "—";
+  };
+  const getStatusColor = (s) => {
     const d = ADMIN_STATUS_DISPLAY[s] || s;
     return ADMIN_STATUS_COLORS[d] || "bg-gray-100 text-gray-800 border-gray-200";
   };
@@ -162,14 +231,15 @@ function AdminDashboard({ userData }) {
       const articleId = event.detail?.articleId;
       if (!articleId) return;
       let article = articles.find((a) => a.id === articleId);
-      if (!article && userData?.email) {
-        const latest = await fakeArticleApi.getAssignedArticles(userData);
+      if (!article) {
+        const latest = await loadTaqrizchiMaqolalar();
         setArticles(latest);
-        article = latest.find((a) => a.id === articleId);
+        article = latest.find(
+          (a) => a.id === articleId || String(a.id) === String(articleId)
+        );
       }
       if (!article) return;
 
-      setDetailArticle(article);
       requestAnimationFrame(() => {
         document
           .querySelector(`[data-article-row="${articleId}"]`)
@@ -179,13 +249,7 @@ function AdminDashboard({ userData }) {
 
     window.addEventListener("ktri:open-article", handleOpenArticle);
     return () => window.removeEventListener("ktri:open-article", handleOpenArticle);
-  }, [articles, userData]);
-
-  const reviewChecklist = [
-    { label: "Taqriz fayli", done: Boolean(reviewFile) },
-    { label: "Xulosa matni", done: reviewConclusion.trim().length >= 20 },
-    { label: "Tavsiya", done: Boolean(reviewDecision) },
-  ];
+  }, [articles, loadTaqrizchiMaqolalar]);
 
   return (
     <div className="space-y-6">
@@ -340,7 +404,9 @@ function AdminDashboard({ userData }) {
                   </div>
                 </td></tr>
               ) : (
-                filteredArticles.map((article) => (
+                filteredArticles.map((article) => {
+                  const fileHref = resolveArticleFileHref(article.articleFileUrl);
+                  return (
                   <tr
                     key={article.id}
                     data-article-row={article.id}
@@ -359,190 +425,135 @@ function AdminDashboard({ userData }) {
                     </td>
                     <td>
                       <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getStatusColor(article.status)}`}>
-                        {getStatusDisplay(article.status)}
+                        {getStatusDisplay(article)}
                       </span>
                     </td>
                     <td>
-                      {article.reviewFile ? (
+                      {article.taqrizHolati === "QABUL" ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">
+                          <FaCheckCircle className="text-[10px]" />Qabul
+                        </span>
+                      ) : article.taqrizHolati === "RAD" ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-semibold text-red-700">
+                          Rad
+                        </span>
+                      ) : article.taqrizHolati === "KUTILMOQDA" ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
+                          Kutilmoqda
+                        </span>
+                      ) : article.reviewFile ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-semibold text-green-600">
                           <FaCheckCircle className="text-[10px]" />Yuborildi
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-400">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
                           Kutilmoqda
                         </span>
                       )}
                     </td>
                     <td>
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => setDetailArticle(article)}
-                          className="grid h-8 w-8 place-items-center rounded-lg text-blue-500 transition hover:bg-blue-50"
-                          title="Ko'rish"
-                        >
-                          <FaEye className="text-sm" />
-                        </button>
-                        {!article.reviewFile && (
-                          <button
-                            onClick={() => setSelectedArticle(article)}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-purple-700"
-                            title="Taqriz yuklash"
+                      <div className="flex flex-wrap items-center justify-center gap-1">
+                        {fileHref ? (
+                          <a
+                            href={fileHref}
+                            download={article.fileName || undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"
+                            title="Maqola faylini yuklab olish"
                           >
-                            <FaUpload className="text-[10px]" />Taqriz
-                          </button>
+                            <FaDownload className="text-[11px]" />
+                            Fayl
+                          </a>
+                        ) : null}
+                        {needsTaqrizQarorAction(article) && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openQarorModal(article, "qabul")}
+                              className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-emerald-700"
+                              title="Qabul"
+                            >
+                              Qabul
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openQarorModal(article, "rad")}
+                              className="rounded-lg bg-red-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-red-700"
+                              title="Rad etish"
+                            >
+                              Rad
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Review Modal */}
+      {/* Taqriz qarori — POST /taqrizchi/maqolalar/:id/qaror/ */}
       <Modal
-        isOpen={selectedArticle !== null}
-        onClose={closeReviewModal}
-        title="Taqriz xulosasi yuborish"
+        isOpen={qarorModal !== null && selectedArticle !== null}
+        onClose={closeQarorModal}
+        title={qarorModal === "rad" ? "Taqriz — rad etish" : "Taqriz — qabul qilish"}
       >
         <div className="space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">Maqola sarlavhasi:</p>
             <p className="mt-0.5 font-semibold text-slate-800">{selectedArticle?.articleTitle}</p>
             <p className="mt-1.5 flex items-center gap-1.5 text-xs text-indigo-500">
-              <FaUserSecret />Muallif ma'lumotlari yashirilgan (yopiq taqriz)
+              <FaUserSecret />Muallif ma&apos;lumotlari yashirilgan (yopiq taqriz)
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-              To'ldirilishi kerak bo'lgan punktlar
-            </p>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {reviewChecklist.map((item) => (
-                <div
-                  key={item.label}
-                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-semibold ${
-                    item.done
-                      ? "border-green-100 bg-green-50 text-green-700"
-                      : "border-red-100 bg-red-50 text-red-700"
-                  }`}
-                >
-                  <span className="grid h-4 w-4 place-items-center rounded-full bg-white text-[10px]">
-                    {item.done ? "✓" : "!"}
-                  </span>
-                  {item.label}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Taqriz fayli */}
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Taqriz fayli <span className="text-red-500">*</span> (.doc, .docx, .pdf)
-            </label>
-            <input
-              type="file"
-              accept=".doc,.docx,.pdf"
-              onChange={handleReviewFileChange}
-              className="file-input file-input-bordered w-full"
-            />
-            {reviewFile && (
-              <p className="mt-1.5 flex items-center gap-1 text-sm text-green-600">
-                <FaCheckCircle className="text-xs" />{reviewFile.name}
-              </p>
-            )}
-          </div>
-
-          {/* Xulosa matni — superadminga ko'rsatiladi */}
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Xulosa matni <span className="text-red-500">*</span>
-              <span className="ml-1.5 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-normal text-amber-600">
-                Superadminga ko'rinadi
-              </span>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              Izoh <span className="text-slate-400 font-normal">(ixtiyoriy)</span>
             </label>
             <textarea
-              value={reviewConclusion}
-              onChange={(e) => setReviewConclusion(e.target.value)}
-              className={`textarea textarea-bordered w-full h-24 text-sm ${
-                reviewConclusion.trim().length > 0 && reviewConclusion.trim().length < 20
-                  ? "textarea-warning"
-                  : ""
-              }`}
-              placeholder="Maqolaning asosiy kamchiliklari yoki afzalliklari haqida batafsil xulosa yozing. Bu matn superadmin qaror chiqarishda asos bo'ladi..."
+              value={qarorIzoh}
+              onChange={(e) => setQarorIzoh(e.target.value)}
+              className="textarea textarea-bordered w-full min-h-[88px] text-sm"
+              placeholder={
+                qarorModal === "rad"
+                  ? "Rad sababi yoki mulohazalar (ixtiyoriy)..."
+                  : "Qabul bilan bog'liq izoh (ixtiyoriy)..."
+              }
             />
-            <p className="mt-1 text-[11px] text-slate-400">Minimal 20 ta belgi. Rad etishda sabab ko'rsatish majburiy.</p>
-          </div>
-
-          {/* Qo'shimcha izoh */}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-600">
-              Qo'shimcha izoh <span className="text-slate-400">(ixtiyoriy)</span>
-            </label>
-            <textarea
-              value={reviewComment}
-              onChange={(e) => setReviewComment(e.target.value)}
-              className="textarea textarea-bordered w-full h-16 text-sm"
-              placeholder="Texnik mulohazalar, formatlash, adabiyotlar haqida..."
-            />
-          </div>
-
-          {/* Tavsiya */}
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Taqrizchi tavsiyasi</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setReviewDecision("accept")}
-                className={`rounded-xl border-2 px-4 py-3 text-sm font-bold transition ${
-                  reviewDecision === "accept"
-                    ? "border-green-500 bg-green-50 text-green-700"
-                    : "border-slate-200 bg-white text-slate-500 hover:border-green-300"
-                }`}
-              >
-                ✓ Qabul tavsiya
-              </button>
-              <button
-                type="button"
-                onClick={() => setReviewDecision("reject")}
-                className={`rounded-xl border-2 px-4 py-3 text-sm font-bold transition ${
-                  reviewDecision === "reject"
-                    ? "border-red-500 bg-red-50 text-red-700"
-                    : "border-slate-200 bg-white text-slate-500 hover:border-red-300"
-                }`}
-              >
-                ✗ Rad tavsiya
-              </button>
-            </div>
-            <p className="mt-1.5 text-[11px] text-slate-400">
-              Bu tavsiya — yakuniy qaror superadminda qoladi.
-            </p>
           </div>
 
           <div className="flex gap-3 justify-end pt-2">
-            <button onClick={closeReviewModal} className="btn btn-ghost" disabled={isSubmittingReview}>
+            <button type="button" onClick={closeQarorModal} className="btn btn-ghost" disabled={isSubmittingQaror}>
               Bekor qilish
             </button>
             <button
-              onClick={handleSubmitReview}
-              className="btn btn-primary gap-2"
-              disabled={!reviewFile || reviewConclusion.trim().length < 20 || isSubmittingReview}
+              type="button"
+              onClick={handleSubmitQaror}
+              className={`btn gap-2 text-white border-none ${
+                qarorModal === "rad" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
+              }`}
+              disabled={isSubmittingQaror}
             >
-              {isSubmittingReview ? (
-                <><span className="loading loading-spinner loading-sm"></span>Yuklanmoqda...</>
+              {isSubmittingQaror ? (
+                <>
+                  <span className="loading loading-spinner loading-sm" />
+                  Yuborilmoqda...
+                </>
+              ) : qarorModal === "rad" ? (
+                "Rad etishni tasdiqlash"
               ) : (
-                <><FaUpload />Superadminga yuborish</>
+                "Qabul qilishni tasdiqlash"
               )}
             </button>
           </div>
         </div>
       </Modal>
-
-      <ArticleDetailModal isOpen={detailArticle !== null} onClose={() => setDetailArticle(null)} article={detailArticle} role="admin" />
     </div>
   );
 }
