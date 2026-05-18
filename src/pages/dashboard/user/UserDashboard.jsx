@@ -6,6 +6,7 @@ import {
   FaSearch, FaSyncAlt, FaCalendarAlt, FaArrowRight, FaLayerGroup,
   FaUser, FaFileAlt, FaBookOpen, FaBan, FaGlobe, FaQuoteLeft,
   FaJournalWhills, FaHashtag, FaBook,
+  FaMoneyBillWave, FaChevronLeft, FaChevronRight,
 } from "react-icons/fa";
 import { useNotifications } from "../../../context/NotificationContext.jsx";
 import { toast } from "react-toastify";
@@ -47,9 +48,80 @@ function resolveMediaUrl(raw) {
   return resolved.replace(/^http:\/\//i, "https://");
 }
 
+/** CLICK chek sahifasi (`chek_url`); bo'sh yoki null → tugma ko'rinmaydi */
+function resolveChekHref(raw) {
+  const u = resolveMediaUrl(raw);
+  return u || null;
+}
+
 function getTodayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const MONTHS_SHORT_EN = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** Masalan: 18-May, 2026-yil 10:48 */
+function formatProfilTolovDateTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  const day = d.getDate();
+  const mon = MONTHS_SHORT_EN[d.getMonth()];
+  const y = d.getFullYear();
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${day}-${mon}, ${y}-yil ${h}:${min}`;
+}
+
+function formatMiqdorCommaDecimal(val) {
+  if (val == null || val === "") return "—";
+  const n = Number(String(val).replace(",", "."));
+  if (!Number.isFinite(n)) return String(val);
+  return n.toFixed(2).replace(".", ",");
+}
+
+function normalizeProfilTolovlarPayload(json) {
+  if (!json || typeof json !== "object") {
+    return { summary: { jami_tolov: 0, jami_summa: null, valyuta: "UZS" }, list: [] };
+  }
+  const list = Array.isArray(json.tolovlar) ? json.tolovlar : [];
+  return {
+    summary: {
+      jami_tolov: json.jami_tolov ?? list.length,
+      jami_summa: json.jami_summa ?? null,
+      valyuta: json.valyuta ?? "UZS",
+    },
+    list,
+  };
+}
+
+function profilPaymentHolatBadgeClass(holatCode) {
+  const h = String(holatCode || "").toUpperCase();
+  if (h.includes("MUVAFFAQ") || h.includes("SUCCESS")) {
+    return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  }
+  if (h.includes("XATO") || h.includes("RAD") || h.includes("CANCEL")) {
+    return "bg-red-100 text-red-800 border-red-200";
+  }
+  return "bg-amber-100 text-amber-900 border-amber-200";
+}
+
+function profilMaqolaHolatBadgeClass(holatCode) {
+  const h = String(holatCode || "").toUpperCase();
+  if (h.includes("QABUL")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  if (h.includes("RAD")) return "bg-red-100 text-red-700 border-red-200";
+  return "bg-sky-100 text-sky-900 border-sky-200";
+}
+
+function prettySnakeLabel(s) {
+  if (s == null || s === "") return "—";
+  return String(s)
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** To'lov uchun id resolver - maqola obyektidan ID ni chiqarib olish */
@@ -348,7 +420,7 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
   );
 }
 
-function UserDashboard({ userData, profilePayload: initialProfilePayload = null }) {
+function UserDashboard({ userData, profilePayload: initialProfilePayload = null, view = "dashboard" }) {
   const navigate = useNavigate();
   const { refresh: refreshAccessToken } = useContext(AuthContext);
   const { refresh: refreshNotifications } = useNotifications();
@@ -363,8 +435,126 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
   const [stats, setStats] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
 
+  const [profilTolovlar, setProfilTolovlar] = useState([]);
+  const [profilTolovSummary, setProfilTolovSummary] = useState(null);
+  const [tolovlarLoading, setTolovlarLoading] = useState(false);
+  const [tolovlarError, setTolovlarError] = useState("");
+  const [paymentSearchQuery, setPaymentSearchQuery] = useState("");
+  const [paymentSort, setPaymentSort] = useState({ field: "yaratilgan", dir: "desc" });
+  const [paymentPage, setPaymentPage] = useState(1);
+  const PAYMENTS_PAGE_SIZE = 25;
+
+  const fetchProfilTolovlar = useCallback(async () => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base) throw new Error("VITE_BASE_URL sozlanmagan");
+    const res = await fetchWithAuth(
+      `${base}/profil/tolovlar/`,
+      { method: "GET" },
+      getAccessToken,
+      refreshAccessToken
+    );
+    const text = await res.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!res.ok) {
+      throw new Error(parseApiError(json, `${res.status}`));
+    }
+    return normalizeProfilTolovlarPayload(json);
+  }, [refreshAccessToken]);
+
+  const loadPaymentsPanel = useCallback(async () => {
+    setTolovlarLoading(true);
+    setTolovlarError("");
+    try {
+      const { summary, list } = await fetchProfilTolovlar();
+      setProfilTolovSummary(summary);
+      setProfilTolovlar(list);
+    } catch (e) {
+      setProfilTolovlar([]);
+      setProfilTolovSummary(null);
+      setTolovlarError(e?.message || "To'lovlar yuklanmadi");
+    } finally {
+      setTolovlarLoading(false);
+    }
+  }, [fetchProfilTolovlar]);
+
+  useEffect(() => {
+    if (view !== "payments") return;
+    loadPaymentsPanel();
+  }, [view, loadPaymentsPanel]);
+
+  const filteredSortedPayments = useMemo(() => {
+    const q = paymentSearchQuery.trim().toLowerCase();
+    let rows = Array.isArray(profilTolovlar) ? [...profilTolovlar] : [];
+    if (q) {
+      rows = rows.filter((p) => {
+        const m = p.maqola || {};
+        const hay = [
+          p.id,
+          p.holat,
+          p.holat_nomi,
+          p.miqdor,
+          p.click_trans_id,
+          p.click_paydoc_id,
+          p.chek_url,
+          p.check_url,
+          m.id,
+          m.sarlavha,
+          m.holat,
+          m.holat_nomi,
+        ]
+          .map((x) => String(x ?? "").toLowerCase())
+          .join(" ");
+        return hay.includes(q);
+      });
+    }
+    const { field, dir } = paymentSort;
+    const mul = dir === "asc" ? 1 : -1;
+    rows.sort((a, b) => {
+      const ta = new Date(a[field] || 0).getTime();
+      const tb = new Date(b[field] || 0).getTime();
+      const na = Number.isNaN(ta) ? 0 : ta;
+      const nb = Number.isNaN(tb) ? 0 : tb;
+      if (na !== nb) return (na - nb) * mul;
+      return (Number(a.id || 0) - Number(b.id || 0)) * mul;
+    });
+    return rows;
+  }, [profilTolovlar, paymentSearchQuery, paymentSort]);
+
+  const paymentTotalPages = Math.max(
+    1,
+    Math.ceil(filteredSortedPayments.length / PAYMENTS_PAGE_SIZE)
+  );
+
+  const paginatedPayments = useMemo(() => {
+    const start = (paymentPage - 1) * PAYMENTS_PAGE_SIZE;
+    return filteredSortedPayments.slice(start, start + PAYMENTS_PAGE_SIZE);
+  }, [filteredSortedPayments, paymentPage]);
+
+  useEffect(() => {
+    setPaymentPage(1);
+  }, [paymentSearchQuery, paymentSort]);
+
+  useEffect(() => {
+    setPaymentPage((p) => Math.min(Math.max(1, p), paymentTotalPages));
+  }, [paymentTotalPages]);
+
+  const togglePaymentSort = (field) => {
+    setPaymentSort((prev) => {
+      if (prev.field === field) {
+        return { field, dir: prev.dir === "asc" ? "desc" : "asc" };
+      }
+      return { field, dir: "desc" };
+    });
+  };
+
   // Statistika — alohida, mustaqil fetch
   useEffect(() => {
+    if (view === "payments") return;
     const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
     if (!base || !getAccessToken()) return;
     let cancelled = false;
@@ -385,7 +575,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     };
     load();
     return () => { cancelled = true; };
-  }, [refreshAccessToken]);
+  }, [refreshAccessToken, view]);
 
   // Yagona maqolalar fetch funksiyasi — profil/maqolalar/ → profil/ zaxirasi
   const fetchArticles = useCallback(async (silent = false) => {
@@ -437,11 +627,11 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
     }
   }, [initialProfilePayload]);
 
-  // Birinchi yuklash — token tayyor bo'lganda
+  // Birinchi yuklash — token tayyor bo'lganda (faqat asosiy dashboard)
   useEffect(() => {
+    if (view === "payments") return;
     fetchArticles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [view, fetchArticles]);
 
   const dateFilteredArticles = useMemo(
     () => filterArticlesByDateRange(articles, dateFrom, dateTo),
@@ -545,7 +735,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
   };
 
   /* ---- Detail view ---- */
-  if (selectedArticle) {
+  if (view === "dashboard" && selectedArticle) {
     return (
       <ArticleDetailPanel
         articleId={selectedArticle}
@@ -554,6 +744,250 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null 
         onPay={handlePay}
         enableTestClickPay={true}
       />
+    );
+  }
+
+  /* ---- To'lovlar (profil API) ---- */
+  if (view === "payments") {
+    const sumVal = profilTolovSummary?.valyuta || "UZS";
+    return (
+      <div className="space-y-6">
+        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <div className="border-b border-slate-100 p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <FaMoneyBillWave className="text-amber-600" />
+                  <h2 className="text-base font-black text-slate-900">To&apos;lovlar</h2>
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  O&apos;z maqolalaringiz bo&apos;yicha CLICK tranzaksiyalari (faqat ko&apos;rish).
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-100">
+                  {filteredSortedPayments.length} ta yozuv
+                </span>
+                <button
+                  type="button"
+                  onClick={loadPaymentsPanel}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  <FaSyncAlt className="text-[10px] text-slate-400" />
+                  Yangilash
+                </button>
+              </div>
+            </div>
+            {profilTolovSummary && (
+              <div className="mt-4 flex flex-wrap gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm">
+                <span className="font-semibold text-slate-700">
+                  Jami to&apos;lov:{" "}
+                  <span className="tabular-nums text-slate-900">
+                    {profilTolovSummary.jami_tolov ?? 0}
+                  </span>{" "}
+                  ta
+                </span>
+                <span className="hidden sm:inline text-slate-300">|</span>
+                <span className="font-semibold text-slate-700">
+                  Jami summa:{" "}
+                  <span className="tabular-nums text-slate-900">
+                    {formatMiqdorCommaDecimal(profilTolovSummary.jami_summa)}
+                  </span>{" "}
+                  {sumVal}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 md:flex-row md:items-center">
+            <div className="relative flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="ID, maqola, holat, miqdor..."
+                  value={paymentSearchQuery}
+                  onChange={(e) => setPaymentSearchQuery(e.target.value)}
+                  className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50 pl-8 text-sm"
+                />
+              </div>
+              <button
+                type="button"
+                className="btn shrink-0 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Izlash
+              </button>
+            </div>
+          </div>
+
+          {tolovlarError ? (
+            <div className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {tolovlarError}
+            </div>
+          ) : null}
+
+          <div className="overflow-x-auto">
+            <table className="table w-full">
+              <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                <tr>
+                  <th className="text-left tabular-nums">ID</th>
+                  <th className="text-left">Maqola</th>
+                  <th className="text-left">To&apos;lov holati</th>
+                  <th className="text-left">Maqola holati</th>
+                  <th className="text-left">Miqdor</th>
+                  <th className="text-left">CLICK tranzaksiya ID</th>
+                  <th className="text-center">Chek</th>
+                  <th className="text-left">
+                    <button
+                      type="button"
+                      onClick={() => togglePaymentSort("yaratilgan")}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 font-black uppercase tracking-widest transition hover:bg-slate-200/80 ${
+                        paymentSort.field === "yaratilgan"
+                          ? "bg-slate-200 text-slate-700"
+                          : ""
+                      }`}
+                    >
+                      Yaratilgan
+                      {paymentSort.field === "yaratilgan" ? (
+                        <span className="text-[10px]">
+                          {paymentSort.dir === "desc" ? "↓" : "↑"}
+                        </span>
+                      ) : null}
+                    </button>
+                  </th>
+                  <th className="text-left">
+                    <button
+                      type="button"
+                      onClick={() => togglePaymentSort("yangilangan")}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 font-black uppercase tracking-widest transition hover:bg-slate-200/80 ${
+                        paymentSort.field === "yangilangan"
+                          ? "bg-slate-200 text-slate-700"
+                          : ""
+                      }`}
+                    >
+                      Yangilangan
+                      {paymentSort.field === "yangilangan" ? (
+                        <span className="text-[10px]">
+                          {paymentSort.dir === "desc" ? "↓" : "↑"}
+                        </span>
+                      ) : null}
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tolovlarLoading ? (
+                  <tr>
+                    <td colSpan={10} className="py-12 text-center">
+                      <span className="loading loading-spinner loading-lg text-blue-500"></span>
+                    </td>
+                  </tr>
+                ) : paginatedPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-12 text-center">
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <FaCreditCard className="text-3xl opacity-30" />
+                        <p className="text-sm">To&apos;lovlar topilmadi</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedPayments.map((p) => {
+                    const m = p.maqola || {};
+                    const rowVal = p.valyuta || sumVal;
+                    const payLabel = p.holat_nomi || prettySnakeLabel(p.holat);
+                    const maqLabel = m.holat_nomi || prettySnakeLabel(m.holat);
+                    const chekHref = resolveChekHref(p.chek_url ?? p.check_url);
+                    return (
+                      <tr
+                        key={p.id ?? `${p.click_trans_id}-${p.yaratilgan}`}
+                        className="border-slate-50 transition hover:bg-slate-50/70"
+                      >
+                        <td className="tabular-nums text-sm font-semibold text-slate-700">
+                          {p.id ?? "—"}
+                        </td>
+                        <td className="max-w-[200px]">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {m.sarlavha || "—"}
+                          </p>
+                        </td>
+                        <td>
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${profilPaymentHolatBadgeClass(p.holat)}`}
+                          >
+                            {payLabel}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${profilMaqolaHolatBadgeClass(m.holat)}`}
+                          >
+                            {maqLabel}
+                          </span>
+                        </td>
+                        <td className="tabular-nums text-sm text-slate-800">
+                          {formatMiqdorCommaDecimal(p.miqdor)} {rowVal}
+                        </td>
+                        <td className="tabular-nums text-xs text-slate-700">
+                          {p.click_trans_id != null ? p.click_trans_id : "—"}
+                        </td>
+                        <td className="text-center align-middle">
+                          {chekHref ? (
+                            <a
+                              href={chekHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-bold text-sky-800 transition hover:bg-sky-100"
+                              title="CLICK chek"
+                            >
+                              <FaExternalLinkAlt className="text-[10px]" />
+                              Chek
+                            </a>
+                          ) : null}
+                        </td>
+                        <td className="text-xs text-slate-600">
+                          {formatProfilTolovDateTime(p.yaratilgan)}
+                        </td>
+                        <td className="text-xs text-slate-600">
+                          {formatProfilTolovDateTime(p.yangilangan)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {!tolovlarLoading && paymentTotalPages > 1 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
+              <p className="text-xs text-slate-500">
+                Sahifa {paymentPage} / {paymentTotalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={paymentPage <= 1}
+                  onClick={() => setPaymentPage((x) => Math.max(1, x - 1))}
+                  className="btn btn-sm rounded-xl border-slate-200 btn-outline"
+                >
+                  <FaChevronLeft className="text-xs" />
+                </button>
+                <button
+                  type="button"
+                  disabled={paymentPage >= paymentTotalPages}
+                  onClick={() =>
+                    setPaymentPage((x) => Math.min(paymentTotalPages, x + 1))
+                  }
+                  className="btn btn-sm rounded-xl border-slate-200 btn-outline"
+                >
+                  <FaChevronRight className="text-xs" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
     );
   }
 

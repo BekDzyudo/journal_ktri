@@ -6,7 +6,7 @@ import {
   FaSyncAlt, FaCalendarAlt, FaArrowRight, FaThLarge, FaLayerGroup,
   FaUserFriends, FaGavel, FaUserCog, FaArrowLeft, FaUser,
   FaBookOpen, FaBan, FaHashtag, FaBook, FaQuoteLeft, FaJournalWhills,
-  FaCreditCard, FaClipboardList,
+  FaCreditCard, FaClipboardList, FaMoneyBillWave, FaChevronLeft, FaChevronRight,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
@@ -74,6 +74,10 @@ function resolveAdminMediaUrl(raw) {
   return forceHttps(resolved);
 }
 
+function resolveChekHref(raw) {
+  return resolveAdminMediaUrl(raw);
+}
+
 /**
  * Admin ro'yxatidagi "To'lov" ustuni uchun.
  * Backend ro'yxatda `paidAt` / `paymentStatus` bermasligi mumkin; CLICK dan keyin `holat`
@@ -96,6 +100,75 @@ function articlePaymentLooksCompleted(article) {
     ARTICLE_STATUS.PUBLISHED,
   ];
   return statusesPastPayment.includes(article.status);
+}
+
+/** To'lov yakunlangach taqrizchi tayinlash / almashtirish (nashr/rad tugaganidan keyin yo'q) */
+function canAssignReviewerAction(article) {
+  if (!article?.id) return false;
+  if (!articlePaymentLooksCompleted(article)) return false;
+  const terminal = [
+    ARTICLE_STATUS.PUBLISHED,
+    ARTICLE_STATUS.REJECTED,
+  ];
+  if (terminal.includes(article.status)) return false;
+  return true;
+}
+
+const MONTHS_SHORT_EN = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** Masalan: 18-May, 2026-yil 10:48 */
+function formatAdminTolovDateTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  const day = d.getDate();
+  const mon = MONTHS_SHORT_EN[d.getMonth()];
+  const y = d.getFullYear();
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${day}-${mon}, ${y}-yil ${h}:${min}`;
+}
+
+function formatMiqdorUZS(val) {
+  if (val == null || val === "") return "—";
+  const n = Number(String(val).replace(",", "."));
+  if (!Number.isFinite(n)) return String(val);
+  return n.toFixed(2).replace(".", ",");
+}
+
+function normalizeTolovlarListPayload(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.results)) return raw.results;
+  return [];
+}
+
+function paymentTransactionBadgeClass(holat) {
+  const h = String(holat || "").toUpperCase();
+  if (h.includes("MUVAFFAQ") || h.includes("SUCCESS")) {
+    return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  }
+  if (h.includes("XATO") || h.includes("RAD") || h.includes("CANCEL")) {
+    return "bg-red-100 text-red-800 border-red-200";
+  }
+  return "bg-amber-100 text-amber-900 border-amber-200";
+}
+
+function paymentArticleHolatBadgeClass(holat) {
+  const h = String(holat || "").toUpperCase();
+  if (h.includes("QABUL")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  if (h.includes("RAD")) return "bg-red-100 text-red-700 border-red-200";
+  return "bg-sky-100 text-sky-900 border-sky-200";
+}
+
+function prettyUpperSnakeLabel(s) {
+  if (s == null || s === "") return "—";
+  return String(s)
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ─── SuperAdminDetailPanel ──────────────────────────────────────────────────
@@ -396,6 +469,8 @@ function computeSuperAdminStats(submittedArticles, allUsers) {
     totalAllUsers: allUsers.length,
     totalUsers: authors.length,
     totalAdmins: reviewers.length,
+    totalRevenue: 0,
+    revenueCurrency: "UZS",
   };
 }
 
@@ -410,7 +485,74 @@ function pickStatsNumber(source, keys, fallback = 0) {
   return fallback;
 }
 
+function pickStatsString(source, keys, fallback = "") {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return fallback;
+}
+
+const UZ_MONTH_NAMES = [
+  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+];
+
+function paymentAdminRowLooksSuccessful(p) {
+  const h = String(p?.holat ?? "").toUpperCase();
+  return h.includes("MUVAFFAQ") || h.includes("SUCCESS");
+}
+
+/** Muvaffaqiyatli to'lovlarni `yaratilgan` bo'yicha oy kesimida jamlash */
+function aggregateSuccessfulAdminRevenueByMonth(rows, defaultCurrency = "UZS") {
+  if (!Array.isArray(rows)) return [];
+  const map = new Map();
+  for (const p of rows) {
+    if (!paymentAdminRowLooksSuccessful(p)) continue;
+    const iso = p?.yaratilgan;
+    if (!iso) continue;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) continue;
+    const y = d.getFullYear();
+    const mo = d.getMonth() + 1;
+    const key = `${y}-${String(mo).padStart(2, "0")}`;
+    const n = Number(String(p.miqdor ?? "").replace(",", "."));
+    if (!Number.isFinite(n) || n < 0) continue;
+    const cur =
+      p.valyuta != null && String(p.valyuta).trim() !== ""
+        ? String(p.valyuta).trim()
+        : defaultCurrency;
+    const prev = map.get(key) || { sum: 0, count: 0, currency: cur };
+    prev.sum += n;
+    prev.count += 1;
+    map.set(key, prev);
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([key, agg]) => {
+      const [ys, ms] = key.split("-");
+      const yi = Number(ys);
+      const mi = Number(ms);
+      return {
+        key,
+        year: yi,
+        month: mi,
+        label: `${UZ_MONTH_NAMES[mi - 1] ?? ms} ${yi}`,
+        sum: agg.sum,
+        count: agg.count,
+        currency: agg.currency,
+      };
+    });
+}
+
 function normalizeStatistikaPayload(raw, fallbackStats) {
+  const tolBlock =
+    raw?.tolovlar && typeof raw.tolovlar === "object" && !Array.isArray(raw.tolovlar)
+      ? raw.tolovlar
+      : null;
+
   const maq =
     raw?.maqolalar && typeof raw.maqolalar === "object" && !Array.isArray(raw.maqolalar)
       ? raw.maqolalar
@@ -422,8 +564,8 @@ function normalizeStatistikaPayload(raw, fallbackStats) {
       ? raw.foydalanuvchilar
       : null;
 
-  /** Admin API: { maqolalar: { jami, yangi, ... }, foydalanuvchilar: { mualliflar, taqrizchilar } } */
-  if (maq || usersBlock) {
+  /** Admin API: maqolalar, foydalanuvchilar, tolovlar bloklari */
+  if (maq || usersBlock || tolBlock) {
     return {
       totalArticles: pickStatsNumber(
         maq || {},
@@ -494,6 +636,16 @@ function normalizeStatistikaPayload(raw, fallbackStats) {
         usersBlock || {},
         ["jami", "jami_foydalanuvchilar", "jami_userlar", "total_users", "total"],
         fallbackStats.totalAllUsers
+      ),
+      totalRevenue: pickStatsNumber(
+        tolBlock || {},
+        ["jami_daromad", "jamiDaromad", "total_revenue", "daromad"],
+        fallbackStats.totalRevenue ?? 0
+      ),
+      revenueCurrency: pickStatsString(
+        tolBlock || {},
+        ["valyuta", "currency", "valyuta_kodi"],
+        fallbackStats.revenueCurrency || "UZS"
       ),
     };
   }
@@ -578,6 +730,16 @@ function normalizeStatistikaPayload(raw, fallbackStats) {
       ["jami", "jami_foydalanuvchilar", "jami_userlar", "totalAllUsers", "jami_foydalanuvchi"],
       fallbackStats.totalAllUsers
     ),
+    totalRevenue: pickStatsNumber(
+      tolBlock || source,
+      ["jami_daromad", "jamiDaromad", "total_revenue", "daromad"],
+      fallbackStats.totalRevenue ?? 0
+    ),
+    revenueCurrency: pickStatsString(
+      tolBlock || source,
+      ["valyuta", "currency", "valyuta_kodi"],
+      fallbackStats.revenueCurrency || "UZS"
+    ),
   };
 }
 
@@ -655,6 +817,31 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
         role,
       };
     });
+  }, [refreshAccessToken]);
+
+  const loadTolovlarFromApi = useCallback(async () => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    if (!base) return [];
+
+    const res = await fetchWithAuth(
+      `${base}/admin/tolovlar/`,
+      { method: "GET" },
+      getAccessToken,
+      refreshAccessToken
+    );
+    const text = await res.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+
+    if (!res.ok) {
+      throw new Error(parseApiError(json, `${res.status} ${res.statusText || ""}`.trim()));
+    }
+
+    return normalizeTolovlarListPayload(json);
   }, [refreshAccessToken]);
 
   const loadStatsFromApi = useCallback(async () => {
@@ -754,6 +941,48 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const [decisionDescription, setDecisionDescription] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [tolovlar, setTolovlar] = useState([]);
+  const [tolovlarError, setTolovlarError] = useState("");
+  const [paymentSearchQuery, setPaymentSearchQuery] = useState("");
+  const [paymentSort, setPaymentSort] = useState({
+    field: "yaratilgan",
+    dir: "desc",
+  });
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [paymentRevenueYear, setPaymentRevenueYear] = useState("all");
+  const PAYMENTS_PAGE_SIZE = 25;
+
+  const assignReviewerRequest = useCallback(
+    async (articleId, reviewerEmail) => {
+      const useRealApi = import.meta.env.VITE_USE_REAL_ASSIGN_REVIEWER_API === "true";
+      if (useRealApi) {
+        const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+        if (!base) throw new Error("VITE_BASE_URL sozlanmagan");
+        /** Backend tayyor bo'lganda body kalitlarini moslashtiring (masalan taqrizchi, taqrizchi_email) */
+        const res = await fetchWithAuth(
+          `${base}/admin/maqolalar/${articleId}/`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taqrizchi: reviewerEmail }),
+          },
+          getAccessToken,
+          refreshAccessToken
+        );
+        const text = await res.text();
+        let json = null;
+        try {
+          json = text ? JSON.parse(text) : null;
+        } catch {
+          json = null;
+        }
+        if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
+        return;
+      }
+      await fakeArticleApi.assignReviewer(articleId, reviewerEmail);
+    },
+    [refreshAccessToken]
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -776,6 +1005,15 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       setStatsData(statsApiData);
       setUsers(normalizedUsers);
       setAdmins(adminUsers);
+
+      try {
+        const tolRows = await loadTolovlarFromApi();
+        setTolovlar(tolRows);
+        setTolovlarError("");
+      } catch (tolErr) {
+        setTolovlar([]);
+        setTolovlarError(tolErr?.message || "To'lovlar yuklanmadi");
+      }
     } catch (error) {
       toast.error(
         "Ma'lumotlarni yuklashda xatolik" +
@@ -784,7 +1022,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     } finally {
       setLoading(false);
     }
-  }, [userData, loadArticlesFromApi, loadStatsFromApi, loadUsersFromApi]);
+  }, [
+    userData,
+    loadArticlesFromApi,
+    loadStatsFromApi,
+    loadUsersFromApi,
+    loadTolovlarFromApi,
+  ]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -799,15 +1043,17 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       return;
     }
     try {
-      await fakeArticleApi.assignReviewer(selectedArticle.id, selectedAdmin);
-      toast.success("Taqrizchi muvaffaqiyatli tayinlandi!");
+      await assignReviewerRequest(selectedArticle.id, selectedAdmin);
+      toast.success(
+        selectedArticle.assignedTo ? "Taqrizchi yangilandi!" : "Taqrizchi tayinlandi!"
+      );
       refreshNotifications();
       setAssignModalOpen(false);
       setSelectedArticle(null);
       setSelectedAdmin("");
       fetchData();
     } catch (error) {
-      toast.error("Tayinlashda xatolik: " + error.message);
+      toast.error("Tayinlashda xatolik: " + (error?.message || ""));
     }
   };
 
@@ -956,6 +1202,86 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     [dateFilteredArticles, searchQuery, filterStatus]
   );
 
+  const filteredSortedPayments = useMemo(() => {
+    const q = paymentSearchQuery.trim().toLowerCase();
+    let rows = Array.isArray(tolovlar) ? [...tolovlar] : [];
+    if (q) {
+      rows = rows.filter((p) => {
+        const hay = [
+          p.id,
+          p.maqola_id,
+          p.maqola_sarlavha,
+          p.tolovchi_ism,
+          p.tolovchi_telefon,
+          p.tolovchi_email,
+          p.holat,
+          p.maqola_holat,
+          p.click_trans_id,
+          p.click_paydoc_id,
+          p.chek_url,
+          p.check_url,
+        ]
+          .map((x) => String(x ?? "").toLowerCase())
+          .join(" ");
+        return hay.includes(q);
+      });
+    }
+    const { field, dir } = paymentSort;
+    const mul = dir === "asc" ? 1 : -1;
+    rows.sort((a, b) => {
+      const ta = new Date(a[field] || 0).getTime();
+      const tb = new Date(b[field] || 0).getTime();
+      const na = Number.isNaN(ta) ? 0 : ta;
+      const nb = Number.isNaN(tb) ? 0 : tb;
+      if (na !== nb) return (na - nb) * mul;
+      return (Number(a.id || 0) - Number(b.id || 0)) * mul;
+    });
+    return rows;
+  }, [tolovlar, paymentSearchQuery, paymentSort]);
+
+  const revenueByMonthAll = useMemo(
+    () => aggregateSuccessfulAdminRevenueByMonth(tolovlar, "UZS"),
+    [tolovlar]
+  );
+
+  const paymentRevenueYears = useMemo(() => {
+    const ys = new Set(revenueByMonthAll.map((r) => r.year));
+    return [...ys].sort((a, b) => b - a);
+  }, [revenueByMonthAll]);
+
+  const revenueByMonthFiltered = useMemo(() => {
+    if (paymentRevenueYear === "all") return revenueByMonthAll;
+    const y = Number(paymentRevenueYear);
+    return revenueByMonthAll.filter((r) => r.year === y);
+  }, [revenueByMonthAll, paymentRevenueYear]);
+
+  const paymentTotalPages = Math.max(
+    1,
+    Math.ceil(filteredSortedPayments.length / PAYMENTS_PAGE_SIZE)
+  );
+
+  const paginatedPayments = useMemo(() => {
+    const start = (paymentPage - 1) * PAYMENTS_PAGE_SIZE;
+    return filteredSortedPayments.slice(start, start + PAYMENTS_PAGE_SIZE);
+  }, [filteredSortedPayments, paymentPage]);
+
+  useEffect(() => {
+    setPaymentPage(1);
+  }, [paymentSearchQuery, paymentSort]);
+
+  useEffect(() => {
+    setPaymentPage((p) => Math.min(Math.max(1, p), paymentTotalPages));
+  }, [paymentTotalPages]);
+
+  const togglePaymentSort = (field) => {
+    setPaymentSort((prev) => {
+      if (prev.field === field) {
+        return { field, dir: prev.dir === "asc" ? "desc" : "asc" };
+      }
+      return { field, dir: "desc" };
+    });
+  };
+
   const filteredUsers = useMemo(() => {
     const searchLower = userSearchQuery.trim().toLowerCase();
     return users.filter((user) => {
@@ -1038,8 +1364,10 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     return () => window.removeEventListener("ktri:open-article", handleOpenArticle);
   }, [articles, loadArticlesFromApi]);
 
-  const showArticles = view !== "users";
-  const showUsers = view !== "articles";
+  const showArticles = view === "articles";
+  const showUsers = view === "users";
+  const showPayments = view === "payments";
+  const showDashboardChrome = showArticles || showUsers;
 
   /* ── Detail panel ── */
   if (detailArticleId) {
@@ -1054,7 +1382,8 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Header */}
+      {/* Dashboard Header — maqolalar / foydalanuvchilar */}
+      {showDashboardChrome && (
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -1121,6 +1450,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
           </div>
         </div>
       </div>
+      )}
 
       {showArticles && (
         <>
@@ -1192,7 +1522,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               color="bg-green-500"
               iconColor="text-green-600"
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatsCard
                 icon={<FaCheckCircle />}
                 iconColor="text-green-500"
@@ -1254,6 +1584,22 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
                     Jurnalda chop etilgan
+                  </span>
+                }
+              />
+              <StatsCard
+                icon={<FaMoneyBillWave />}
+                iconColor="text-emerald-600"
+                title={`Jami daromad (${dashboardStats.revenueCurrency})`}
+                value={formatMiqdorUZS(dashboardStats.totalRevenue)}
+                badge="Statistika"
+                badgeColor="text-emerald-600"
+                barColor="bg-emerald-500"
+                progress={100}
+                footer={
+                  <span className="flex items-center gap-1.5">
+                    <FaArrowRight className="text-[9px]" />
+                    Umumiy muvaffaqiyatli to&apos;lovlar
                   </span>
                 }
               />
@@ -1419,7 +1765,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                                 <FaDownload className="text-sm" />
                               </a>
                             )}
-                            {[ARTICLE_STATUS.PAID, ARTICLE_STATUS.ASSIGNED].includes(article.status) && (
+                            {canAssignReviewerAction(article) && (
                               <button
                                 onClick={() => {
                                   setSelectedArticle(article);
@@ -1427,7 +1773,11 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                                   setAssignModalOpen(true);
                                 }}
                                 className="grid h-8 w-8 place-items-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700"
-                                title={article.assignedTo ? "Taqrizchini almashtirish" : "Taqrizchiga tayinlash"}
+                                title={
+                                  article.assignedTo
+                                    ? "Taqrizchini almashtirish"
+                                    : "Taqrizchiga tayinlash"
+                                }
                               >
                                 <FaUserShield className="text-sm" />
                               </button>
@@ -1467,6 +1817,300 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 </tbody>
               </table>
             </div>
+          </div>
+        </>
+      )}
+
+      {showPayments && (
+        <>
+          {/* To'lovlar jadvali */}
+          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <FaMoneyBillWave className="text-amber-600" />
+                    <h2 className="text-base font-black text-slate-900">To&apos;lovlar</h2>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    CLICK orqali amalga oshirilgan to&apos;lovlar (faqat ko&apos;rish).
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-100">
+                    {filteredSortedPayments.length} ta yozuv
+                  </span>
+                  <button
+                    type="button"
+                    onClick={fetchData}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  >
+                    <FaSyncAlt className="text-[10px] text-slate-400" />
+                    Yangilash
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-b border-emerald-100 bg-emerald-50/50 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-emerald-900">
+                    Oy kesimida jami daromad
+                  </p>
+                  <p className="mt-0.5 max-w-xl text-[11px] leading-snug text-emerald-900/75">
+                    Faqat <span className="font-semibold">muvaffaqiyatli</span> to&apos;lovlar;
+                    sana — tranzaksiya{" "}
+                    <span className="font-semibold">yaratilgan</span> vaqti bo&apos;yicha guruhlangan.
+                  </p>
+                </div>
+                <select
+                  value={paymentRevenueYear}
+                  onChange={(e) => setPaymentRevenueYear(e.target.value)}
+                  className="select select-bordered select-sm w-full max-w-[220px] shrink-0 rounded-xl border-emerald-200 bg-white text-sm font-semibold text-emerald-950"
+                >
+                  <option value="all">Barcha yillar</option>
+                  {paymentRevenueYears.map((y) => (
+                    <option key={y} value={String(y)}>
+                      {y}-yil
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-3 overflow-x-auto rounded-xl border border-emerald-100 bg-white shadow-sm">
+                <table className="table table-sm w-full">
+                  <thead>
+                    <tr className="border-b border-emerald-100 bg-emerald-50/90 text-[11px] font-black uppercase tracking-widest text-emerald-900/70">
+                      <th className="text-left">Oy</th>
+                      <th className="text-right tabular-nums">Tranzaksiyalar</th>
+                      <th className="text-right tabular-nums">Jami daromad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revenueByMonthFiltered.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-8 text-center text-sm text-slate-400">
+                          Tanlangan davr uchun ma&apos;lumot yo&apos;q
+                        </td>
+                      </tr>
+                    ) : (
+                      revenueByMonthFiltered.map((row) => (
+                        <tr key={row.key} className="border-slate-50 hover:bg-emerald-50/40">
+                          <td className="font-semibold text-slate-800">{row.label}</td>
+                          <td className="text-right tabular-nums text-slate-600">{row.count}</td>
+                          <td className="text-right tabular-nums text-sm font-black text-emerald-900">
+                            {formatMiqdorUZS(row.sum)}{" "}
+                            <span className="text-xs font-semibold text-emerald-700">
+                              {row.currency}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-b border-slate-100 p-4 md:flex-row md:items-center">
+              <div className="relative flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="ID, maqola, to'lovchi, email, holat..."
+                    value={paymentSearchQuery}
+                    onChange={(e) => setPaymentSearchQuery(e.target.value)}
+                    className="input input-bordered w-full rounded-xl border-slate-200 bg-slate-50 pl-8 text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn shrink-0 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Izlash
+                </button>
+              </div>
+            </div>
+
+            {tolovlarError ? (
+              <div className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {tolovlarError}
+              </div>
+            ) : null}
+
+            <div className="overflow-x-auto">
+              <table className="table w-full">
+                <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                  <tr>
+                    <th className="text-left tabular-nums">ID</th>
+                    <th className="text-left">Maqola</th>
+                    <th className="text-left">To&apos;lovchi</th>
+                    <th className="text-left">Miqdor (UZS)</th>
+                    <th className="text-left">To&apos;lov holati</th>
+                    <th className="text-left">Maqola holati</th>
+                    <th className="text-left">CLICK tranzaksiya ID</th>
+                    <th className="text-center">Chek</th>
+                    <th className="text-left">
+                      <button
+                        type="button"
+                        onClick={() => togglePaymentSort("yaratilgan")}
+                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 font-black uppercase tracking-widest transition hover:bg-slate-200/80 ${
+                          paymentSort.field === "yaratilgan"
+                            ? "bg-slate-200 text-slate-700"
+                            : ""
+                        }`}
+                      >
+                        Yaratilgan
+                        {paymentSort.field === "yaratilgan" ? (
+                          <span className="text-[10px]">
+                            {paymentSort.dir === "desc" ? "↓" : "↑"}
+                          </span>
+                        ) : null}
+                      </button>
+                    </th>
+                    <th className="text-left">
+                      <button
+                        type="button"
+                        onClick={() => togglePaymentSort("yangilangan")}
+                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 font-black uppercase tracking-widest transition hover:bg-slate-200/80 ${
+                          paymentSort.field === "yangilangan"
+                            ? "bg-slate-200 text-slate-700"
+                            : ""
+                        }`}
+                      >
+                        Yangilangan
+                        {paymentSort.field === "yangilangan" ? (
+                          <span className="text-[10px]">
+                            {paymentSort.dir === "desc" ? "↓" : "↑"}
+                          </span>
+                        ) : null}
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={11} className="py-12 text-center">
+                        <span className="loading loading-spinner loading-lg text-emerald-500"></span>
+                      </td>
+                    </tr>
+                  ) : paginatedPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="py-12 text-center">
+                        <div className="flex flex-col items-center gap-2 text-slate-400">
+                          <FaCreditCard className="text-3xl opacity-30" />
+                          <p className="text-sm">To&apos;lovlar topilmadi</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedPayments.map((p) => {
+                      const chekHref = resolveChekHref(p.chek_url ?? p.check_url);
+                      return (
+                      <tr
+                        key={p.id ?? `${p.click_trans_id}-${p.yaratilgan}`}
+                        className="border-slate-50 transition hover:bg-slate-50/70"
+                      >
+                        <td className="tabular-nums text-sm font-semibold text-slate-700">
+                          {p.id ?? "—"}
+                        </td>
+                        <td className="max-w-[200px]">
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {p.maqola_sarlavha || "—"}
+                          </p>
+                        </td>
+                        <td className="text-sm">
+                          <p className="font-bold text-slate-900">
+                            {p.tolovchi_ism || "—"}
+                          </p>
+                          <p className="text-xs text-slate-600">
+                            {p.tolovchi_telefon || "—"}
+                          </p>
+                          <p className="truncate text-xs text-slate-600">
+                            {p.tolovchi_email || "—"}
+                          </p>
+                        </td>
+                        <td className="tabular-nums text-sm text-slate-800">
+                          {formatMiqdorUZS(p.miqdor)}
+                        </td>
+                        <td>
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${paymentTransactionBadgeClass(p.holat)}`}
+                          >
+                            {prettyUpperSnakeLabel(p.holat)}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${paymentArticleHolatBadgeClass(p.maqola_holat)}`}
+                          >
+                            {prettyUpperSnakeLabel(p.maqola_holat)}
+                          </span>
+                        </td>
+                        <td className="tabular-nums text-xs text-slate-700">
+                          {p.click_trans_id != null ? p.click_trans_id : "—"}
+                        </td>
+                        <td className="text-center align-middle">
+                          {chekHref ? (
+                            <a
+                              href={chekHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-bold text-sky-800 transition hover:bg-sky-100"
+                              title="CLICK chek"
+                            >
+                              <FaExternalLinkAlt className="text-[10px]" />
+                              Chek
+                            </a>
+                          ) : null}
+                        </td>
+                        <td className="text-xs text-slate-600">
+                          {formatAdminTolovDateTime(p.yaratilgan)}
+                        </td>
+                        <td className="text-xs text-slate-600">
+                          {formatAdminTolovDateTime(p.yangilangan)}
+                        </td>
+                      </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {!loading && paymentTotalPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
+                <p className="text-xs text-slate-500">
+                  Sahifa {paymentPage} / {paymentTotalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={paymentPage <= 1}
+                    onClick={() =>
+                      setPaymentPage((x) => Math.max(1, x - 1))
+                    }
+                    className="btn btn-sm rounded-xl border-slate-200 btn-outline"
+                  >
+                    <FaChevronLeft className="text-xs" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={paymentPage >= paymentTotalPages}
+                    onClick={() =>
+                      setPaymentPage((x) =>
+                        Math.min(paymentTotalPages, x + 1)
+                      )
+                    }
+                    className="btn btn-sm rounded-xl border-slate-200 btn-outline"
+                  >
+                    <FaChevronRight className="text-xs" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </>
       )}
@@ -1673,7 +2317,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
         </>
       )}
 
-      {/* Assign Modal */}
+      {/* Assign Modal — taqrizchilar admin ro'yxatidan; haqiqiy API: VITE_USE_REAL_ASSIGN_REVIEWER_API=true */}
       <Modal
         isOpen={assignModalOpen}
         onClose={() => {
@@ -1685,15 +2329,20 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       >
         <div className="space-y-4">
           <div>
-            <h3 className="font-semibold text-gray-900 mb-1">Maqola:</h3>
+            <h3 className="mb-1 font-semibold text-gray-900">Maqola:</h3>
             <p className="text-gray-600">{selectedArticle?.articleTitle}</p>
             {selectedArticle?.assignedTo && (
-              <p className="text-xs text-gray-500 mt-1">Joriy taqrizchi: {selectedArticle.assignedTo}</p>
+              <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                <span className="font-semibold text-slate-700">Joriy taqrizchi: </span>
+                {selectedArticle.assignedToName
+                  ? `${selectedArticle.assignedToName} (${selectedArticle.assignedTo})`
+                  : selectedArticle.assignedTo}
+              </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               Taqrizchini tanlang
             </label>
             <select
@@ -1702,16 +2351,38 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               className="select select-bordered w-full"
             >
               <option value="">Taqrizchini tanlang...</option>
-              {admins.map((admin) => (
-                <option key={admin.email} value={admin.email}>
-                  {admin.first_name} {admin.last_name}
-                </option>
-              ))}
+              {admins.map((admin) => {
+                const email = (admin.email || "").trim();
+                const labelName = [admin.first_name, admin.last_name].filter(Boolean).join(" ").trim();
+                const label =
+                  labelName && email ? `${labelName} · ${email}` : labelName || email || "Nomsiz";
+                const optVal = email || String(admin.id ?? "");
+                return (
+                  <option key={`reviewer-${admin.id ?? optVal}`} value={optVal}>
+                    {label}
+                  </option>
+                );
+              })}
             </select>
+            {admins.length === 0 && (
+              <p className="mt-2 text-xs text-amber-700">
+                Taqrizchi ro&apos;yxati bo&apos;sh. &quot;Foydalanuvchilar&quot; yuklanguncha kuting yoki API ni
+                tekshiring.
+              </p>
+            )}
+            {import.meta.env.VITE_USE_REAL_ASSIGN_REVIEWER_API !== "true" && (
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                Demo rejim: tayinlash mahalliy saqlanadi. Haqiqiy API uchun{" "}
+                <code className="rounded bg-slate-100 px-1">VITE_USE_REAL_ASSIGN_REVIEWER_API=true</code> va{" "}
+                <code className="rounded bg-slate-100 px-1">assignReviewerRequest</code> ichidagi PATCH body ni backendga
+                moslang.
+              </p>
+            )}
           </div>
 
-          <div className="flex gap-3 justify-end pt-4">
+          <div className="flex justify-end gap-3 pt-4">
             <button
+              type="button"
               onClick={() => {
                 setAssignModalOpen(false);
                 setSelectedArticle(null);
@@ -1721,8 +2392,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
             >
               Bekor qilish
             </button>
-            <button onClick={handleAssignToAdmin} className="btn btn-primary" disabled={!selectedAdmin}>
-              Saqlash
+            <button
+              type="button"
+              onClick={handleAssignToAdmin}
+              className="btn btn-primary"
+              disabled={!selectedAdmin || admins.length === 0}
+            >
+              {selectedArticle?.assignedTo ? "Tayinlovni yangilash" : "Tayinlash"}
             </button>
           </div>
         </div>

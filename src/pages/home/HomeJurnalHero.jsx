@@ -36,7 +36,7 @@ function HomeJurnalHero() {
     [deadlineStr]
   );
   const resultsDate = useMemo(
-    () => (deadlineDate ? new Date(deadlineDate.getTime() + 15 * 24 * 60 * 60 * 1000) : null),
+    () => (deadlineDate ? new Date(deadlineDate.getTime() + 5 * 24 * 60 * 60 * 1000) : null),
     [deadlineDate]
   );
 

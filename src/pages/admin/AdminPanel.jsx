@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
-import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock, FaNewspaper, FaBook } from "react-icons/fa";
+import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock, FaNewspaper, FaBook, FaMoneyBillWave } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { formatPhoneNumber } from "../../utils/phoneFormatter";
 import { getAccessToken } from "../../utils/authStorage";
@@ -174,10 +174,23 @@ function AdminPanel() {
       { id: "settings", label: "Sozlamalar", icon: <FaCog /> },
     ];
 
+    if (userRole === ROLES.USER) {
+      baseItems.splice(1, 0, {
+        id: "tolovlar",
+        label: "To'lovlar",
+        icon: <FaMoneyBillWave />,
+      });
+    }
+
     if (userRole === ROLES.SUPERADMIN) {
       baseItems.splice(1, 0, { id: "users", label: "Foydalanuvchilar", icon: <FaUsers /> });
       baseItems.splice(2, 0, { id: "maqolalar", label: "Maqolalar", icon: <FaNewspaper /> });
       baseItems.splice(3, 0, { id: "jurnal-sonlar", label: "Jurnal sonlari", icon: <FaBook /> });
+      baseItems.splice(4, 0, {
+        id: "tolovlar",
+        label: "To'lovlar",
+        icon: <FaMoneyBillWave />,
+      });
     }
 
     return baseItems;
@@ -351,6 +364,14 @@ function AdminPanel() {
         {/* Dashboard Tab */}
         {activeTab === "dashboard" && renderDashboard()}
 
+        {activeTab === "tolovlar" && userRole === ROLES.USER && (
+          <UserDashboard
+            userData={profileUser}
+            profilePayload={profilPayload}
+            view="payments"
+          />
+        )}
+
         {/* Profile Tab */}
         {activeTab === "profile" && (
           <div className="rounded-[1.35rem] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)] sm:p-8">
@@ -485,6 +506,10 @@ function AdminPanel() {
 
         {activeTab === "jurnal-sonlar" && userRole === ROLES.SUPERADMIN && (
           <JurnalSonlariView onAddNew={() => setActiveTab("jurnal-son-qoshish")} />
+        )}
+
+        {activeTab === "tolovlar" && userRole === ROLES.SUPERADMIN && (
+          <SuperAdminDashboard userData={profileUser} view="payments" />
         )}
 
         {activeTab === "jurnal-son-qoshish" && userRole === ROLES.SUPERADMIN && (
