@@ -3,8 +3,10 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FiLogIn, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { AuthContext } from "../../context/AuthContext";
 import SEO from "../../components/SEO";
+import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
 import { ROLES } from "../../constants/roles";
 import { parseApiError } from "../../utils/apiError";
+import { getGoogleClientId } from "../../utils/googleAuthApi";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -238,6 +240,58 @@ function Login() {
                 )}
               </button>
             </form>
+
+            {getGoogleClientId() ? (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="bg-white px-3 text-gray-500">yoki</span>
+                  </div>
+                </div>
+
+                <GoogleSignInButton
+                  flow="signin"
+                  disabled={loading}
+                  onError={(msg) => setError(msg)}
+                  onAuthenticated={async (data) => {
+                    const access = data?.tokens?.access;
+                    const refreshToken = data?.tokens?.refresh;
+                    if (!access || !refreshToken) {
+                      setError(
+                        "Server javobida tokenlar topilmadi. Administrator bilan bog'laning.",
+                      );
+                      return;
+                    }
+                    const role =
+                      data?.user?.rol ?? data?.user?.role ?? ROLES.USER;
+                    await login(
+                      access,
+                      refreshToken,
+                      role,
+                      data?.user ?? null,
+                    );
+                    navigate("/dashboard");
+                  }}
+                />
+              </>
+            ) : import.meta.env.DEV ? (
+              <p className="mt-6 rounded-lg bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
+                Google bilan kirish ko‘rinmayapti: loyiha ildizida{" "}
+                <code className="rounded bg-amber-100 px-1">.env</code> yarating,
+                ichiga{" "}
+                <code className="rounded bg-amber-100 px-1">
+                  VITE_GOOGLE_CLIENT_ID
+                </code>{" "}
+                qo‘ying (masalan{" "}
+                <code className="rounded bg-amber-100 px-1">.env.example</code> dan
+                nusxa), keyin{" "}
+                <code className="rounded bg-amber-100 px-1">npm run dev</code> ni
+                to‘xtatib qayta ishga tushiring.
+              </p>
+            ) : null}
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
