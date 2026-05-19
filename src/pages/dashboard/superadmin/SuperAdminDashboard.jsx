@@ -1373,7 +1373,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       if (userRoleFilter === "reviewer") return r === ROLES.ADMIN;
       if (userRoleFilter === "admin") return r === ROLES.SUPERADMIN;
       return true;
-    });
+    }).reverse();
   }, [users, userSearchQuery, userRoleFilter]);
 
   const getStatusDisplay = (actualStatus) =>

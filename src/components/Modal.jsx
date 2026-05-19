@@ -1,7 +1,7 @@
 import React from "react";
 import { FiX } from "react-icons/fi";
 
-function Modal({ isOpen, onClose, title, children }) {
+function Modal({ isOpen, onClose, title, children, panelClassName = "max-w-md" }) {
   if (!isOpen) return null;
 
   return (
@@ -14,7 +14,10 @@ function Modal({ isOpen, onClose, title, children }) {
 
       {/* Modal */}
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-[141] transform transition-all duration-300 animate-scale-in">
+        <div
+          className={`relative z-[141] w-full transform rounded-2xl bg-white p-6 shadow-2xl transition-all duration-300 animate-scale-in ${panelClassName}`}
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Close Button */}
           <button
             onClick={onClose}

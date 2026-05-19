@@ -1,7 +1,7 @@
-import React, { useContext, useState, useEffect, useMemo } from "react";
+import React, { useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
-import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock, FaNewspaper, FaBook, FaMoneyBillWave } from "react-icons/fa";
+import { FaUser, FaCog, FaUsers, FaChartLine, FaPhone, FaEdit, FaLock, FaNewspaper, FaBook, FaMoneyBillWave, FaCalendarAlt, FaBullhorn } from "react-icons/fa";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { formatPhoneNumber } from "../../utils/phoneFormatter";
 import { getAccessToken } from "../../utils/authStorage";
@@ -14,9 +14,36 @@ import MaqolalarView from "../dashboard/superadmin/MaqolalarView.jsx";
 import MaqolaQoshish from "../dashboard/superadmin/MaqolaQoshish.jsx";
 import JurnalSonlariView from "../dashboard/superadmin/JurnalSonlariView.jsx";
 import JurnalSonQoshish from "../dashboard/superadmin/JurnalSonQoshish.jsx";
+import AdminMuhimSanalarView from "../dashboard/superadmin/AdminMuhimSanalarView.jsx";
+import AdminElonlarView from "../dashboard/superadmin/AdminElonlarView.jsx";
 import Modal from "../../components/Modal.jsx";
 import { fetchWithAuth } from "../../utils/authenticatedFetch.js";
 import { parseApiError } from "../../utils/apiError.js";
+
+/** `/profile?tab=` uchun ruxsat etilgan bo'lim ID */
+function isProfileTabAllowed(tab, role) {
+  if (!tab || typeof tab !== "string") return false;
+  const r = normalizeRole(role);
+  const userTabs = ["dashboard", "tolovlar", "profile", "settings"];
+  const reviewerTabs = ["dashboard", "profile", "settings"];
+  const superTabs = [
+    "dashboard",
+    "users",
+    "maqolalar",
+    "maqola-qoshish",
+    "jurnal-sonlar",
+    "jurnal-son-qoshish",
+    "muhim-sanalar",
+    "elonlar",
+    "tolovlar",
+    "profile",
+    "settings",
+  ];
+  if (r === ROLES.USER) return userTabs.includes(tab);
+  if (r === ROLES.ADMIN) return reviewerTabs.includes(tab);
+  if (r === ROLES.SUPERADMIN) return superTabs.includes(tab);
+  return reviewerTabs.includes(tab);
+}
 
 function normalizeProfilUser(payload) {
   if (!payload || typeof payload !== "object") return null;
@@ -40,8 +67,7 @@ function AdminPanel() {
   const { auth, userData, logout, userRole: contextUserRole, refresh: refreshAccessToken } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "dashboard");
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // CLICK to'lovdan qaytganda redirect qilish
   useEffect(() => {
@@ -91,6 +117,55 @@ function AdminPanel() {
   const profilUser = useMemo(() => normalizeProfilUser(profilPayload), [profilPayload]);
   const profileUser = profilUser || userData || {};
   const userRole = normalizeRole(profilPayload?.rol || contextUserRole || profileUser?.role || userData?.role);
+
+  const tabFromUrl = searchParams.get("tab") || "";
+  const activeTab = useMemo(() => {
+    if (tabFromUrl && isProfileTabAllowed(tabFromUrl, userRole)) return tabFromUrl;
+    return "dashboard";
+  }, [tabFromUrl, userRole]);
+
+  const setActiveTab = useCallback(
+    (id) => {
+      if (!isProfileTabAllowed(id, userRole)) return;
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (id === "dashboard") next.delete("tab");
+          else next.set("tab", id);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams, userRole],
+  );
+
+  /** Eski `navigate(..., { state: { activeTab } })` chaqiriqlarini URL bilan almashtirish */
+  useEffect(() => {
+    const fromState = location.state?.activeTab;
+    if (!fromState || !isProfileTabAllowed(fromState, userRole)) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", fromState);
+    navigate(
+      { pathname: location.pathname, search: next.toString() },
+      { replace: true, state: {} },
+    );
+  }, [location.state?.activeTab, userRole, navigate, location.pathname, searchParams]);
+
+  /** Rol yoki URL tab mos kelmasa — ?tab ni olib tashlash */
+  useEffect(() => {
+    if (!tabFromUrl) return;
+    if (!isProfileTabAllowed(tabFromUrl, userRole)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("tab");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [tabFromUrl, userRole, setSearchParams]);
 
   useEffect(() => {
     if (!auth) return;
@@ -186,6 +261,16 @@ function AdminPanel() {
       baseItems.splice(2, 0, { id: "maqolalar", label: "Maqolalar", icon: <FaNewspaper /> });
       baseItems.splice(3, 0, { id: "jurnal-sonlar", label: "Jurnal sonlari", icon: <FaBook /> });
       baseItems.splice(4, 0, {
+        id: "muhim-sanalar",
+        label: "Muhim sanalar",
+        icon: <FaCalendarAlt />,
+      });
+      baseItems.splice(5, 0, {
+        id: "elonlar",
+        label: "E'lonlar",
+        icon: <FaBullhorn />,
+      });
+      baseItems.splice(6, 0, {
         id: "tolovlar",
         label: "To'lovlar",
         icon: <FaMoneyBillWave />,
@@ -516,6 +601,10 @@ function AdminPanel() {
             onSuccess={() => setActiveTab("jurnal-sonlar")}
           />
         )}
+
+        {activeTab === "muhim-sanalar" && userRole === ROLES.SUPERADMIN && <AdminMuhimSanalarView />}
+
+        {activeTab === "elonlar" && userRole === ROLES.SUPERADMIN && <AdminElonlarView />}
       </main>
 
       {/* Edit Profile Modal */}
