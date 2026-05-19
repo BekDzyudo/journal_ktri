@@ -118,10 +118,28 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
   const [holat, setHolat] = useState(MUALLIF_API_HOLAT.YUBORILGAN);
   const [radSababi, setRadSababi] = useState("");
   const [nashrSanasi, setNashrSanasi] = useState("");
+  const [jurnalSoniId, setJurnalSoniId] = useState("");
+  const [jurnalSonlar, setJurnalSonlar] = useState([]);
   const [authors, setAuthors] = useState([{ ...INITIAL_AUTHOR }]);
   const [file, setFile] = useState(null);
   const [existingFileUrl, setExistingFileUrl] = useState(null);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+    fetchWithAuth(
+      `${base}/admin/jurnal-sonlari/`,
+      { method: "GET" },
+      getAccessToken,
+      refreshAccessToken
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data?.results ?? []);
+        setJurnalSonlar(list);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!articleId) return;
@@ -163,6 +181,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
         setHolat(HOLAT_OPTIONS.includes(h) ? h : MUALLIF_API_HOLAT.YUBORILGAN);
         setRadSababi(json.rad_sababi ?? "");
         setNashrSanasi(toDateInputValue(json.nashr_sanasi ?? ""));
+        setJurnalSoniId(json.jurnal_soni_id != null ? String(json.jurnal_soni_id) : "");
         setAuthors(mualliflarToAuthors(json.mualliflar));
         setFile(null);
 
@@ -264,6 +283,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
       fd.append("holat", holat);
       fd.append("rad_sababi", radSababi.trim());
       fd.append("nashr_sanasi", nashrSanasi || "");
+      fd.append("jurnal_soni", jurnalSoniId || "");
       fd.append("mualliflar", JSON.stringify(mualliflarData));
       if (file) fd.append("fayl", file, file.name);
 
@@ -431,6 +451,24 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
                   {holatSelectOptions.map((opt) => (
                     <option key={opt} value={opt}>
                       {MUALLIF_API_HOLAT_LABELS[opt] || opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
+                  Jurnal soni
+                </label>
+                <select
+                  value={jurnalSoniId}
+                  onChange={(e) => setJurnalSoniId(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">— Tanlanmagan —</option>
+                  {jurnalSonlar.map((js) => (
+                    <option key={js.id} value={String(js.id)}>
+                      {js.year} yil, {js.issue}-son
                     </option>
                   ))}
                 </select>
