@@ -2,12 +2,14 @@ import React, { useEffect, useState, useRef } from "react";
 import { FaTelegramPlane } from "react-icons/fa";
 import { FiX } from "react-icons/fi";
 
-const STORAGE_KEY = "ktri_telegram_invite_dismissed";
+const SESSION_KEY = "ktri_telegram_invite_dismissed";
 const SHOW_DELAY_MS = 5000;
+/** Agar `.env` da VITE_TELEGRAM_CHANNEL_URL bo‘lmasa */
+const DEFAULT_TELEGRAM_CHANNEL_URL = "https://t.me/KTRI_jurnali";
 
 function getTelegramUrl() {
   const u = (import.meta.env.VITE_TELEGRAM_CHANNEL_URL || "").trim();
-  return u || "https://t.me/";
+  return u || DEFAULT_TELEGRAM_CHANNEL_URL;
 }
 
 export default function TelegramInviteModal() {
@@ -16,7 +18,7 @@ export default function TelegramInviteModal() {
 
   useEffect(() => {
     try {
-      if (localStorage.getItem(STORAGE_KEY) === "1") return;
+      if (sessionStorage.getItem(SESSION_KEY) === "1") return;
     } catch {
       /* private mode */
     }
@@ -32,7 +34,7 @@ export default function TelegramInviteModal() {
 
   const dismiss = () => {
     try {
-      localStorage.setItem(STORAGE_KEY, "1");
+      sessionStorage.setItem(SESSION_KEY, "1");
     } catch {
       /* ignore */
     }
@@ -40,10 +42,7 @@ export default function TelegramInviteModal() {
   };
 
   const handleJoin = () => {
-    const url = getTelegramUrl();
-    if (url && url !== "https://t.me/") {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    window.open(getTelegramUrl(), "_blank", "noopener,noreferrer");
     dismiss();
   };
 
@@ -51,13 +50,13 @@ export default function TelegramInviteModal() {
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-[130] w-[min(100vw-2rem,22rem)] sm:bottom-6 sm:right-6"
+      className="fixed bottom-4 right-4 z-[130] w-[min(100vw-2rem,22rem)] sm:bottom-15 sm:right-6"
       role="dialog"
       aria-labelledby="telegram-invite-title"
       aria-describedby="telegram-invite-desc"
     >
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_40px_-12px_rgba(15,23,42,0.35)]">
-        <div className="h-1 bg-gradient-to-r from-sky-500 to-blue-600" />
+        <div className="h-2 bg-gradient-to-r from-sky-500 to-blue-600" />
         <button
           type="button"
           onClick={dismiss}
@@ -75,16 +74,16 @@ export default function TelegramInviteModal() {
             <div className="min-w-0 pt-0.5">
               <h3
                 id="telegram-invite-title"
-                className="text-sm font-black leading-snug text-slate-900 sm:text-[15px]"
+                className="text-sm font-black font-serif leading-snug text-slate-900 sm:text-[18px]"
               >
-                Telegram kanalimizga qo&apos;shiling
+                Telegramda kuzating
               </h3>
               <p
                 id="telegram-invite-desc"
                 className="mt-1.5 text-xs leading-relaxed text-slate-600 sm:text-[13px]"
               >
-                Jurnalga oid yangiliklar, e&apos;lonlar va sertifikatlar haqida ma&apos;lumotlar
-                Telegramda yoritib boriladi.
+                Jurnalga oid <span className="text-blue-600">yangiliklar</span>, <span className="text-blue-600">e&apos;lonlar</span> va <span className="text-blue-600">sertifikatlar </span> 
+                telegramda yoritib boriladi.
               </p>
             </div>
           </div>

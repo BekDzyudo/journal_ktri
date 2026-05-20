@@ -73,7 +73,7 @@ function MainLayout() {
           {/* Calendar Modal */}
           <CalendarModal />
 
-          {/* Telegram kanal taklifi — bir marta, yopilsa refreshdan keyin qayta chiqmaydi */}
+          {/* Telegram taklifi: tab yopilgan/yangi seansdan keyin yana chiqadi; shu tabda yopilsa refreshda yo‘q */}
           <TelegramInviteModal />
         </div>
       </HeroContext.Provider>
