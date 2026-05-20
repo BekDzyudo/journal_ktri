@@ -173,7 +173,8 @@ function Footer() {
           <h4 className="font-bold text-lg text-cyan-400 mb-2">Ijtimoiy tarmoqlar</h4>
           <div className="flex gap-3 mb-4">
             <Link 
-              to="https://t.me/Journal_KTRI" 
+              to="https://t.me/KTRI_jurnali
+              " 
               target="_blank"
               className="w-10 h-10 bg-white/10 hover:bg-cyan-400 rounded-full flex items-center justify-center transition-all hover:scale-110"
             >

@@ -7,6 +7,7 @@ import TestModeBanner from "../components/TestModeBanner";
 import { CalendarProvider } from "../context/CalendarContext";
 import FloatingActionButton from "../components/FloatingActionButton";
 import CalendarModal from "../components/CalendarModal";
+import TelegramInviteModal from "../components/TelegramInviteModal";
 import SEO from "../components/SEO";
 import { AuthContext } from "../context/AuthContext.jsx";
 import { NotificationProvider } from "../context/NotificationContext.jsx";
@@ -71,6 +72,9 @@ function MainLayout() {
           
           {/* Calendar Modal */}
           <CalendarModal />
+
+          {/* Telegram kanal taklifi — bir marta, yopilsa refreshdan keyin qayta chiqmaydi */}
+          <TelegramInviteModal />
         </div>
       </HeroContext.Provider>
     </CalendarProvider>
