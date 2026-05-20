@@ -180,6 +180,7 @@ function ArticleDetail() {
   const authors = getAuthors();
   const author = getAuthor();
   const journalImage = getJournalImage();
+  console.log(article);
 
   return (
     <>
