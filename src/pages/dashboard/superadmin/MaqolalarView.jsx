@@ -123,6 +123,8 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
   const [authors, setAuthors] = useState([{ ...INITIAL_AUTHOR }]);
   const [file, setFile] = useState(null);
   const [existingFileUrl, setExistingFileUrl] = useState(null);
+  const [sertifikatUrl, setSertifikatUrl] = useState(null);
+  const [sertifikatLoading, setSertifikatLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -182,6 +184,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
         setRadSababi(json.rad_sababi ?? "");
         setNashrSanasi(toDateInputValue(json.nashr_sanasi ?? ""));
         setJurnalSoniId(json.jurnal_soni_id != null ? String(json.jurnal_soni_id) : "");
+        setSertifikatUrl(json.sertifikat_url || null);
         setAuthors(mualliflarToAuthors(json.mualliflar));
         setFile(null);
 
@@ -303,6 +306,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
       }
       if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
 
+      setSertifikatUrl(json?.sertifikat_url || null);
       toast.success("Saqlandi!");
       onDone();
     } catch (err) {
@@ -473,6 +477,47 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
                   ))}
                 </select>
               </div>
+
+              {sertifikatUrl && holat === "NASHR_ETILGAN" && (
+                <div className="sm:col-span-2">
+                  <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    Sertifikat
+                  </label>
+                  <button
+                    type="button"
+                    disabled={sertifikatLoading}
+                    onClick={async () => {
+                      setSertifikatLoading(true);
+                      try {
+                        const res = await fetchWithAuth(
+                          sertifikatUrl,
+                          { method: "GET" },
+                          getAccessToken,
+                          refreshAccessToken
+                        );
+                        if (!res.ok) throw new Error("Sertifikat yuklanmadi");
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `sertifikat-${articleId}.png`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      } catch (err) {
+                        toast.error(err.message || "Sertifikat yuklab bo'lmadi");
+                      } finally {
+                        setSertifikatLoading(false);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:opacity-60"
+                  >
+                    {sertifikatLoading
+                      ? <span className="loading loading-spinner loading-xs" />
+                      : <FaFileAlt className="text-xs" />}
+                    Sertifikat yuklab olish
+                  </button>
+                </div>
+              )}
 
               <div className="sm:col-span-2">
                 <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
