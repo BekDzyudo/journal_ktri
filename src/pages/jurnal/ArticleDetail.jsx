@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   FaCalendar,
@@ -15,26 +15,280 @@ import {
   FaEnvelope,
   FaBuilding,
   FaUsers,
+  FaExpand,
+  FaTimes,
 } from "react-icons/fa";
 import { useHero } from "../../context/HeroContext";
+import { AuthContext } from "../../context/AuthContext.jsx";
 import SEO from "../../components/SEO";
 import useGetFetch from "../../hooks/useGetFetch";
+import { getAccessToken } from "../../utils/authStorage.js";
+
+/** API bergan nisbiy yoki to‘liq sertifikat URL ni fetch uchun mutlaq qiladi */
+function resolveAbsoluteUrl(possibleRelative) {
+  const p = (possibleRelative || "").trim();
+  if (!p) return "";
+  if (/^https?:\/\//i.test(p)) return p;
+  const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+  if (!base) {
+    if (typeof window !== "undefined") {
+      try {
+        return new URL(p, window.location.href).href;
+      } catch {
+        return p;
+      }
+    }
+    return p;
+  }
+  try {
+    return new URL(p, `${base}/`).href;
+  } catch {
+    return p;
+  }
+}
+
+/**
+ * Sertifikat fayl turi: server ba'zan `application/octet-stream` yuboradi, PNG ni aniqlash uchun.
+ * @returns {{ kind: 'image' | 'pdf', mime: string, ext: string }}
+ */
+async function inferCertificateKind(blob, headerContentType, sourceUrl) {
+  const ct = (headerContentType || blob.type || "").toLowerCase().split(";")[0].trim();
+
+  if (/^image\//.test(ct)) {
+    let ext = "png";
+    if (ct.includes("jpeg") || ct.includes("jpg")) ext = "jpg";
+    else if (ct.includes("png")) ext = "png";
+    else if (ct.includes("gif")) ext = "gif";
+    else if (ct.includes("webp")) ext = "webp";
+    return { kind: "image", mime: ct || "image/png", ext };
+  }
+  if (ct.includes("pdf") || ct === "application/x-pdf") {
+    return { kind: "pdf", mime: "application/pdf", ext: "pdf" };
+  }
+
+  const path = (sourceUrl || "").split("?")[0].toLowerCase();
+  const pathMatch = path.match(/\.(png|jpe?g|gif|webp)(\/?$|$)/i);
+  if (pathMatch) {
+    const e = pathMatch[1].toLowerCase() === "jpeg" ? "jpg" : pathMatch[1].toLowerCase();
+    const mime =
+      e === "png"
+        ? "image/png"
+        : e === "jpg"
+          ? "image/jpeg"
+          : e === "gif"
+            ? "image/gif"
+            : "image/webp";
+    return { kind: "image", mime, ext: e };
+  }
+  if (/\.pdf(\/?$|$)/i.test(path)) {
+    return { kind: "pdf", mime: "application/pdf", ext: "pdf" };
+  }
+
+  const buf = new Uint8Array(await blob.slice(0, 32).arrayBuffer());
+
+  if (
+    buf.length >= 8
+    && buf[0] === 0x89
+    && buf[1] === 0x50
+    && buf[2] === 0x4e
+    && buf[3] === 0x47
+    && buf[4] === 0x0d
+    && buf[5] === 0x0a
+    && buf[6] === 0x1a
+    && buf[7] === 0x0a
+  ) {
+    return { kind: "image", mime: "image/png", ext: "png" };
+  }
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return { kind: "image", mime: "image/jpeg", ext: "jpg" };
+  }
+  if (
+    buf.length >= 4
+    && buf[0] === 0x47
+    && buf[1] === 0x49
+    && buf[2] === 0x46
+    && buf[3] === 0x38
+  ) {
+    return { kind: "image", mime: "image/gif", ext: "gif" };
+  }
+  if (
+    buf.length >= 12
+    && buf[0] === 0x52
+    && buf[1] === 0x49
+    && buf[2] === 0x46
+    && buf[3] === 0x46
+    && buf[8] === 0x57
+    && buf[9] === 0x45
+    && buf[10] === 0x42
+    && buf[11] === 0x50
+  ) {
+    return { kind: "image", mime: "image/webp", ext: "webp" };
+  }
+  if (
+    buf.length >= 5
+    && buf[0] === 0x25
+    && buf[1] === 0x50
+    && buf[2] === 0x44
+    && buf[3] === 0x46
+    && buf[4] === 0x2d
+  ) {
+    return { kind: "pdf", mime: "application/pdf", ext: "pdf" };
+  }
+
+  return { kind: "image", mime: "image/png", ext: "png" };
+}
 
 function ArticleDetail() {
   const { articleId, id } = useParams();
   const finalId = articleId || id;
   const navigate = useNavigate();
   const { setOnHero } = useHero();
+  const { refresh: refreshAccessToken } = useContext(AuthContext);
   const [copiedCitation, setCopiedCitation] = useState(false);
+  const [certificateFullscreen, setCertificateFullscreen] = useState(false);
+  /** Sertifikat: fetch → blob URL (iframe dagi X-Frame-Options muammosidan chetlash) */
+  const [certObjectUrl, setCertObjectUrl] = useState(null);
+  const [certKind, setCertKind] = useState(null); // 'pdf' | 'image' | null
+  /** Yuklab olish fayl kengaytmasi (png, pdf, …) */
+  const [certDownloadExt, setCertDownloadExt] = useState("png");
+  const [certStatus, setCertStatus] = useState("idle"); // idle | loading | ready | error
+  const [certErrorMsg, setCertErrorMsg] = useState("");
+  const certBlobRef = useRef(null);
 
   useEffect(() => {
     setOnHero(false);
     return () => setOnHero(false);
   }, [setOnHero]);
 
-  const { data: article, isPending, error } = useGetFetch(
+  useEffect(() => {
+    if (!certificateFullscreen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setCertificateFullscreen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [certificateFullscreen]);
+
+  const { data: article, isPending } = useGetFetch(
     finalId ? `${import.meta.env.VITE_BASE_URL}/maqolalar/${finalId}/` : null
   );
+
+  /* Sertifikat blob yuklash — setState effekt ichida */
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const raw = (
+      article?.sertifikat_url ||
+      article?.sertifikatUrl ||
+      article?.certificate_url ||
+      article?.certificateUrl ||
+      ""
+    ).trim();
+
+    const url = resolveAbsoluteUrl(raw);
+
+    if (!url) {
+      if (certBlobRef.current) {
+        URL.revokeObjectURL(certBlobRef.current);
+        certBlobRef.current = null;
+      }
+      setCertObjectUrl(null);
+      setCertKind(null);
+      setCertDownloadExt("png");
+      setCertStatus("idle");
+      setCertErrorMsg("");
+      return;
+    }
+
+    let cancelled = false;
+
+    if (certBlobRef.current) {
+      URL.revokeObjectURL(certBlobRef.current);
+      certBlobRef.current = null;
+    }
+    setCertObjectUrl(null);
+    setCertKind(null);
+    setCertDownloadExt("png");
+    setCertStatus("loading");
+    setCertErrorMsg("");
+
+    (async () => {
+      try {
+        const runFetch = async (token) => {
+          const headers = {};
+          if (token) headers.Authorization = `Bearer ${token}`;
+          let credentials = "same-origin";
+          try {
+            if (typeof window !== "undefined") {
+              credentials =
+                new URL(url).origin === window.location.origin ? "same-origin" : "include";
+            }
+          } catch {
+            /* ignore */
+          }
+          return fetch(url, { credentials, headers });
+        };
+
+        let res = await runFetch(getAccessToken());
+
+        if (res.status === 401 && typeof refreshAccessToken === "function") {
+          const newTok = await refreshAccessToken();
+          if (newTok) res = await runFetch(newTok);
+        }
+
+        if (cancelled) return;
+
+        if (!res.ok) {
+          const code = res.status;
+          throw new Error(code === 401 ? "auth" : `HTTP ${code}`);
+        }
+
+        const blob = await res.blob();
+        const headerCt = res.headers.get("content-type") || "";
+        const inferred = await inferCertificateKind(blob, headerCt, url);
+
+        if (cancelled) return;
+
+        const looseType =
+          !blob.type || blob.type === "application/octet-stream";
+        let outBlob = blob;
+        if (looseType && inferred.mime) {
+          outBlob = new Blob([await blob.arrayBuffer()], { type: inferred.mime });
+        }
+
+        const objectUrl = URL.createObjectURL(outBlob);
+        certBlobRef.current = objectUrl;
+        setCertObjectUrl(objectUrl);
+        setCertKind(inferred.kind);
+        setCertDownloadExt(inferred.ext);
+        setCertStatus("ready");
+      } catch (e) {
+        if (cancelled) return;
+        setCertStatus("error");
+        setCertObjectUrl(null);
+        setCertKind(null);
+        setCertDownloadExt("png");
+        const msg =
+          e?.message === "auth"
+            ? "Sertifikatni ko‘rish uchun tizimga kiring."
+            : "Sertifikat yuklanmadi (tarmoq yoki ruxsat).";
+        setCertErrorMsg(msg);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (certBlobRef.current) {
+        URL.revokeObjectURL(certBlobRef.current);
+        certBlobRef.current = null;
+      }
+    };
+  }, [article, refreshAccessToken]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Sanani formatlash
   const formatDate = (dateString) => {
@@ -133,6 +387,16 @@ function ArticleDetail() {
     );
   };
 
+  const getSertifikatUrl = () => {
+    return (
+      article?.sertifikat_url ||
+      article?.sertifikatUrl ||
+      article?.certificate_url ||
+      article?.certificateUrl ||
+      ""
+    );
+  };
+
   // Citation ni clipboard ga nusxalash
   const handleCopyCitation = () => {
     if (article?.how_to_cite) {
@@ -180,7 +444,35 @@ function ArticleDetail() {
   const authors = getAuthors();
   const author = getAuthor();
   const journalImage = getJournalImage();
-  console.log(article);
+  const sertifikatUrl = getSertifikatUrl();
+
+  const handleCertDownload = () => {
+    if (certObjectUrl && certStatus === "ready") {
+      const ext =
+        certDownloadExt
+        || (certKind === "image" ? "png" : "pdf");
+      const a = document.createElement("a");
+      a.href = certObjectUrl;
+      a.download = `sertifikat-${finalId || "maqola"}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
+    if (sertifikatUrl) {
+      window.open(resolveAbsoluteUrl(sertifikatUrl), "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const openCertFullscreen = () => {
+    if (certObjectUrl && certStatus === "ready") {
+      setCertificateFullscreen(true);
+      return;
+    }
+    if (sertifikatUrl) {
+      window.open(sertifikatUrl, "_blank", "noopener,noreferrer");
+    }
+  };
 
   return (
     <>
@@ -208,14 +500,73 @@ function ArticleDetail() {
             {/* Left Side - Journal Image & Info */}
             <div className="order-2 lg:order-1">
               <div className="sticky top-24 space-y-6">
-                {journalImage ? (
+                {sertifikatUrl ? (
+                  <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-4">
+                    <p className="mb-3 text-center text-xs font-black uppercase tracking-wider text-emerald-700">
+                      Nashr sertifikati
+                    </p>
+                    <div className="relative min-h-[200px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                      {certStatus === "loading" && (
+                        <div className="flex h-[min(52vh,520px)] flex-col items-center justify-center gap-3">
+                          <span className="loading loading-spinner loading-lg text-emerald-600" />
+                          <p className="text-sm text-slate-600">Sertifikat yuklanmoqda...</p>
+                        </div>
+                      )}
+                      {certStatus === "error" && (
+                        <div className="flex min-h-[min(52vh,520px)] flex-col items-center justify-center gap-4 p-6 text-center">
+                          <p className="max-w-xs text-sm font-semibold text-red-700">{certErrorMsg}</p>
+                          <a
+                            href={sertifikatUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:bg-emerald-700"
+                          >
+                            Yangi oynada ochish
+                          </a>
+                        </div>
+                      )}
+                      {certStatus === "ready" && certObjectUrl && certKind === "image" && (
+                        <img
+                          src={certObjectUrl}
+                          alt="Nashr sertifikati"
+                          className="max-h-[min(52vh,520px)] w-full object-contain object-center"
+                        />
+                      )}
+                      {certStatus === "ready" && certObjectUrl && certKind === "pdf" && (
+                        <iframe
+                          title="Nashr sertifikati"
+                          src={certObjectUrl}
+                          className="h-[min(52vh,520px)] w-full border-0 bg-white"
+                        />
+                      )}
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={openCertFullscreen}
+                        disabled={certStatus === "loading"}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <FaExpand className="text-slate-600" />
+                        To&apos;liq ekran
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCertDownload}
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 px-2 py-2.5 text-sm font-bold text-white shadow-md transition hover:from-emerald-700 hover:to-teal-800"
+                      >
+                        <FaDownload />
+                        Yuklab olish
+                      </button>
+                    </div>
+                  </div>
+                ) : journalImage ? (
                   <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-4">
                     <div className="relative overflow-hidden rounded-xl">
                       <img
-                        src={article?.jurnal_soni?.image}
+                        src={journalImage}
                         alt={
-                          article.sarlavha || article.maqola_nomi ||
-                          "Jurnal rasmi"
+                          article.sarlavha || article.maqola_nomi || "Jurnal rasmi"
                         }
                         className="w-full h-auto object-cover"
                       />
@@ -228,7 +579,53 @@ function ArticleDetail() {
                       <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">
                         <FaFilePdf className="text-gray-400" size={24} />
                       </div>
-                      <p className="text-gray-500">Jurnal rasmi mavjud emas</p>
+                      <p className="text-gray-500">Sertifikat va jurnal rasmi mavjud emas</p>
+                    </div>
+                  </div>
+                )}
+
+                {certificateFullscreen && certObjectUrl && certStatus === "ready" && (
+                  <div
+                    className="fixed inset-0 z-[300] flex flex-col bg-black/95"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Sertifikatni to'liq ekranda ko'rish"
+                  >
+                    <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 py-3 text-white">
+                      <p className="font-bold">Nashr sertifikati</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCertDownload}
+                          className="inline-flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold hover:bg-white/25"
+                        >
+                          <FaDownload />
+                          Yuklab olish
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCertificateFullscreen(false)}
+                          className="inline-flex items-center justify-center rounded-lg bg-white/10 p-2.5 hover:bg-white/20"
+                          aria-label="Yopish"
+                        >
+                          <FaTimes className="text-xl" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-4">
+                      {certKind === "image" ? (
+                        <img
+                          src={certObjectUrl}
+                          alt=""
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <iframe
+                          title="Nashr sertifikati — to'liq ekran"
+                          src={certObjectUrl}
+                          className="h-full w-full rounded-lg border-0 bg-white shadow-2xl"
+                        />
+                      )}
                     </div>
                   </div>
                 )}
