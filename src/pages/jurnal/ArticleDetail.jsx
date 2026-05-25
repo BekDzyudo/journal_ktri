@@ -23,6 +23,8 @@ import { AuthContext } from "../../context/AuthContext.jsx";
 import SEO from "../../components/SEO";
 import useGetFetch from "../../hooks/useGetFetch";
 import { getAccessToken } from "../../utils/authStorage.js";
+import { toast } from "react-toastify";
+import { fetchWithAuth } from "../../utils/authenticatedFetch.js";
 
 /** API bergan nisbiy yoki to‘liq sertifikat URL ni fetch uchun mutlaq qiladi */
 function resolveAbsoluteUrl(possibleRelative) {
@@ -44,6 +46,60 @@ function resolveAbsoluteUrl(possibleRelative) {
     return new URL(p, `${base}/`).href;
   } catch {
     return p;
+  }
+}
+
+/** Maqola obyektidan barcha mumkin bo‘lgan sertifikat URL lar */
+function resolveCertificateUrls(article, routeArticleId) {
+  const rawList = [];
+  /** @param {unknown} v */
+  const add = (v) => {
+    if (v == null) return;
+    if (typeof v === "string" && v.trim()) rawList.push(v.trim());
+    else if (
+      typeof v === "object"
+      && typeof /** @type {{ url?: unknown }} */ (v).url === "string"
+    ) {
+      rawList.push(String(/** @type {{ url?: string }} */ (v).url).trim());
+    }
+  };
+
+  add(article?.sertifikat_url);
+  add(article?.sertifikatUrl);
+  add(article?.certificate_url);
+  add(article?.certificateUrl);
+  add(article?.sertifikat);
+  add(article?.sertifikat_fayl);
+  add(article?.sertifikat_file);
+
+  const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
+  const id =
+    article?.id !== undefined && article?.id !== null
+      ? String(article.id)
+      : routeArticleId !== undefined && routeArticleId !== null
+        ? String(routeArticleId)
+        : "";
+
+  if (base && id) rawList.push(`${base}/maqolalar/${id}/sertifikat/`);
+
+  const seen = new Set();
+  /** @type {string[]} */
+  const urls = [];
+  for (const r of rawList) {
+    const abs = resolveAbsoluteUrl(String(r || "").trim());
+    if (!abs || seen.has(abs)) continue;
+    seen.add(abs);
+    urls.push(abs);
+  }
+  return urls;
+}
+
+function credentialModeForApiUrl(url) {
+  try {
+    if (typeof window === "undefined") return "same-origin";
+    return new URL(url).origin === window.location.origin ? "same-origin" : "include";
+  } catch {
+    return "include";
   }
 }
 
@@ -138,6 +194,50 @@ async function inferCertificateKind(blob, headerContentType, sourceUrl) {
   return { kind: "image", mime: "image/png", ext: "png" };
 }
 
+/** Sertifikat: anonim uchun cookie yubormasdan (omit), keyin cookie, oxirida JWT */
+async function fetchCertificateDocument(url, getToken, refresh) {
+  const cred = credentialModeForApiUrl(url);
+
+  /* Maqola JSON (useGetFetch) bilan bir xil — anonim sahifa */
+  let last = await fetch(url, { method: "GET" });
+  if (last.ok) return last;
+
+  last = await fetch(url, {
+    method: "GET",
+    credentials: "omit",
+    headers: {},
+  });
+  if (last.ok) return last;
+
+  last = await fetch(url, {
+    method: "GET",
+    credentials: cred,
+    headers: {},
+  });
+  if (last.ok) return last;
+
+  /* Admin panelidagi kabi JWT + refresh (401 da qayta urinish authenticatedFetch ichida) */
+  return fetchWithAuth(
+    url,
+    { method: "GET", credentials: cred },
+    getToken,
+    refresh
+  );
+}
+
+async function blobFromCertificateResponse(res, url) {
+  const blob = await res.blob();
+  const headerCt = res.headers.get("content-type") || "";
+  const inferred = await inferCertificateKind(blob, headerCt, url);
+  const looseType =
+    !blob.type || blob.type === "application/octet-stream";
+  let outBlob = blob;
+  if (looseType && inferred.mime) {
+    outBlob = new Blob([await blob.arrayBuffer()], { type: inferred.mime });
+  }
+  return { outBlob, inferred };
+}
+
 function ArticleDetail() {
   const { articleId, id } = useParams();
   const finalId = articleId || id;
@@ -153,6 +253,8 @@ function ArticleDetail() {
   const [certDownloadExt, setCertDownloadExt] = useState("png");
   const [certStatus, setCertStatus] = useState("idle"); // idle | loading | ready | error
   const [certErrorMsg, setCertErrorMsg] = useState("");
+  const [certDownloading, setCertDownloading] = useState(false);
+  const [certReloadNonce, setCertReloadNonce] = useState(0);
   const certBlobRef = useRef(null);
 
   useEffect(() => {
@@ -181,17 +283,7 @@ function ArticleDetail() {
   /* Sertifikat blob yuklash — setState effekt ichida */
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const raw = (
-      article?.sertifikat_url ||
-      article?.sertifikatUrl ||
-      article?.certificate_url ||
-      article?.certificateUrl ||
-      ""
-    ).trim();
-
-    const url = resolveAbsoluteUrl(raw);
-
-    if (!url) {
+    if (!article) {
       if (certBlobRef.current) {
         URL.revokeObjectURL(certBlobRef.current);
         certBlobRef.current = null;
@@ -201,7 +293,22 @@ function ArticleDetail() {
       setCertDownloadExt("png");
       setCertStatus("idle");
       setCertErrorMsg("");
-      return;
+      return undefined;
+    }
+
+    const urls = resolveCertificateUrls(article, finalId);
+
+    if (!urls.length) {
+      if (certBlobRef.current) {
+        URL.revokeObjectURL(certBlobRef.current);
+        certBlobRef.current = null;
+      }
+      setCertObjectUrl(null);
+      setCertKind(null);
+      setCertDownloadExt("png");
+      setCertStatus("idle");
+      setCertErrorMsg("");
+      return undefined;
     }
 
     let cancelled = false;
@@ -218,47 +325,33 @@ function ArticleDetail() {
 
     (async () => {
       try {
-        const runFetch = async (token) => {
-          const headers = {};
-          if (token) headers.Authorization = `Bearer ${token}`;
-          let credentials = "same-origin";
-          try {
-            if (typeof window !== "undefined") {
-              credentials =
-                new URL(url).origin === window.location.origin ? "same-origin" : "include";
-            }
-          } catch {
-            /* ignore */
+        /** @type {Response | null} */
+        let okRes = null;
+        let successUrl = "";
+        let failCode = "?";
+
+        for (const endpoint of urls) {
+          const res = await fetchCertificateDocument(
+            endpoint,
+            getAccessToken,
+            refreshAccessToken
+          );
+          if (res.ok) {
+            okRes = res;
+            successUrl = endpoint;
+            break;
           }
-          return fetch(url, { credentials, headers });
-        };
-
-        let res = await runFetch(getAccessToken());
-
-        if (res.status === 401 && typeof refreshAccessToken === "function") {
-          const newTok = await refreshAccessToken();
-          if (newTok) res = await runFetch(newTok);
+          failCode = String(res.status);
         }
+
+        if (!okRes) throw new Error(`HTTP ${failCode}`);
+
+        const { outBlob, inferred } = await blobFromCertificateResponse(
+          okRes,
+          successUrl
+        );
 
         if (cancelled) return;
-
-        if (!res.ok) {
-          const code = res.status;
-          throw new Error(code === 401 ? "auth" : `HTTP ${code}`);
-        }
-
-        const blob = await res.blob();
-        const headerCt = res.headers.get("content-type") || "";
-        const inferred = await inferCertificateKind(blob, headerCt, url);
-
-        if (cancelled) return;
-
-        const looseType =
-          !blob.type || blob.type === "application/octet-stream";
-        let outBlob = blob;
-        if (looseType && inferred.mime) {
-          outBlob = new Blob([await blob.arrayBuffer()], { type: inferred.mime });
-        }
 
         const objectUrl = URL.createObjectURL(outBlob);
         certBlobRef.current = objectUrl;
@@ -273,9 +366,9 @@ function ArticleDetail() {
         setCertKind(null);
         setCertDownloadExt("png");
         const msg =
-          e?.message === "auth"
-            ? "Sertifikatni ko‘rish uchun tizimga kiring."
-            : "Sertifikat yuklanmadi (tarmoq yoki ruxsat).";
+          e?.message && String(e.message).startsWith("HTTP")
+            ? `Sertifikat yuklanmadi (${e.message}).`
+            : "Sertifikat yuklanmadi (tarmoq xatosi).";
         setCertErrorMsg(msg);
       }
     })();
@@ -287,7 +380,7 @@ function ArticleDetail() {
         certBlobRef.current = null;
       }
     };
-  }, [article, refreshAccessToken]);
+  }, [article, finalId, refreshAccessToken, certReloadNonce]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Sanani formatlash
@@ -387,15 +480,7 @@ function ArticleDetail() {
     );
   };
 
-  const getSertifikatUrl = () => {
-    return (
-      article?.sertifikat_url ||
-      article?.sertifikatUrl ||
-      article?.certificate_url ||
-      article?.certificateUrl ||
-      ""
-    );
-  };
+
 
   // Citation ni clipboard ga nusxalash
   const handleCopyCitation = () => {
@@ -444,9 +529,9 @@ function ArticleDetail() {
   const authors = getAuthors();
   const author = getAuthor();
   const journalImage = getJournalImage();
-  const sertifikatUrl = getSertifikatUrl();
+  const certificateUrls = resolveCertificateUrls(article, finalId);
 
-  const handleCertDownload = () => {
+  const handleCertDownload = async () => {
     if (certObjectUrl && certStatus === "ready") {
       const ext =
         certDownloadExt
@@ -459,8 +544,48 @@ function ArticleDetail() {
       a.remove();
       return;
     }
-    if (sertifikatUrl) {
-      window.open(resolveAbsoluteUrl(sertifikatUrl), "_blank", "noopener,noreferrer");
+    if (!certificateUrls.length) return;
+    setCertDownloading(true);
+    try {
+      let okRes = null;
+      let successUrl = "";
+      let failStatus = "?";
+
+      for (const endpoint of certificateUrls) {
+        const res = await fetchCertificateDocument(
+          endpoint,
+          getAccessToken,
+          refreshAccessToken
+        );
+        if (res.ok) {
+          okRes = res;
+          successUrl = endpoint;
+          break;
+        }
+        failStatus = String(res.status);
+      }
+
+      if (!okRes) {
+        toast.error(`Sertifikatni yuklab bo'lmadi (${failStatus}).`);
+        return;
+      }
+
+      const { outBlob, inferred } = await blobFromCertificateResponse(
+        okRes,
+        successUrl
+      );
+      const u = URL.createObjectURL(outBlob);
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = `sertifikat-${finalId || "maqola"}.${inferred.ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(u), 30_000);
+    } catch (e) {
+      toast.error(e?.message || "Sertifikatni yuklab bo'lmadi.");
+    } finally {
+      setCertDownloading(false);
     }
   };
 
@@ -469,9 +594,11 @@ function ArticleDetail() {
       setCertificateFullscreen(true);
       return;
     }
-    if (sertifikatUrl) {
-      window.open(sertifikatUrl, "_blank", "noopener,noreferrer");
+    if (certStatus === "loading") {
+      toast.info("Sertifikat yuklanmoqda...");
+      return;
     }
+    toast.warning("Sertifikat hali tayyor emas — «Qayta urinish» yoki «Yuklab olish»dan foydalaning.");
   };
 
   return (
@@ -500,7 +627,7 @@ function ArticleDetail() {
             {/* Left Side - Journal Image & Info */}
             <div className="order-2 lg:order-1">
               <div className="sticky top-24 space-y-6">
-                {sertifikatUrl ? (
+                {certificateUrls.length > 0 ? (
                   <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-4">
                     <p className="mb-3 text-center text-xs font-black uppercase tracking-wider text-emerald-700">
                       Nashr sertifikati
@@ -514,15 +641,14 @@ function ArticleDetail() {
                       )}
                       {certStatus === "error" && (
                         <div className="flex min-h-[min(52vh,520px)] flex-col items-center justify-center gap-4 p-6 text-center">
-                          <p className="max-w-xs text-sm font-semibold text-red-700">{certErrorMsg}</p>
-                          <a
-                            href={sertifikatUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:bg-emerald-700"
+                          <p className="max-w-xs text-sm font-semibold text-red-700">Sertifikatni ko'rish uchun avval ro'yxatdan o'ting.</p>
+                          <button
+                            type="button"
+                            onClick={() => setCertReloadNonce((n) => n + 1)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2.5 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-50"
                           >
-                            Yangi oynada ochish
-                          </a>
+                            Qayta urinish
+                          </button>
                         </div>
                       )}
                       {certStatus === "ready" && certObjectUrl && certKind === "image" && (
@@ -553,10 +679,11 @@ function ArticleDetail() {
                       <button
                         type="button"
                         onClick={handleCertDownload}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 px-2 py-2.5 text-sm font-bold text-white shadow-md transition hover:from-emerald-700 hover:to-teal-800"
+                        disabled={certDownloading}
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 px-2 py-2.5 text-sm font-bold text-white shadow-md transition hover:from-emerald-700 hover:to-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <FaDownload />
-                        Yuklab olish
+                        {certDownloading ? "Yuklanmoqda..." : "Yuklab olish"}
                       </button>
                     </div>
                   </div>
@@ -593,22 +720,23 @@ function ArticleDetail() {
                   >
                     <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 py-3 text-white">
                       <p className="font-bold">Nashr sertifikati</p>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={handleCertDownload}
-                          className="inline-flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold hover:bg-white/25"
+                          disabled={certDownloading}
+                          className="inline-flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <FaDownload />
-                          Yuklab olish
+                          {certDownloading ? "Yuklanmoqda..." : "Yuklab olish"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setCertificateFullscreen(false)}
-                          className="inline-flex items-center justify-center rounded-lg bg-white/10 p-2.5 hover:bg-white/20"
-                          aria-label="Yopish"
+                          className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
                         >
-                          <FaTimes className="text-xl" />
+                          <FaTimes className="text-lg" aria-hidden />
+                          Yopish
                         </button>
                       </div>
                     </div>

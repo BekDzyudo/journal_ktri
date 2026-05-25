@@ -673,7 +673,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
 
             <div>
               <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
-                Fayl (.doc / .docx)
+                Fayl (.doc / .docx / .pdf)
               </label>
               {existingFileUrl && (
                 <div className="mb-2 text-sm">
@@ -694,7 +694,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
               <input
                 key={`f-${articleId}`}
                 type="file"
-                accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                accept=".doc,.docx,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-1 file:text-xs file:font-bold file:text-emerald-700"
               />
