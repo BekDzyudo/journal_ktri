@@ -178,11 +178,11 @@ function Contact() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            name: formData.name.trim(),
+            ism: formData.name.trim(),
             email: formData.email.trim(),
             telefon: formData.phone.trim(),
-            subject: formData.subject.trim(),
-            message: formData.message.trim(),
+            mavzu: formData.subject.trim(),
+            xabar: formData.message.trim(),
           }),
         }
       );

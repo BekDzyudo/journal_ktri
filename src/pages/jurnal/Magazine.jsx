@@ -57,11 +57,13 @@ function Magazine() {
   const uniqueYears = [...new Set(magazines?.map(mag => mag.year))].sort((a, b) => b - a);
 
   // Filterlangan jurnallar
-  const filteredMagazines = magazines?.filter((magazine) => {
-    const matchesSearch = magazine.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesYear = selectedYear === "all" || magazine.year === selectedYear;
-    return matchesSearch && matchesYear;
-  });
+  const filteredMagazines = magazines
+    ?.filter((magazine) => {
+      const matchesSearch = magazine.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesYear = selectedYear === "all" || magazine.year === selectedYear;
+      return matchesSearch && matchesYear;
+    })
+    .sort((a, b) => b.id - a.id);
 
   if (loading) {
     return (

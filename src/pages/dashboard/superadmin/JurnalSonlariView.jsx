@@ -656,7 +656,7 @@ export default function JurnalSonlariView({ onAddNew }) {
         : Array.isArray(json?.results)
           ? json.results
           : [];
-      setJurnallar(list);
+      setJurnallar([...list].sort((a, b) => b.id - a.id));
     } catch (err) {
       setError(err.message || "Jurnal sonlarini yuklashda xatolik");
     } finally {

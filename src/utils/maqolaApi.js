@@ -122,6 +122,7 @@ export function mapApiStatusToArticleStatus(v) {
     review_rejected: ARTICLE_STATUS.REVIEW_REJECTED,
     qabul_qilindi: ARTICLE_STATUS.ACCEPTED,
     qabul_qilingan: ARTICLE_STATUS.ACCEPTED,
+    tolovsiz_qabul_qilingan: ARTICLE_STATUS.ACCEPTED,
     accepted: ARTICLE_STATUS.ACCEPTED,
     rad_etildi: ARTICLE_STATUS.REJECTED,
     rad_etilgan: ARTICLE_STATUS.REJECTED,

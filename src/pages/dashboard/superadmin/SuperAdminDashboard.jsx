@@ -478,6 +478,8 @@ function getTodayStr() {
   return `${y}-${m}-${day}`;
 }
 
+const ACCEPTED_ARTICLE_PRICE = 309000;
+
 function computeSuperAdminStats(submittedArticles, allUsers) {
   const authors = allUsers.filter((u) => normalizeRole(u.role) === ROLES.USER);
   const reviewers = allUsers.filter((u) => normalizeRole(u.role) === ROLES.ADMIN);
@@ -1255,6 +1257,15 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     [dateFilteredArticles, users]
   );
 
+  const revenueFromTolovlar = useMemo(() => {
+    const paidCount = dateFilteredArticles.filter(
+      (a) =>
+        a.status === ARTICLE_STATUS.ACCEPTED &&
+        a.holatKey !== "TOLOVSIZ_QABUL_QILINGAN"
+    ).length;
+    return paidCount * ACCEPTED_ARTICLE_PRICE;
+  }, [dateFilteredArticles]);
+
   const dashboardStats = useMemo(
     () => normalizeStatistikaPayload(statsData, fallbackStats),
     [statsData, fallbackStats]
@@ -1662,12 +1673,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               <StatsCard
                 icon={<FaMoneyBillWave />}
                 iconColor="text-emerald-600"
-                title={`Jami daromad (${dashboardStats.revenueCurrency})`}
-                value={formatMiqdorUZS(dashboardStats.totalRevenue)}
+                title={`Jami daromad (${fallbackStats.revenueCurrency})`}
+                value={formatMiqdorUZS(revenueFromTolovlar)}
                 badge="Statistika"
                 badgeColor="text-emerald-600"
                 barColor="bg-emerald-500"
                 progress={100}
+                valueClassName="text-[1.85rem]"
                 footer={
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
@@ -2267,7 +2279,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 icon={<FaUserCog />}
                 iconColor="text-amber-600"
                 title="Taqrizchilar"
-                value={dashboardStats.totalStaffAdmins}
+                value={dashboardStats.totalReviewers}
                 badge="Taqrizchi"
                 badgeColor="text-amber-600"
                 barColor="bg-amber-500"
@@ -2316,7 +2328,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                     {dashboardStats.totalAuthors} muallif
                   </span>
                   <span className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 ring-1 ring-purple-100">
-                    {dashboardStats.totalStaffAdmins} taqrizchi
+                    {dashboardStats.totalReviewers} taqrizchi
                   </span>
                   {/* <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-100">
                     {dashboardStats.totalStaffAdmins} admin

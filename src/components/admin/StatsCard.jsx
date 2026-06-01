@@ -12,6 +12,7 @@ function StatsCard({
   barColor = "bg-blue-500",
   progress,
   footer,
+  valueClassName,
 }) {
   const totalNum = total !== undefined && total !== null ? Number(total) : null;
   const valueNum = Number(value);
@@ -35,7 +36,7 @@ function StatsCard({
         </div>
 
         <div className="mb-1.5 flex items-baseline gap-1">
-          <span className="text-[2.6rem] font-black leading-none tracking-tight text-slate-900">
+          <span className={`${valueClassName ?? "text-[2.6rem]"} font-black leading-none tracking-tight text-slate-900`}>
             {value}
           </span>
           {totalNum !== null && (
