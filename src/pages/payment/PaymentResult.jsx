@@ -48,10 +48,17 @@ function PaymentResult() {
 
   // To'lov holatini tekshirish (maqola_id orqali)
   const verifyPayment = useCallback(async () => {
+    // CLICK to'lovni rad etgan bo'lsa, backend so'rovi yubormasdan darhol xato ko'rsatish
+    if (paymentStatus === "-1") {
+      setError("To'lov amalga oshmadi. CLICK to'lov tizimida xatolik yuz berdi.");
+      setLoading(false);
+      return;
+    }
+
     const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
     if (!base || !queryId) {
       setLoading(false);
-      
+
       // Agar maqola_id topilmasa lekin CLICK success status bo'lsa
       if (paymentStatus === "2") {
         setError("To'lov muvaffaqiyatli, lekin maqola ID topilmadi. Dashboard dan maqolangizni tekshiring.");
@@ -115,9 +122,10 @@ function PaymentResult() {
   const maqolaHolat = (paymentData?.maqola_holat || paymentData?.holat || "").toUpperCase();
 
   const isSuccess =
-    maqolaHolat === "QABUL_QILINGAN" ||
-    maqolaHolat === "NASHR_ETILGAN" ||
-    paymentData?.tolov_amalga_oshirildi === true;
+    paymentStatus !== "-1" &&
+    (maqolaHolat === "QABUL_QILINGAN" ||
+      maqolaHolat === "NASHR_ETILGAN" ||
+      paymentData?.tolov_amalga_oshirildi === true);
 
   const isPending =
     maqolaHolat === "TOLOV_KUTILMOQDA" ||
