@@ -609,6 +609,57 @@ function ArticleDetail() {
         keywords={`${keywords.join(", ")}, ${author}, ilmiy maqola`}
       />
 
+      {certificateFullscreen && certObjectUrl && certStatus === "ready" && (
+        <div
+          className="fixed inset-0 z-[300] flex flex-col backdrop-blur-sm bg-black/60"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sertifikatni to'liq ekranda ko'rish"
+          onClick={(e) => { if (e.target === e.currentTarget) setCertificateFullscreen(false); }}
+        >
+          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-black/40 px-4 py-3 text-white">
+            <p className="font-bold">Nashr sertifikati</p>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCertDownload}
+                disabled={certDownloading}
+                className="inline-flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FaDownload />
+                {certDownloading ? "Yuklanmoqda..." : "Yuklab olish"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCertificateFullscreen(false)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
+              >
+                <FaTimes className="text-lg" aria-hidden />
+                Yopish
+              </button>
+            </div>
+          </div>
+          <div
+            className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setCertificateFullscreen(false); }}
+          >
+            {certKind === "image" ? (
+              <img
+                src={certObjectUrl}
+                alt=""
+                className="max-h-full max-w-full object-contain rounded-lg shadow-2xl"
+              />
+            ) : (
+              <iframe
+                title="Nashr sertifikati — to'liq ekran"
+                src={certObjectUrl}
+                className="h-full w-full rounded-lg border-0 bg-white shadow-2xl"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       <section className="bg-gradient-to-b from-slate-50 via-white to-slate-50 relative min-h-screen w-full py-16 sm:py-24">
         <div className="px-3.5 sm:px-5 mx-auto w-full xl:w-full 2xl:w-11/12 mb-16 sm:mb-20">
           {/* Back Button */}
@@ -641,7 +692,7 @@ function ArticleDetail() {
                       )}
                       {certStatus === "error" && (
                         <div className="flex min-h-[min(52vh,520px)] flex-col items-center justify-center gap-4 p-6 text-center">
-                          <p className="max-w-xs text-sm font-semibold text-red-700">Sertifikatni ko'rish uchun avval ro'yxatdan o'ting.</p>
+                          <p className="max-w-xs text-sm font-semibold text-red-700">{certErrorMsg || "Sertifikat yuklanmadi."}</p>
                           <button
                             type="button"
                             onClick={() => setCertReloadNonce((n) => n + 1)}
@@ -707,53 +758,6 @@ function ArticleDetail() {
                         <FaFilePdf className="text-gray-400" size={24} />
                       </div>
                       <p className="text-gray-500">Sertifikat va jurnal rasmi mavjud emas</p>
-                    </div>
-                  </div>
-                )}
-
-                {certificateFullscreen && certObjectUrl && certStatus === "ready" && (
-                  <div
-                    className="fixed inset-0 z-[300] flex flex-col bg-black/95"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Sertifikatni to'liq ekranda ko'rish"
-                  >
-                    <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 py-3 text-white">
-                      <p className="font-bold">Nashr sertifikati</p>
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={handleCertDownload}
-                          disabled={certDownloading}
-                          className="inline-flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-semibold hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <FaDownload />
-                          {certDownloading ? "Yuklanmoqda..." : "Yuklab olish"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCertificateFullscreen(false)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
-                        >
-                          <FaTimes className="text-lg" aria-hidden />
-                          Yopish
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-4">
-                      {certKind === "image" ? (
-                        <img
-                          src={certObjectUrl}
-                          alt=""
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      ) : (
-                        <iframe
-                          title="Nashr sertifikati — to'liq ekran"
-                          src={certObjectUrl}
-                          className="h-full w-full rounded-lg border-0 bg-white shadow-2xl"
-                        />
-                      )}
                     </div>
                   </div>
                 )}
