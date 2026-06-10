@@ -49,8 +49,8 @@ function resolveAbsoluteUrl(possibleRelative) {
   }
 }
 
-/** Maqola obyektidan barcha mumkin bo‘lgan sertifikat URL lar */
-function resolveCertificateUrls(article, routeArticleId) {
+/** Maqola obyektidan barcha mumkin bo’lgan sertifikat URL lar */
+function resolveCertificateUrls(article, routeArticleId, authorIdx = 0) {
   const rawList = [];
   /** @param {unknown} v */
   const add = (v) => {
@@ -63,6 +63,13 @@ function resolveCertificateUrls(article, routeArticleId) {
       rawList.push(String(/** @type {{ url?: string }} */ (v).url).trim());
     }
   };
+
+  // yangi: sertifikat_urls massivi (har bir muallif uchun alohida)
+  const sertUrls = article?.sertifikat_urls;
+  if (Array.isArray(sertUrls) && sertUrls.length > 0) {
+    const idx = Math.min(authorIdx, sertUrls.length - 1);
+    add(sertUrls[idx]);
+  }
 
   add(article?.sertifikat_url);
   add(article?.sertifikatUrl);
@@ -224,7 +231,7 @@ async function fetchCertificateDocument(url, getToken, refresh) {
     refresh
   );
 }
-
+// console.log(certificateUrls)
 async function blobFromCertificateResponse(res, url) {
   const blob = await res.blob();
   const headerCt = res.headers.get("content-type") || "";
@@ -255,6 +262,7 @@ function ArticleDetail() {
   const [certErrorMsg, setCertErrorMsg] = useState("");
   const [certDownloading, setCertDownloading] = useState(false);
   const [certReloadNonce, setCertReloadNonce] = useState(0);
+  const [activeCertIdx, setActiveCertIdx] = useState(0);
   const certBlobRef = useRef(null);
 
   useEffect(() => {
@@ -296,7 +304,7 @@ function ArticleDetail() {
       return undefined;
     }
 
-    const urls = resolveCertificateUrls(article, finalId);
+    const urls = resolveCertificateUrls(article, finalId, activeCertIdx);
 
     if (!urls.length) {
       if (certBlobRef.current) {
@@ -380,7 +388,7 @@ function ArticleDetail() {
         certBlobRef.current = null;
       }
     };
-  }, [article, finalId, refreshAccessToken, certReloadNonce]);
+  }, [article, finalId, refreshAccessToken, certReloadNonce, activeCertIdx]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Sanani formatlash
@@ -529,7 +537,8 @@ function ArticleDetail() {
   const authors = getAuthors();
   const author = getAuthor();
   const journalImage = getJournalImage();
-  const certificateUrls = resolveCertificateUrls(article, finalId);
+  const certificateUrls = resolveCertificateUrls(article, finalId, activeCertIdx);
+  const perAuthorCertCount = Array.isArray(article?.sertifikat_urls) ? article.sertifikat_urls.length : 0;
 
   const handleCertDownload = async () => {
     if (certObjectUrl && certStatus === "ready") {
@@ -600,7 +609,6 @@ function ArticleDetail() {
     }
     toast.warning("Sertifikat hali tayyor emas — «Qayta urinish» yoki «Yuklab olish»dan foydalaning.");
   };
-
   return (
     <>
       <SEO
@@ -683,6 +691,24 @@ function ArticleDetail() {
                     <p className="mb-3 text-center text-xs font-black uppercase tracking-wider text-emerald-700">
                       Nashr sertifikati
                     </p>
+                    {perAuthorCertCount > 1 && (
+                      <div className="mb-3 flex flex-wrap gap-1">
+                        {Array.from({ length: perAuthorCertCount }, (_, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveCertIdx(idx)}
+                            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                              activeCertIdx === idx
+                                ? "bg-emerald-600 text-white"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            }`}
+                          >
+                            {authors[idx]?.ism_familya || `Muallif ${idx + 1}`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="relative min-h-[200px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                       {certStatus === "loading" && (
                         <div className="flex h-[min(52vh,520px)] flex-col items-center justify-center gap-3">
