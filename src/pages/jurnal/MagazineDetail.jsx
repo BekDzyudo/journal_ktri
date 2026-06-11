@@ -125,8 +125,21 @@ function MagazineDetail() {
 
       const id = a?.id ?? a?.pk ?? `${idx}`;
 
-      return { id, title, author, pdfUrl, pagesText, raw: a };
-    });
+      const parsedPagesStart = (() => {
+        const raw = a?.pages || a?.bet || a?.betlar;
+        if (!raw) return NaN;
+        const match = String(raw).match(/\d+/);
+        return match ? Number(match[0]) : NaN;
+      })();
+
+      const sortKey = Number.isFinite(Number(startPage))
+        ? Number(startPage)
+        : Number.isFinite(parsedPagesStart)
+          ? parsedPagesStart
+          : Infinity;
+
+      return { id, title, author, pdfUrl, pagesText, sortKey, raw: a };
+    }).sort((a, b) => a.sortKey - b.sortKey);
   };
 
   if (isPending) {
