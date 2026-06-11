@@ -1260,11 +1260,16 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const revenueFromTolovlar = useMemo(() => {
     const paidCount = dateFilteredArticles.filter(
       (a) =>
-        a.status === ARTICLE_STATUS.ACCEPTED &&
+        (a.status === ARTICLE_STATUS.ACCEPTED || a.status === ARTICLE_STATUS.PUBLISHED) &&
         a.holatKey !== "TOLOVSIZ_QABUL_QILINGAN"
     ).length;
     return paidCount * ACCEPTED_ARTICLE_PRICE;
   }, [dateFilteredArticles]);
+
+  const tolovsizQabulCount = useMemo(
+    () => dateFilteredArticles.filter((a) => a.holatKey === "TOLOVSIZ_QABUL_QILINGAN").length,
+    [dateFilteredArticles]
+  );
 
   const dashboardStats = useMemo(
     () => normalizeStatistikaPayload(statsData, fallbackStats),
@@ -1545,7 +1550,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
               color="bg-emerald-500"
               iconColor="text-emerald-600"
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatsCard
                 icon={<FaNewspaper />}
                 iconColor="text-emerald-500"
@@ -1591,6 +1596,23 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
                     Taqrizchida
+                  </span>
+                }
+              />
+              <StatsCard
+                icon={<FaMoneyBillWave />}
+                iconColor="text-emerald-600"
+                title={`Jami daromad (${fallbackStats.revenueCurrency})`}
+                value={formatMiqdorUZS(revenueFromTolovlar)}
+                badge="Daromad"
+                badgeColor="text-emerald-600"
+                barColor="bg-emerald-500"
+                progress={100}
+                valueClassName="text-[1.85rem]"
+                footer={
+                  <span className="flex items-center gap-1.5">
+                    <FaArrowRight className="text-[9px]" />
+                    Umumiy muvaffaqiyatli to&apos;lovlar
                   </span>
                 }
               />
@@ -1671,19 +1693,18 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 }
               />
               <StatsCard
-                icon={<FaMoneyBillWave />}
-                iconColor="text-emerald-600"
-                title={`Jami daromad (${fallbackStats.revenueCurrency})`}
-                value={formatMiqdorUZS(revenueFromTolovlar)}
-                badge="Statistika"
-                badgeColor="text-emerald-600"
-                barColor="bg-emerald-500"
-                progress={100}
-                valueClassName="text-[1.85rem]"
+                icon={<FaBan />}
+                iconColor="text-sky-500"
+                title="To'lovsiz qabul"
+                value={tolovsizQabulCount}
+                total={dashboardStats.totalArticles}
+                badge="Bepul"
+                badgeColor="text-sky-500"
+                barColor="bg-sky-400"
                 footer={
                   <span className="flex items-center gap-1.5">
                     <FaArrowRight className="text-[9px]" />
-                    Umumiy muvaffaqiyatli to&apos;lovlar
+                    To&apos;lovsiz qabul qilingan
                   </span>
                 }
               />
