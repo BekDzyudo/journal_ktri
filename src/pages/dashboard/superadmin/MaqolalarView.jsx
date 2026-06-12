@@ -166,7 +166,6 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
         }
         if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
         if (cancelled || !json) return;
-
         setSarlavha(json.sarlavha ?? json.title ?? "");
         setRuknId(json.rukn?.id != null ? String(json.rukn.id) : "");
         setKalitSozlar(
@@ -176,6 +175,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
               ? json.kalit_sozlar_list.join(", ")
               : ""
         );
+        // console.log("MaqolalarView modal json:", json);
         setAnnotatsiya(json.annotatsiya ?? "");
         setAdabiyotlar(json.adabiyotlar ?? "");
         setSahifalar(json.sahifalar != null ? String(json.sahifalar) : "");
