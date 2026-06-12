@@ -1261,13 +1261,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     const paidCount = dateFilteredArticles.filter(
       (a) =>
         (a.status === ARTICLE_STATUS.ACCEPTED || a.status === ARTICLE_STATUS.PUBLISHED) &&
-        a.holatKey !== "TOLOVSIZ_QABUL_QILINGAN"
+        !a.tolovsizQabul
     ).length;
     return paidCount * ACCEPTED_ARTICLE_PRICE;
   }, [dateFilteredArticles]);
 
   const tolovsizQabulCount = useMemo(
-    () => dateFilteredArticles.filter((a) => a.holatKey === "TOLOVSIZ_QABUL_QILINGAN").length,
+    () => dateFilteredArticles.filter((a) => a.tolovsizQabul).length,
     [dateFilteredArticles]
   );
 

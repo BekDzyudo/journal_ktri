@@ -216,6 +216,14 @@ export function normalizeMaqolaForDashboard(m) {
   const taqrizHolati = taqrizHolatiRaw || "KUTILMOQDA";
   const taqrizIzohi = String(m?.taqriz_izohi ?? m?.taqriz_izoh ?? "").trim();
   const holatKey = normalizeApiHolatKey(m?.holat);
+  // to'lovsiz qabul belgisi: holat o'zgargandan keyin ham (nashr etilganda) saqlanishi uchun
+  const tolovsizQabul =
+    holatKey === "TOLOVSIZ_QABUL_QILINGAN" ||
+    m?.tolovsiz_qabul === true ||
+    m?.tolovsiz === true ||
+    m?.is_free === true ||
+    m?.tolov_talab_qilinmaydi === true ||
+    m?.tolov_amalga_oshirildi === false;
   const dateRaw =
     m?.yuborilgan_vaqt ||
     m?.yuborilgan_sana ||
@@ -230,6 +238,7 @@ export function normalizeMaqolaForDashboard(m) {
     id,
     pk: id,
     holatKey: holatKey || null,
+    tolovsizQabul,
     holatNomi: m?.holat_nomi ?? null,
     yuborilganVaqt: m?.yuborilgan_vaqt ?? null,
     articleTitle: m?.sarlavha ?? m?.articleTitle ?? m?.title ?? "",
