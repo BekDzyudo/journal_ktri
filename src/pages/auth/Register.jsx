@@ -158,12 +158,12 @@ function Register() {
         description="Kasbiy ta'limni rivojlantirish instituti jurnali - ro'yxatdan o'tish"
         keywords="ro'yxatdan o'tish, register, KTRI, jurnal"
       />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="text-center mb-4">
             <Link to="/">
               <img
-                src="/new_logo_white.png"
+                src="/new_logo_blue_2026.png"
                 alt="KTRI Logo"
                 className="mx-auto h-16 w-auto mb-3"
               />

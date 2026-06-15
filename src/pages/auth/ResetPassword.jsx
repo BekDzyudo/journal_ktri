@@ -122,7 +122,7 @@ function ResetPassword() {
           <div className="text-center mb-8">
             <Link to="/">
               <img
-                src="/new_logo_white.png"
+                src="/new_logo_blue_2026.png"
                 alt="KTRI Logo"
                 className="mx-auto h-20 w-auto mb-4"
               />

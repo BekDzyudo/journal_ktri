@@ -47,7 +47,7 @@ function Header() {
   const useHeroStyle = theme === "night" || (theme === "light" && onHero);
   
   // Barcha komponentlar uchun yagona stil o'zgaruvchilari
-  const logoSrc = "/new_logo_white.png"; // Doim oq logo
+  const logoSrc = "/new_logo_white_2026.png"; // Doim oq logo
   const textColor = "text-white"; // Doim oq matn
   const borderColor = useHeroStyle ? "border-white/30" : "border-white/20";
   

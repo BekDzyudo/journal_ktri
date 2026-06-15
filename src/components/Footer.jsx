@@ -92,7 +92,7 @@ function Footer() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3 mb-2">
             <img
-              src="/new_logo_white.png"
+              src="/new_logo_white_2026.png"
               alt="logo"
               className="w-16 sm:w-20"
             />
