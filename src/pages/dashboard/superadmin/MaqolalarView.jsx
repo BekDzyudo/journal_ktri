@@ -766,6 +766,7 @@ export default function MaqolalarView({ onAddNew }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 15;
 
@@ -805,8 +806,23 @@ export default function MaqolalarView({ onAddNew }) {
     load();
   }, [load]);
 
+  const uniqueStatuses = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    for (const a of articles) {
+      const holatKey = inferMuallifHolatKeyForPanel({ holat: a.holat ?? "" });
+      if (!seen.has(holatKey)) {
+        seen.add(holatKey);
+        result.push({ key: holatKey, label: MUALLIF_API_HOLAT_LABELS[holatKey] || a.holat || holatKey });
+      }
+    }
+    return result;
+  }, [articles]);
+
   const filtered = articles.filter((a) => {
     const q = search.trim().toLowerCase();
+    const holatKey = inferMuallifHolatKeyForPanel({ holat: a.holat ?? "" });
+    if (statusFilter && holatKey !== statusFilter) return false;
     if (!q) return true;
     const sarlavha = (a.sarlavha || "").toLowerCase();
     const mualliflar = Array.isArray(a.mualliflar)
@@ -832,6 +848,11 @@ export default function MaqolalarView({ onAddNew }) {
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
+    setPage(1);
+  };
+
+  const handleStatusFilter = (key) => {
+    setStatusFilter(key);
     setPage(1);
   };
 
@@ -908,14 +929,43 @@ export default function MaqolalarView({ onAddNew }) {
       {!loading && !error && (
         <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
           <div className="border-b border-slate-100 p-5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <FaNewspaper className="text-emerald-500" />
                 <h3 className="text-base font-black text-slate-900">Barcha maqolalar</h3>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">
+                  {filtered.length} ta
+                </span>
               </div>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">
-                {filtered.length} ta
-              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => handleStatusFilter("")}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    statusFilter === ""
+                      ? "bg-slate-800 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Barchasi
+                </button>
+                {uniqueStatuses.map(({ key, label }) => {
+                  const colorClass = MUALLIF_API_HOLAT_COLORS[key] || "bg-gray-100 text-gray-700 border-gray-200";
+                  const isActive = statusFilter === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleStatusFilter(key)}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                        isActive
+                          ? colorClass + " ring-2 ring-offset-1 ring-current"
+                          : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

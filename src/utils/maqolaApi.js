@@ -123,6 +123,7 @@ export function mapApiStatusToArticleStatus(v) {
     qabul_qilindi: ARTICLE_STATUS.ACCEPTED,
     qabul_qilingan: ARTICLE_STATUS.ACCEPTED,
     tolovsiz_qabul_qilingan: ARTICLE_STATUS.ACCEPTED,
+    tolovsiz_nashr_etilgan: ARTICLE_STATUS.PUBLISHED,
     accepted: ARTICLE_STATUS.ACCEPTED,
     rad_etildi: ARTICLE_STATUS.REJECTED,
     rad_etilgan: ARTICLE_STATUS.REJECTED,
@@ -216,9 +217,10 @@ export function normalizeMaqolaForDashboard(m) {
   const taqrizHolati = taqrizHolatiRaw || "KUTILMOQDA";
   const taqrizIzohi = String(m?.taqriz_izohi ?? m?.taqriz_izoh ?? "").trim();
   const holatKey = normalizeApiHolatKey(m?.holat);
-  // to'lovsiz qabul belgisi: holat o'zgargandan keyin ham (nashr etilganda) saqlanishi uchun
+  const rawHolat = String(m?.holat ?? "").toLowerCase();
+  // to'lovsiz belgisi: nashr etilgandan keyin ham saqlanishi kerak
   const tolovsizQabul =
-    holatKey === "TOLOVSIZ_QABUL_QILINGAN" ||
+    rawHolat.includes("tolovsiz") ||
     m?.tolovsiz_qabul === true ||
     m?.tolovsiz === true ||
     m?.is_free === true ||
