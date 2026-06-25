@@ -26,7 +26,7 @@ function HomeJurnalHero() {
   // API dan muhim sanalar
   const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
   const { data: sanalarData } = useGetFetch(base ? `${base}/muhim-sanalar/` : null);
-  const mainEntry = Array.isArray(sanalarData) && sanalarData.length > 0 ? sanalarData[0] : null;
+  const mainEntry = Array.isArray(sanalarData) && sanalarData.length > 0 ? sanalarData[sanalarData.length - 1] : null;
 
   const journalIssue = mainEntry?.tavsif || "—";
   const deadlineStr = mainEntry?.sana || null;

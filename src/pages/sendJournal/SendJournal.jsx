@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaPaperPlane, FaUser, FaFileUpload, FaCheckCircle, FaBook, FaTimes, FaFilePdf, FaGraduationCap, FaLightbulb, FaFileAlt } from 'react-icons/fa'
+import { FaPaperPlane, FaUser, FaFileUpload, FaCheckCircle, FaBook, FaTimes, FaFilePdf, FaGraduationCap, FaLightbulb, FaFileAlt, FaBell } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import SEO from '../../components/SEO'
 import { getAccessToken, getUserData } from '../../utils/authStorage'
 import { parseApiError } from '../../utils/apiError'
 import useRuknlar from '../../hooks/useRuknlar'
+import useGetFetch from '../../hooks/useGetFetch'
 
 const INITIAL_FORM_DATA = {
   category: '',
@@ -53,6 +54,12 @@ function SendJournal() {
   const navigate = useNavigate()
   const { ruknlar, isPending: ruknlarLoading, error: ruknlarError } = useRuknlar()
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
+
+  const base = (import.meta.env.VITE_BASE_URL || '').replace(/\/$/, '')
+  const { data: sanalarData } = useGetFetch(base ? `${base}/muhim-sanalar/` : null)
+  const currentSon = Array.isArray(sanalarData) && sanalarData.length > 0
+    ? sanalarData[sanalarData.length - 1]
+    : null
 
   const currentUser = getUserData()
   const currentUserEmail = currentUser?.email || ''
@@ -305,9 +312,32 @@ function SendJournal() {
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-slate-700 shadow-md backdrop-blur-md">
                 <FaCheckCircle className="text-emerald-600" />
-                Tez tasdiqlash uchun to‘liq forma
+                Tez tasdiqlash uchun to’liq forma
               </span>
             </div>
+
+            {currentSon && (
+              <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-[#0d4ea3]/25 bg-gradient-to-r from-[#0d4ea3]/8 to-blue-50/80 px-5 py-4 shadow-md ring-1 ring-[#0d4ea3]/10 backdrop-blur-sm">
+                <div className="flex items-start gap-3 text-left">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0d4ea3] shadow-md mt-0.5">
+                    <FaBell className="text-sm text-white" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-[#0d4ea3]">
+                      Sizning maqolangiz quyidagi songa yuboriladi
+                    </p>
+                    <p className="text-sm font-semibold leading-snug text-slate-800">
+                      {currentSon.tavsif}
+                    </p>
+                    {currentSon.sana && (
+                      <p className="mt-1.5 text-xs text-slate-500">
+                        Qabul muddati: <strong className="font-semibold text-slate-700">{currentSon.sana}</strong>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_20rem]">
