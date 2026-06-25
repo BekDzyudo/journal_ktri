@@ -786,7 +786,7 @@ function HomeJurnal() {
             </div>
 
             {/* Namunaviy shakl */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-red-100 hover:border-red-300 transition-all duration-300 group">
+            <a href="/maqola_talablari.pdf" target="_blank" rel="noopener noreferrer" download className="block bg-white rounded-2xl shadow-lg p-6 border-2 border-red-100 hover:border-red-300 transition-all duration-300 group">
               <div className="flex items-start gap-4">
                 <div className="w-14 h-14 bg-red-50 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-red-100 transition-colors">
                   <FaFileContract className="text-red-500 text-2xl" />
@@ -798,10 +798,7 @@ function HomeJurnal() {
                   <p className="text-sm text-gray-600 mb-4 leading-relaxed">
                     Maqola rasmiylashtirish uchun tayyorlangan shablon
                   </p>
-                  <a
-                    href="#"
-                    className="inline-flex items-center gap-2 text-red-500 hover:text-red-600 font-bold text-sm transition-colors group"
-                  >
+                  <div className="inline-flex items-center gap-2 text-red-500 group-hover:text-red-600 font-bold text-sm transition-colors">
                     <svg
                       className="w-5 h-5 group-hover:animate-bounce"
                       fill="none"
@@ -816,10 +813,10 @@ function HomeJurnal() {
                       />
                     </svg>
                     Yuklab olish
-                  </a>
+                  </div>
                 </div>
               </div>
-            </div>
+            </a>
 
             {/* Xalqaro bazalarda indekslanishi */}
             <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-indigo-200">
