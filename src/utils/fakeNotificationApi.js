@@ -1,10 +1,11 @@
 /**
- * Fake Notification API — localStorage orqali xabarlar.
+ * Fake Notification API — Zustand in-memory store orqali xabarlar.
+ * (Avval localStorage ishlatilgan — XSS xavfi sababli Zustand ga ko'chirildi)
  * targetRole: 'user' | 'admin' | 'superadmin'
  * targetEmail: aniq foydalanuvchi email (null = o'sha rolning barchasi)
  */
+import useNotificationStore from '../store/notificationStore.js'
 
-const NOTIFICATIONS_KEY = "ktri_notifications_v1";
 export const NOTIFICATION_CHANGED_EVENT = "ktri:notifications-changed";
 
 export const NOTIFICATION_TYPES = {
@@ -31,15 +32,6 @@ export const NOTIFICATION_ICONS = {
   [NOTIFICATION_TYPES.ROLE_CHANGED]:       "🔑",
 };
 
-function readAll() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || "[]");
-    return Array.isArray(raw) ? raw : [];
-  } catch {
-    return [];
-  }
-}
-
 function normalizeTargetRole(role) {
   if (!role) return "";
   const value = String(role).toLowerCase();
@@ -53,19 +45,11 @@ function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
-function saveAll(list) {
-  try {
-    const arr = Array.isArray(list) ? list : [];
-    const trimmed = arr.slice(0, 500);
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(trimmed));
-    window.dispatchEvent(new CustomEvent(NOTIFICATION_CHANGED_EVENT));
-  } catch {}
+function dispatch() {
+  window.dispatchEvent(new CustomEvent(NOTIFICATION_CHANGED_EVENT));
 }
 
 export const fakeNotificationApi = {
-  /**
-   * Yangi xabar qo'shish.
-   */
   push({ type, title, message, targetRole, targetEmail = null, articleId = null, articleTitle = null }) {
     const rnd = Math.random().toString(36);
     const shortId = rnd.length > 6 ? rnd.substring(2, 6) : rnd.substring(2);
@@ -82,45 +66,42 @@ export const fakeNotificationApi = {
       read: false,
       createdAt: new Date().toISOString(),
     };
-    const all = readAll();
-    all.unshift(notification);
-    saveAll(all);
+    useNotificationStore.getState().addOne(notification);
+    dispatch();
     return notification;
   },
 
-  /**
-   * Berilgan foydalanuvchi uchun xabarlarni olish.
-   */
   getForUser({ email, role }) {
     const currentEmail = normalizeEmail(email);
     const currentRole = normalizeTargetRole(role);
-    return readAll().filter((n) => {
+    return useNotificationStore.getState().getAll().filter((n) => {
       if (n.targetEmail) return normalizeEmail(n.targetEmail) === currentEmail;
       return normalizeTargetRole(n.targetRole) === currentRole;
     });
   },
 
   markRead(id) {
-    const all = readAll().map((n) => (n.id === id ? { ...n, read: true } : n));
-    saveAll(all);
+    useNotificationStore.getState().update((n) => (n.id === id ? { ...n, read: true } : n));
+    dispatch();
   },
 
   markAllRead({ email, role }) {
-    const all = readAll().map((n) => {
+    useNotificationStore.getState().update((n) => {
       const mine = n.targetEmail
         ? normalizeEmail(n.targetEmail) === normalizeEmail(email)
         : normalizeTargetRole(n.targetRole) === normalizeTargetRole(role);
       return mine ? { ...n, read: true } : n;
     });
-    saveAll(all);
+    dispatch();
   },
 
   deleteNotification(id) {
-    saveAll(readAll().filter((n) => n.id !== id));
+    useNotificationStore.getState().remove(id);
+    dispatch();
   },
 
   clearAll() {
-    localStorage.removeItem(NOTIFICATIONS_KEY);
-    window.dispatchEvent(new CustomEvent(NOTIFICATION_CHANGED_EVENT));
+    useNotificationStore.getState().clear();
+    dispatch();
   },
 };

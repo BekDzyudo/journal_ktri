@@ -1,89 +1,74 @@
-const ACCESS_TOKEN_KEY = "accessToken";
-const REFRESH_TOKEN_KEY = "refreshToken";
-const USER_DATA_KEY = "userData";
-const USER_ROLE_KEY = "userRole";
+import useAuthStore from '../store/authStore'
+import { clearLegacyStorage } from './clearLegacyStorage'
 
-const AUTH_KEYS = [
-  ACCESS_TOKEN_KEY,
-  REFRESH_TOKEN_KEY,
-  USER_DATA_KEY,
-  USER_ROLE_KEY,
-];
-
-const LEGACY_LOCAL_KEYS = [
-  ACCESS_TOKEN_KEY,
-  USER_DATA_KEY,
-  USER_ROLE_KEY,
-];
-
-// Eski localStorage sessiyalaridan access/user ma'lumotlarini qoldirmaymiz.
-// Refresh token persistent qoladi, shunda browser qayta ochilganda access yangilanadi.
-export function clearLegacyAuthStorage() {
-  LEGACY_LOCAL_KEYS.forEach((key) => localStorage.removeItem(key));
-}
+// ── Getters ─────────────────────────────────────────────────────────────────
 
 export function getAccessToken() {
-  return sessionStorage.getItem(ACCESS_TOKEN_KEY);
+  return useAuthStore.getState().accessToken
 }
 
+// TODO: Backend HttpOnly cookie qo'llab-quvvatlagandan keyin bu qatorni o'chir.
+// Vaqtinchalik: sessionStorage ishlatiladi (localStorage dan xavfsizroq —
+// brauzer yopilganda avtomatik o'chadi, tab izolyatsiyalangan).
 export function getRefreshToken() {
-  return (
-    sessionStorage.getItem(REFRESH_TOKEN_KEY) ||
-    localStorage.getItem(REFRESH_TOKEN_KEY)
-  );
+  return sessionStorage.getItem('refreshToken')
 }
 
 export function getUserRole() {
-  return sessionStorage.getItem(USER_ROLE_KEY);
-}
-
-export function setAuthTokens({ access, refresh }) {
-  if (access) sessionStorage.setItem(ACCESS_TOKEN_KEY, access);
-  if (refresh) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
-    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-  }
-  clearLegacyAuthStorage();
-}
-
-export function setAccessToken(access) {
-  if (access) sessionStorage.setItem(ACCESS_TOKEN_KEY, access);
-  clearLegacyAuthStorage();
-}
-
-export function setRefreshToken(refresh) {
-  if (refresh) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
-    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-  }
-  clearLegacyAuthStorage();
-}
-
-export function setUserRole(role) {
-  if (role) sessionStorage.setItem(USER_ROLE_KEY, role);
-  clearLegacyAuthStorage();
+  return useAuthStore.getState().role
 }
 
 export function getUserData() {
-  try {
-    const value = sessionStorage.getItem(USER_DATA_KEY);
-    return value ? JSON.parse(value) : null;
-  } catch {
-    sessionStorage.removeItem(USER_DATA_KEY);
-    return null;
-  }
+  return useAuthStore.getState().user
+}
+
+// ── Setters ─────────────────────────────────────────────────────────────────
+
+export function setAuthTokens({ access, refresh }) {
+  if (access) useAuthStore.getState().setAccessToken(access)
+  if (refresh) sessionStorage.setItem('refreshToken', refresh)
+  clearLegacyStorage()
+}
+
+export function setAccessToken(access) {
+  if (access) useAuthStore.getState().setAccessToken(access)
+  clearLegacyStorage()
+}
+
+// TODO: Backend HttpOnly cookie tayyor bo'lganda bu funksiyani o'chir.
+export function setRefreshToken(refresh) {
+  if (refresh) sessionStorage.setItem('refreshToken', refresh)
+  clearLegacyStorage()
+}
+
+export function setUserRole(role) {
+  if (role) useAuthStore.getState().setRole(role)
+  clearLegacyStorage()
 }
 
 export function setUserData(userData) {
   if (userData) {
-    sessionStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+    useAuthStore.getState().setUser({
+      id: userData.id,
+      ism: userData.ism,
+      familiya: userData.familiya,
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      rol: userData.rol || userData.role,
+      role: userData.role || userData.rol,
+    })
   }
-  clearLegacyAuthStorage();
+  clearLegacyStorage()
 }
 
+// ── Clear ────────────────────────────────────────────────────────────────────
+
 export function clearAuthStorage() {
-  AUTH_KEYS.forEach((key) => {
-    sessionStorage.removeItem(key);
-    localStorage.removeItem(key);
-  });
+  useAuthStore.getState().clearAuth()
+  sessionStorage.removeItem('refreshToken')
+  clearLegacyStorage()
+}
+
+export function clearLegacyAuthStorage() {
+  clearLegacyStorage()
 }

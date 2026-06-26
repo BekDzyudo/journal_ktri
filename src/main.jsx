@@ -6,6 +6,9 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { HelmetProvider } from "react-helmet-async";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { getGoogleClientId } from "./utils/googleAuthApi.js";
+import { clearLegacyStorage } from "./utils/clearLegacyStorage.js";
+
+clearLegacyStorage();
 
 const googleClientId = getGoogleClientId();
 

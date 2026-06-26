@@ -12,23 +12,15 @@ import {
   normalizeApiHolatKey,
 } from "./maqolaApi.js";
 import { fakeNotificationApi, NOTIFICATION_TYPES } from "./fakeNotificationApi.js";
-
-const STATUS_SNAPSHOT_KEY = "ktri_article_status_snapshot_v1";
+import useArticleStatusStore from "../store/articleStatusStore.js";
 
 function readSnapshotStore() {
-  try {
-    return JSON.parse(localStorage.getItem(STATUS_SNAPSHOT_KEY) || "{}");
-  } catch {
-    return {};
-  }
+  // Ko'chirma qaytaramiz — to'g'ridan-to'g'ri mutatsiyadan himoya
+  return { ...useArticleStatusStore.getState().snapshots };
 }
 
 function writeSnapshotStore(store) {
-  try {
-    localStorage.setItem(STATUS_SNAPSHOT_KEY, JSON.stringify(store));
-  } catch {
-    // Notification sync is best-effort; UI should not fail if storage is blocked.
-  }
+  useArticleStatusStore.setState({ snapshots: store });
 }
 
 function targetRoleFromUserRole(role) {
@@ -144,7 +136,9 @@ export function syncArticleStatusNotifications({ articles, userData, userRole, s
 
   const targetEmail = normalizeEmail(userData.email);
   const targetRole = targetRoleFromUserRole(userRole);
-  const snapshotKey = `${scope}:${targetRole}:${targetEmail}`;
+  // email o'rniga user ID ishlatamiz — brauzer storage da email ko'rinmaydi
+  const userKey = userData.id ? String(userData.id) : targetEmail;
+  const snapshotKey = `${scope}:${targetRole}:${userKey}`;
   const store = readSnapshotStore();
   const previous = store[snapshotKey] || {};
   const hasPreviousSnapshot = Object.keys(previous).length > 0;
