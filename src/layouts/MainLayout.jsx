@@ -3,7 +3,6 @@ import { Outlet, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import { HeroContext } from "../context/HeroContext";
 import Footer from "../components/Footer";
-import TestModeBanner from "../components/TestModeBanner";
 import { CalendarProvider } from "../context/CalendarContext";
 import FloatingActionButton from "../components/FloatingActionButton";
 import CalendarModal from "../components/CalendarModal";
@@ -65,8 +64,6 @@ function MainLayout() {
               <Footer/>
             </footer>
           )}
-          <TestModeBanner />
-          
           {/* Floating Action Button */}
           {/* <FloatingActionButton /> */}
           

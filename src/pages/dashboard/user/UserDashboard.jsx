@@ -8,9 +8,9 @@ import {
   FaJournalWhills, FaHashtag, FaBook,
   FaMoneyBillWave, FaChevronLeft, FaChevronRight,
 } from "react-icons/fa";
-import { useNotifications } from "../../../context/NotificationContext.jsx";
 import { toast } from "react-toastify";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
+import PaymentRequisitesModal from "../../../components/PaymentRequisitesModal.jsx";
 import {
   ARTICLE_STATUS,
   MUALLIF_API_HOLAT_LABELS,
@@ -124,14 +124,6 @@ function prettySnakeLabel(s) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** To'lov uchun id resolver - maqola obyektidan ID ni chiqarib olish */
-function resolveArticleIdForPayment(input) {
-  if (input == null) return null;
-  if (typeof input !== "object" || Array.isArray(input)) return input;
-  const id = input.id ?? input.pk ?? input.uuid;
-  return id != null && id !== "" ? id : null;
-}
-
 function SectionHeader({ icon, title, color = "bg-blue-500", iconColor = "text-blue-600" }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
@@ -154,11 +146,12 @@ function InfoBlock({ label, value, className = "" }) {
   );
 }
 
-function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTestClickPay = false }) {
+function ArticleDetailPanel({ articleId, profilePayload, onBack }) {
   const { refresh: refreshAccessToken } = useContext(AuthContext);
   const [data, setData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
   const [detailError, setDetailError] = useState("");
+  const [showRequisites, setShowRequisites] = useState(false);
 
 
   
@@ -390,13 +383,13 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <SectionHeader icon={<FaFileAlt />} title="Fayl va amallar" color="bg-sky-500" iconColor="text-sky-600" />
             <div className="flex flex-wrap gap-3">
-              {enableTestClickPay && data.holat === "TOLOV_KUTILMOQDA" && (
+              {data.holat === "TOLOV_KUTILMOQDA" && (
                 <button
-                  onClick={() => onPay({ id: data.id, articleTitle: data.sarlavha })}
+                  onClick={() => setShowRequisites(true)}
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
                 >
                   <FaCreditCard />
-                  CLICK orqali to'lash
+                  To'lov rekvizitlari
                 </button>
               )}
               {pdfUrl && (
@@ -416,6 +409,12 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
           </div>
         </>
       )}
+
+      <PaymentRequisitesModal
+        isOpen={showRequisites}
+        onClose={() => setShowRequisites(false)}
+        articleTitle={data?.sarlavha}
+      />
     </div>
   );
 }
@@ -423,7 +422,6 @@ function ArticleDetailPanel({ articleId, profilePayload, onBack, onPay, enableTe
 function UserDashboard({ userData, profilePayload: initialProfilePayload = null, view = "dashboard" }) {
   const navigate = useNavigate();
   const { refresh: refreshAccessToken } = useContext(AuthContext);
-  const { refresh: refreshNotifications } = useNotifications();
   const [articles, setArticles] = useState([]);
   
   const [profilePayload, setProfilePayload] = useState(null);
@@ -434,6 +432,7 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null,
   const [dateTo, setDateTo] = useState("");
   const [stats, setStats] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [requisitesArticle, setRequisitesArticle] = useState(null);
 
   const [profilTolovlar, setProfilTolovlar] = useState([]);
   const [profilTolovSummary, setProfilTolovSummary] = useState(null);
@@ -669,65 +668,12 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null,
     [dateFilteredArticles, searchQuery, filterStatus]
   );
 
-  const viteBase = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
-
   const muallifHolatBadgeClass = (article) =>
     MUALLIF_API_HOLAT_COLORS[inferMuallifHolatKeyForPanel(article)] || "bg-gray-100 text-gray-800 border-gray-200";
 
   const muallifHolatLabel = (article) => {
     const holatKey = inferMuallifHolatKeyForPanel(article);
     return MUALLIF_API_HOLAT_LABELS[holatKey] || article?.holat || article?.status || "—";
-  };
-
-  const handlePay = async (article) => {
-    const payId = resolveArticleIdForPayment(article);
-    if (payId == null || payId === "") {
-      toast.error("Maqola ID topilmadi — ro'yxat yoki ma'lumotlarni yangilang.");
-      return;
-    }
-
-    if (!viteBase || !getAccessToken()) {
-      toast.error("Backend konfiguratsiyasi yoki token mavjud emas.");
-      return;
-    }
-
-    try {
-      // Real CLICK to'lov API ga so'rov yuborish (GET metodi)
-      const res = await fetchWithAuth(
-        `${viteBase}/v1/tolov/boshlash/${payId}/`,
-        { method: "GET" },
-        getAccessToken,
-        refreshAccessToken
-      );
-      const text = await res.text();
-      let json = null;
-      try { json = text ? JSON.parse(text) : null; } catch { json = null; }
-      
-      if (!res.ok) {
-        throw new Error(parseApiError(json, "To'lovni boshlashda xatolik"));
-      }
-      
-      // Backend dan CLICK URL qaytishi kerak
-      if (json?.click_url) {
-        // CLICK ga borishdan oldin maqola ID ni saqlash (return_url da kerak bo'ladi)
-        sessionStorage.setItem('pending_payment_article_id', payId);
-        // CLICK to'lov sahifasiga yo'naltirish
-        window.location.href = json.click_url;
-      } else if (json?.payment_url) {
-        sessionStorage.setItem('pending_payment_article_id', payId);
-        window.location.href = json.payment_url;
-      } else {
-        toast.success("To'lov so'rovi yuborildi. Iltimos, kuting...");
-        // To'lov holati tekshirish
-        setTimeout(() => {
-          refreshNotifications();
-          fetchArticles();
-          setSelectedArticle(null);
-        }, 2000);
-      }
-    } catch (e) {
-      toast.error(e?.message || "To'lovni boshlashda xatolik");
-    }
   };
 
   const handleSelectArticle = (article) => {
@@ -741,8 +687,6 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null,
         articleId={selectedArticle}
         profilePayload={profilePayload}
         onBack={() => setSelectedArticle(null)}
-        onPay={handlePay}
-        enableTestClickPay={true}
       />
     );
   }
@@ -1180,11 +1124,11 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null,
                       <div className="flex items-center justify-center gap-1.5">
                         {article.status === ARTICLE_STATUS.PAYMENT_PENDING && (
                           <button
-                            onClick={() => handlePay(article)}
+                            onClick={() => setRequisitesArticle(article)}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
                           >
                             <FaCreditCard className="text-[10px]" />
-                            CLICK
+                            Rekvizitlar
                           </button>
                         )}
                         <button
@@ -1203,6 +1147,12 @@ function UserDashboard({ userData, profilePayload: initialProfilePayload = null,
           </table>
         </div>
       </div>
+
+      <PaymentRequisitesModal
+        isOpen={!!requisitesArticle}
+        onClose={() => setRequisitesArticle(null)}
+        articleTitle={requisitesArticle?.articleTitle}
+      />
     </div>
   );
 }

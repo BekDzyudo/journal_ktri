@@ -142,8 +142,8 @@ function Footer() {
               <FaPhone className="text-cyan-400 text-lg mt-1 shrink-0" />
               <div>
                 <p className="text-xs text-white/60">Telefon</p>
-                <a href="tel:+998712469037" className="text-sm text-white hover:text-cyan-300 transition-colors">
-                  +998 90 091 30 99
+                <a href="tel:+998938549909" className="text-sm text-white hover:text-cyan-300 transition-colors">
+                  +998 93 854 99 09
                 </a>
               </div>
             </div>

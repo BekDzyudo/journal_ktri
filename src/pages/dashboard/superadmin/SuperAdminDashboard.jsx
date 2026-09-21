@@ -12,6 +12,7 @@ import {
 import { toast } from "react-toastify";
 import Modal from "../../../components/Modal.jsx";
 import ArticleDetailModal from "../../../components/ArticleDetailModal.jsx";
+import PaymentRequisitesModal from "../../../components/PaymentRequisitesModal.jsx";
 import StatsCard from "../../../components/admin/StatsCard.jsx";
 import { fakeArticleApi } from "../../../utils/fakeArticleApi.js";
 import { fetchWithAuth } from "../../../utils/authenticatedFetch.js";
@@ -69,6 +70,7 @@ function resolveAdminMediaUrl(raw) {
   if (raw == null || raw === "") return null;
   const s = String(raw).trim();
   if (!s) return null;
+  if (/^blob:/i.test(s)) return s;
   if (/^https?:\/\//i.test(s)) return forceHttps(s);
   const base = (import.meta.env.VITE_BASE_URL || "").replace(/\/$/, "");
   const resolved = s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
@@ -972,6 +974,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
   const [dateTo, setDateTo] = useState("");
   const [tolovlar, setTolovlar] = useState([]);
   const [tolovlarError, setTolovlarError] = useState("");
+  const [requisitesArticle, setRequisitesArticle] = useState(null);
   const [paymentSearchQuery, setPaymentSearchQuery] = useState("");
   const [paymentSort, setPaymentSort] = useState({
     field: "yaratilgan",
@@ -1863,6 +1866,16 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                             >
                               <FaClipboardList className="text-sm" />
                             </button>
+                            {article.status === ARTICLE_STATUS.PAYMENT_PENDING && (
+                              <button
+                                type="button"
+                                onClick={() => setRequisitesArticle(article)}
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100"
+                                title="To'lov rekvizitlari"
+                              >
+                                <FaCreditCard className="text-sm" />
+                              </button>
+                            )}
                             {article.articleFileUrl && (
                               <a
                                 href={forceHttps(article.articleFileUrl)}
@@ -2204,7 +2217,15 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                           </span>
                         </td>
                         <td className="tabular-nums text-xs text-slate-700">
-                          {p.click_trans_id != null ? p.click_trans_id : "—"}
+                          {p.manual ? (
+                            <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                              Qo&apos;lda kiritilgan
+                            </span>
+                          ) : p.click_trans_id != null ? (
+                            p.click_trans_id
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="text-center align-middle">
                           {chekHref ? (
@@ -2669,6 +2690,12 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
         onClose={() => setDetailArticle(null)}
         article={detailArticle}
         role="superadmin"
+      />
+
+      <PaymentRequisitesModal
+        isOpen={!!requisitesArticle}
+        onClose={() => setRequisitesArticle(null)}
+        articleTitle={requisitesArticle?.articleTitle}
       />
     </div>
   );

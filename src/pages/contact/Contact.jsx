@@ -279,16 +279,10 @@ function Contact() {
                         Telefon
                       </h3>
                       <a
-                        href="tel:+998712024515"
-                        className="text-gray-600 hover:text-green-700 transition-colors block mb-1"
-                      >
-                        +998 (71) 246-90-37
-                      </a>
-                      <a
-                        href="tel:+998712024516"
+                        href="tel:+998938549909"
                         className="text-gray-600 hover:text-green-700 transition-colors block"
                       >
-                        +998 (90) 091 30 99
+                        +998 (93) 854 99 09
                       </a>
                     </div>
                   </div>

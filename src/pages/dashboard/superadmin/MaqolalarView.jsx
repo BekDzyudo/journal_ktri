@@ -125,6 +125,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
   const [existingFileUrl, setExistingFileUrl] = useState(null);
   const [sertifikatUrl, setSertifikatUrl] = useState(null);
   const [sertifikatLoading, setSertifikatLoading] = useState(false);
+  const [chekFile, setChekFile] = useState(null);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -187,6 +188,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
         setSertifikatUrl(json.sertifikat_url || null);
         setAuthors(mualliflarToAuthors(json.mualliflar));
         setFile(null);
+        setChekFile(null);
 
         const rawFayl = json.fayl;
         const urlStr =
@@ -289,6 +291,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
       fd.append("jurnal_soni", jurnalSoniId || "");
       fd.append("mualliflar", JSON.stringify(mualliflarData));
       if (file) fd.append("fayl", file, file.name);
+      if (chekFile) fd.append("chek", chekFile, chekFile.name);
 
       const res = await fetchWithAuth(
         url,
@@ -307,6 +310,7 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
       if (!res.ok) throw new Error(parseApiError(json, `${res.status}`));
 
       setSertifikatUrl(json?.sertifikat_url || null);
+      setChekFile(null);
       toast.success("Saqlandi!");
       onDone();
     } catch (err) {
@@ -458,6 +462,27 @@ function MaqolaEditPanel({ articleId, onBack, onDone, refreshAccessToken }) {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-500">
+                  To'lov cheki (ixtiyoriy)
+                </label>
+                <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 transition hover:bg-slate-100">
+                  <FaFileAlt className="shrink-0 text-slate-400" />
+                  <span className="truncate">{chekFile ? chekFile.name : "Rasm yoki PDF tanlang"}</span>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setChekFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                  />
+                </label>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Bank orqali to'lov qilingan bo'lsa, chekni shu yerga biriktiring va "Holat"ni{" "}
+                  <span className="font-semibold">Qabul qilingan</span> qilib saqlang — "To'lovlar" bo'limida
+                  ko'rinadi.
+                </p>
               </div>
 
               <div>
