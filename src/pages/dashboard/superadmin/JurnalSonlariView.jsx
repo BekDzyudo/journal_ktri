@@ -226,7 +226,7 @@ function pickExistingPdfUrl(json) {
 function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
   const EMPTY = {
     title: "", description: "", nashr_sanasi: "", volume: "",
-    issue: "", year: "", views_count: "", faol: true,
+    issue: "", year: "", views_count: "", faol: true, konferensiya: false,
   };
   const [form, setForm] = useState(EMPTY);
   const [faolTouched, setFaolTouched] = useState(false);
@@ -273,6 +273,7 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
             year: json.year != null ? String(json.year) : "",
             views_count: vc != null ? String(vc) : "",
             faol: true,
+            konferensiya: Boolean(json.konferensiya),
           });
         }
       } catch (err) {
@@ -315,6 +316,7 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
       if (form.views_count !== "") formData.append("views_count", form.views_count);
       const faolEffective = faolTouched ? form.faol : true;
       formData.append("faol", faolEffective ? "true" : "false");
+      formData.append("konferensiya", form.konferensiya ? "true" : "false");
       if (imageFile) formData.append("image", imageFile);
       if (pdfFile) formData.append("pdfUrl", pdfFile);
 
@@ -569,6 +571,18 @@ function JurnalSonEditPanel({ jurnalId, onBack, onDone, refreshAccessToken }) {
                 Faol (aktiv holat)
               </label>
             </div>
+
+            {/* Konferensiya */}
+            <div className="flex items-center gap-3 sm:col-span-2">
+              <input
+                type="checkbox" id="editKonferensiya" name="konferensiya"
+                checked={form.konferensiya} onChange={handleChange}
+                className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+              />
+              <label htmlFor="editKonferensiya" className="cursor-pointer text-sm font-semibold text-slate-700">
+                Konferensiya (bu son "Nashrlar" sahifasida konferensiya bo'limida chiqadi)
+              </label>
+            </div>
           </div>
 
           {/* Actions */}
@@ -656,7 +670,9 @@ export default function JurnalSonlariView({ onAddNew }) {
         : Array.isArray(json?.results)
           ? json.results
           : [];
-      setJurnallar([...list].sort((a, b) => b.id - a.id));
+      setJurnallar(
+        [...list].sort((a, b) => new Date(b.date) - new Date(a.date))
+      );
     } catch (err) {
       setError(err.message || "Jurnal sonlarini yuklashda xatolik");
     } finally {

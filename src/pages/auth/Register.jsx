@@ -64,40 +64,48 @@ function Register() {
     setError("");
   };
 
+  const validatePassword = (password) => {
+    if (!password) return "Parol kiritilishi shart";
+    if (password.length < 8) return "Parol kamida 8 ta belgidan iborat bo'lishi kerak";
+    if (/\s/.test(password)) return "Parolda bo'sh joy bo'lmasligi kerak";
+    if (!/[A-Z]/.test(password)) return "Parolda kamida bitta katta harf (A-Z) bo'lishi kerak";
+    if (!/[0-9]/.test(password)) return "Parolda kamida bitta raqam bo'lishi kerak";
+    if (!/[!@#$%^&*()\-_=+\[\]{};':"\\|,.<>/?`~]/.test(password))
+      return "Parolda kamida bitta maxsus belgi bo'lishi kerak (!, @, # va h.k.)";
+    return null;
+  };
+
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.first_name.trim()) {
       errors.first_name = "Ism kiritilishi shart";
     }
-    
+
     if (!formData.last_name.trim()) {
       errors.last_name = "Familiya kiritilishi shart";
     }
-    
+
     if (!formData.email.trim()) {
       errors.email = "Email kiritilishi shart";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       errors.email = "Email noto'g'ri formatda";
     }
-    
+
     const cleanPhone = cleanPhoneNumber(formData.phone_number);
     if (cleanPhone.length < 12) {
       errors.phone_number = "Telefon raqam to'liq emas (12 ta raqam)";
     }
-    
-    if (!formData.password) {
-      errors.password = "Parol kiritilishi shart";
-    } else if (formData.password.length < 8) {
-      errors.password = "Parol kamida 8 ta belgidan iborat harflar va raqamdan iborat bo'lishi kerak";
-    }
-    
+
+    const pwdError = validatePassword(formData.password);
+    if (pwdError) errors.password = pwdError;
+
     if (!formData.confirm_password) {
       errors.confirm_password = "Parolni tasdiqlang";
     } else if (formData.password !== formData.confirm_password) {
       errors.confirm_password = "Parollar mos kelmadi";
     }
-    
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -140,11 +148,9 @@ function Register() {
       }
 
       if (response.ok) {
-        const msg =
-          typeof data?.message === "string"
-            ? data.message
-            : "Ro'yxatdan o'tdingiz! Endi tizimga kiring.";
-        navigate("/login", { state: { message: msg, ...(from ? { from } : {}) } });
+        navigate(`/verify-email?email=${encodeURIComponent(formData.email)}`, {
+          state: { message: data?.message, ...(from ? { from } : {}) },
+        });
       } else {
         const fields = mapApiFieldErrors(data);
         if (Object.keys(fields).length) {
@@ -319,7 +325,9 @@ function Register() {
                   <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>
                 )}
                 {!fieldErrors.password && (
-                  <p className="mt-1 text-xs text-gray-500">Kamida 8 ta belgidan iborat bo'lishi kerak</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Kamida 8 belgi, katta harf (A-Z), raqam va maxsus belgi (!@# va h.k.)
+                  </p>
                 )}
               </div>
 

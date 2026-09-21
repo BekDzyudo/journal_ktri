@@ -19,6 +19,7 @@ import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import NewPassword from "./pages/auth/NewPassword";
+import VerifyEmail from "./pages/auth/VerifyEmail";
 import AdminPanel from "./pages/admin/AdminPanel";
 import UserArticleDetail from "./pages/dashboard/user/UserArticleDetail";
 import PaymentResult from "./pages/payment/PaymentResult";
@@ -117,12 +118,16 @@ function App() {
       element: <ForgotPassword/>
     },
     {
+      path: "/verify-email",
+      element: <VerifyEmail/>
+    },
+    {
       path: "/reset-password",
-      element: <ResetPassword/>
+      element: <ResetPassword />
     },
     {
       path: "/new-password",
-      element: <NewPassword/>
+      element: <ResetPassword />
     },
     {
       path: "*",

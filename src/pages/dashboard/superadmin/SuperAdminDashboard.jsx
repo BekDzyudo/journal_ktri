@@ -980,9 +980,13 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     field: "yaratilgan",
     dir: "desc",
   });
+  const [articlesPage, setArticlesPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
   const [paymentRevenueYear, setPaymentRevenueYear] = useState("all");
   const PAYMENTS_PAGE_SIZE = 25;
+  const ARTICLES_PAGE_SIZE = 25;
+  const USERS_PAGE_SIZE = 25;
 
   /** Tayinlash: GET rukn bo'yicha taqrizchilar, keyin POST maqola taqrizchi endpointi */
   const submitArticleToReviewerRequest = useCallback(
@@ -1293,6 +1297,20 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
     [dateFilteredArticles, searchQuery, filterStatus]
   );
 
+  const articlesTotalPages = Math.max(
+    1,
+    Math.ceil(filteredArticles.length / ARTICLES_PAGE_SIZE)
+  );
+
+  const paginatedArticles = useMemo(() => {
+    const start = (articlesPage - 1) * ARTICLES_PAGE_SIZE;
+    return filteredArticles.slice(start, start + ARTICLES_PAGE_SIZE);
+  }, [filteredArticles, articlesPage]);
+
+  useEffect(() => {
+    setArticlesPage(1);
+  }, [searchQuery, filterStatus, dateFrom, dateTo]);
+
   const filteredSortedPayments = useMemo(() => {
     const q = paymentSearchQuery.trim().toLowerCase();
     let rows = Array.isArray(tolovlar) ? [...tolovlar] : [];
@@ -1394,6 +1412,20 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
       return true;
     }).reverse();
   }, [users, userSearchQuery, userRoleFilter]);
+
+  const usersTotalPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / USERS_PAGE_SIZE)
+  );
+
+  const paginatedUsers = useMemo(() => {
+    const start = (usersPage - 1) * USERS_PAGE_SIZE;
+    return filteredUsers.slice(start, start + USERS_PAGE_SIZE);
+  }, [filteredUsers, usersPage]);
+
+  useEffect(() => {
+    setUsersPage(1);
+  }, [userSearchQuery, userRoleFilter]);
 
   const getStatusDisplay = (actualStatus) =>
     SUPERADMIN_STATUS_DISPLAY[actualStatus] || actualStatus;
@@ -1794,7 +1826,7 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredArticles.map((article, idx) => (
+                    paginatedArticles.map((article, idx) => (
                       <tr
                         key={article.id}
                         data-article-row={article.id}
@@ -1802,7 +1834,9 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                           article.status === ARTICLE_STATUS.IN_EDITING ? "bg-violet-50/40" : ""
                         }`}
                       >
-                        <td className="text-center text-sm font-bold tabular-nums text-slate-500">{idx + 1}</td>
+                        <td className="text-center text-sm font-bold tabular-nums text-slate-500">
+                          {(articlesPage - 1) * ARTICLES_PAGE_SIZE + idx + 1}
+                        </td>
                         <td className="max-w-[180px]">
                           <p className="truncate text-sm font-semibold text-slate-900">
                             {article.articleTitle}
@@ -1984,6 +2018,38 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 </tbody>
               </table>
             </div>
+
+            {!loading && articlesTotalPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
+                <p className="text-xs text-slate-500">
+                  Sahifa {articlesPage} / {articlesTotalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={articlesPage <= 1}
+                    onClick={() =>
+                      setArticlesPage((x) => Math.max(1, x - 1))
+                    }
+                    className="btn btn-sm rounded-xl border-slate-200 btn-outline"
+                  >
+                    <FaChevronLeft className="text-xs" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={articlesPage >= articlesTotalPages}
+                    onClick={() =>
+                      setArticlesPage((x) =>
+                        Math.min(articlesTotalPages, x + 1)
+                      )
+                    }
+                    className="btn btn-sm rounded-xl border-slate-200 btn-outline"
+                  >
+                    <FaChevronRight className="text-xs" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </>
       )}
@@ -2439,9 +2505,11 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((user, idx) => (
+                    paginatedUsers.map((user, idx) => (
                       <tr key={user.id ?? user.email} className="border-slate-50 transition hover:bg-slate-50/70">
-                        <td className="text-center text-sm font-bold tabular-nums text-slate-500">{idx + 1}</td>
+                        <td className="text-center text-sm font-bold tabular-nums text-slate-500">
+                          {(usersPage - 1) * USERS_PAGE_SIZE + idx + 1}
+                        </td>
                         <td>
                           <div className="flex items-center gap-2.5">
                             <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-linear-to-br from-slate-100 to-slate-200 text-xs font-bold text-slate-600">
@@ -2488,6 +2556,38 @@ function SuperAdminDashboard({ userData, view = "articles" }) {
                 </tbody>
               </table>
             </div>
+
+            {!loading && usersTotalPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
+                <p className="text-xs text-slate-500">
+                  Sahifa {usersPage} / {usersTotalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={usersPage <= 1}
+                    onClick={() =>
+                      setUsersPage((x) => Math.max(1, x - 1))
+                    }
+                    className="btn btn-sm rounded-xl border-slate-200 btn-outline"
+                  >
+                    <FaChevronLeft className="text-xs" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={usersPage >= usersTotalPages}
+                    onClick={() =>
+                      setUsersPage((x) =>
+                        Math.min(usersTotalPages, x + 1)
+                      )
+                    }
+                    className="btn btn-sm rounded-xl border-slate-200 btn-outline"
+                  >
+                    <FaChevronRight className="text-xs" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </>
       )}

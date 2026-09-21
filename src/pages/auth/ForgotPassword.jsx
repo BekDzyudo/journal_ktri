@@ -1,109 +1,84 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FiMail, FiArrowLeft, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
+import { Link } from "react-router-dom";
+import { FiMail, FiArrowLeft, FiCheckCircle } from "react-icons/fi";
 import SEO from "../../components/SEO";
 import { parseApiError } from "../../utils/apiError";
 
 function ForgotPassword() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirm_password: "",
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [fieldError, setFieldError] = useState("");
   const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const navigate = useNavigate();
+  React.useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    setFieldErrors((prev) => ({
-      ...prev,
-      [name]: "",
-    }));
-    setError("");
-  };
-
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.email.trim()) {
-      errors.email = "Email kiritilishi shart";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = "Email noto'g'ri formatda";
-    }
-
-    if (!formData.password) {
-      errors.password = "Parol kiritilishi shart";
-    } else if (formData.password.length < 8) {
-      errors.password =
-        "Parol kamida 8 ta belgidan iborat harflar va raqamdan iborat bo'lishi kerak";
-    }
-
-    if (!formData.confirm_password) {
-      errors.confirm_password = "Parolni tasdiqlang";
-    } else if (formData.password !== formData.confirm_password) {
-      errors.confirm_password = "Parollar mos kelmadi";
-    }
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {    
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setFieldErrors({});
-    setLoading(true);
+    setFieldError("");
 
-    if (!validateForm()) {
-      setLoading(false);
+    if (!email.trim()) {
+      setFieldError("Email kiritilishi shart");
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setFieldError("Email noto'g'ri formatda");
       return;
     }
 
+    setLoading(true);
     try {
-      // Haqiqiy API
       const response = await fetch(
         `${import.meta.env.VITE_BASE_URL}/auth/forgot-password/`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            new_password: formData.password,
-            confirm_password: formData.confirm_password,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
         },
       );
 
       let data;
-      try {
-        data = await response.json();
-      } catch {
-        setError("Server javobi noto'g'ri formatda");
-        return;
-      }
+      try { data = await response.json(); } catch { data = {}; }
 
       if (response.ok) {
-        const msg =
-          typeof data?.message === "string"
-            ? data.message
-            : "Parol yangilandi. Tizimga yangi parol bilan kiring.";
-        navigate("/login", { replace: true, state: { message: msg } });
+        setSent(true);
+        setResendCooldown(60);
       } else {
         setError(parseApiError(data, "So'rov bajarilmadi"));
       }
-    } catch (err) {
+    } catch {
+      setError("Xatolik yuz berdi. Iltimos qayta urinib ko'ring");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/auth/forgot-password/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        },
+      );
+      let data;
+      try { data = await response.json(); } catch { data = {}; }
+      if (response.ok) {
+        setResendCooldown(60);
+      } else {
+        setError(parseApiError(data, "So'rov bajarilmadi"));
+      }
+    } catch {
       setError("Xatolik yuz berdi. Iltimos qayta urinib ko'ring");
     } finally {
       setLoading(false);
@@ -119,7 +94,6 @@ function ForgotPassword() {
       />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
-          {/* Logo va Sarlavha */}
           <div className="text-center mb-8">
             <Link to="/">
               <img
@@ -132,142 +106,80 @@ function ForgotPassword() {
               Parolni tiklash
             </h2>
             <p className="text-gray-600">
-              Email manzilingizni tasdiqlang va yangi parolni yarating
+              {sent
+                ? "Emailingizni tekshiring"
+                : "Emailingizni kiriting — tiklash havolasini yuboramiz"}
             </p>
           </div>
 
-          {/* Form */}
           <div className="bg-white shadow-2xl rounded-2xl p-8">
-            <>
-              {error && (
-                <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                  <p className="text-red-700 text-sm">{error}</p>
-                </div>
-              )}
+            {error && (
+              <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
 
+            {sent ? (
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                  <FiCheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 mb-2">
+                  Havola yuborildi!
+                </h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium text-blue-700">{email}</span> manziliga parol tiklash havolasi yuborildi.
+                </p>
+                <p className="text-xs text-gray-500 mb-6">
+                  Emaildagi havolani bosib yangi parolni o'rnating. Havola 1 soat amal qiladi.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={loading || resendCooldown > 0}
+                  className="w-full py-2.5 px-4 rounded-lg text-sm font-medium text-blue-600 border border-blue-300 hover:bg-blue-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  {loading
+                    ? "Yuborilmoqda..."
+                    : resendCooldown > 0
+                    ? `Qayta yuborish (${resendCooldown}s)`
+                    : "Havolani qayta yuborish"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setSent(false); setResendCooldown(0); }}
+                  className="mt-3 w-full py-2.5 px-4 rounded-lg text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                >
+                  Emailni o'zgartirish
+                </button>
+              </div>
+            ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Email */}
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                     Email
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiMail
-                        className={`h-5 w-5 ${fieldErrors.email ? "text-red-400" : "text-gray-400"}`}
-                      />
+                      <FiMail className={`h-5 w-5 ${fieldError ? "text-red-400" : "text-gray-400"}`} />
                     </div>
                     <input
                       id="email"
                       name="email"
                       type="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className={`block w-full pl-10 pr-3 py-2.5 border ${fieldErrors.email ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setFieldError(""); setError(""); }}
+                      className={`block w-full pl-10 pr-3 py-2.5 border ${fieldError ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
                       placeholder="example@gmail.com"
                     />
                   </div>
-                  {fieldErrors.email && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {fieldErrors.email}
-                    </p>
-                  )}
-                </div>
-                {/* Password */}
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Parol
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiLock
-                        className={`h-5 w-5 ${fieldErrors.password ? "text-red-400" : "text-gray-400"}`}
-                      />
-                    </div>
-                    <input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      value={formData.password}
-                      onChange={handleChange}
-                      className={`block w-full pl-10 pr-10 py-2.5 border ${fieldErrors.password ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
-                    >
-                      {showPassword ? (
-                        <FiEyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                      ) : (
-                        <FiEye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                      )}
-                    </button>
-                  </div>
-                  {fieldErrors.password && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {fieldErrors.password}
-                    </p>
-                  )}
-                  {!fieldErrors.password && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Kamida 8 ta belgidan iborat bo'lishi kerak
-                    </p>
+                  {fieldError && (
+                    <p className="mt-1 text-sm text-red-600">{fieldError}</p>
                   )}
                 </div>
 
-                {/* Confirm Password */}
-                <div>
-                  <label
-                    htmlFor="confirm_password"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Parolni tasdiqlang
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiLock
-                        className={`h-5 w-5 ${fieldErrors.confirm_password ? "text-red-400" : "text-gray-400"}`}
-                      />
-                    </div>
-                    <input
-                      id="confirm_password"
-                      name="confirm_password"
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={formData.confirm_password}
-                      onChange={handleChange}
-                      className={`block w-full pl-10 pr-10 py-2.5 border ${fieldErrors.confirm_password ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"} rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200`}
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
-                    >
-                      {showConfirmPassword ? (
-                        <FiEyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                      ) : (
-                        <FiEye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                      )}
-                    </button>
-                  </div>
-                  {fieldErrors.confirm_password && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {fieldErrors.confirm_password}
-                    </p>
-                  )}
-                </div>
-
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -279,25 +191,23 @@ function ForgotPassword() {
                       <span>Yuklanmoqda...</span>
                     </>
                   ) : (
-                    <span>Yaratish</span>
+                    <span>Havola yuborish</span>
                   )}
                 </button>
               </form>
+            )}
 
-              {/* Back to Login */}
-              <div className="mt-6 text-center">
-                <Link
-                  to="/login"
-                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
-                >
-                  <FiArrowLeft />
-                  Kirish sahifasiga qaytish
-                </Link>
-              </div>
-            </>
+            <div className="mt-6 text-center">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
+              >
+                <FiArrowLeft />
+                Kirish sahifasiga qaytish
+              </Link>
+            </div>
           </div>
 
-          {/* Back to Home */}
           <div className="mt-6 text-center">
             <Link
               to="/"

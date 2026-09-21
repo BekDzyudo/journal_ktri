@@ -8,6 +8,8 @@ import { ROLES } from "../../constants/roles";
 import { parseApiError } from "../../utils/apiError";
 import { getGoogleClientId } from "../../utils/googleAuthApi";
 
+const EMAIL_NOT_VERIFIED_HINT = "tasdiqlanmagan";
+
 function Login() {
   const [formData, setFormData] = useState({
     email: "",
@@ -17,6 +19,7 @@ function Login() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [showVerifyLink, setShowVerifyLink] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { login, auth } = useContext(AuthContext);
@@ -58,6 +61,7 @@ function Login() {
       [name]: "",
     });
     setError("");
+    setShowVerifyLink(false);
   };
 
   const validateForm = () => {
@@ -119,7 +123,11 @@ function Login() {
         await login(access, refreshToken, role, data?.user ?? null);
         navigate(redirectTo, { replace: true });
       } else {
-        setError(parseApiError(data, "Email yoki parol noto'g'ri"));
+        const errMsg = parseApiError(data, "Email yoki parol noto'g'ri");
+        setError(errMsg);
+        if (errMsg.toLowerCase().includes(EMAIL_NOT_VERIFIED_HINT)) {
+          setShowVerifyLink(true);
+        }
       }
     } catch (err) {
       setError("Xatolik yuz berdi. Iltimos qayta urinib ko'ring");
@@ -159,6 +167,14 @@ function Login() {
             {error && (
               <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
                 <p className="text-red-700 text-sm">{error}</p>
+                {showVerifyLink && (
+                  <Link
+                    to={`/verify-email?email=${encodeURIComponent(formData.email)}`}
+                    className="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 underline"
+                  >
+                    Email tasdiqlash sahifasiga o'tish →
+                  </Link>
+                )}
               </div>
             )}
 

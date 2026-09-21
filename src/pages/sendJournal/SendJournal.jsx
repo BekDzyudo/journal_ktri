@@ -230,6 +230,7 @@ function SendJournal() {
       apiForm.append('rukn', String(rukn))
       apiForm.append('kalit_sozlar', formData.keywords.trim())
       apiForm.append('annotatsiya', formData.annotation.trim())
+      apiForm.append('adabiyotlar', formData.bibliography.trim())
       apiForm.append('fayl', file, file.name)
 
       const mualliflar = authors.map((a) => ({
@@ -611,7 +612,7 @@ function SendJournal() {
                       onChange={handleChange}
                       rows={10}
                       className={textareaClass(false)}
-                      placeholder="APA yoki boshqa standartda ro'yxat (hozircha API orqali yuborilmaydi)"
+                      placeholder="APA yoki boshqa standartda ro'yxat, har birini yangi qatorga yozing"
                     />
                   </div>
                 </div>

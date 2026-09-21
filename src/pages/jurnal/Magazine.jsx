@@ -9,6 +9,62 @@ import SEO from "../../components/SEO";
 import { Link } from "react-router-dom";
 import useGetFetch from "../../hooks/useGetFetch";
 
+function MagazineGrid({ items, formatDate, formatViews }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
+      {items.map((magazine) => (
+        <Link
+          key={magazine.id}
+          to={`/magazine/${magazine.id}`}
+          className="group"
+        >
+          <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl border-2 border-gray-100 hover:border-blue-500 transition-all duration-300 hover:-translate-y-2 flex flex-col h-full">
+            {/* Image - A4 Format (Book/Magazine Cover) */}
+            <div className="p-4 pb-0">
+              <div className="relative overflow-hidden shrink-0 rounded-xl h-64 sm:h-96">
+                <img
+                  src={magazine.image}
+                  alt={magazine.title}
+                  className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 flex flex-col flex-1">
+              {/* Title */}
+              <h3 className="text-lg font-bold text-gray-800 mb-4 line-clamp-2 group-hover:text-blue-600 transition-colors flex-1">
+                {magazine.title}
+              </h3>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-4 border-t-2 border-gray-100">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <FaCalendar size={16} className="text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium">
+                    {formatDate(magazine.date)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
+                    <FaEye size={16} className="text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium">
+                    {formatViews(magazine.views)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function Magazine() {
   const { setOnHero } = useHero();
   const [loading, setLoading] = useState(false);
@@ -63,7 +119,11 @@ function Magazine() {
       const matchesYear = selectedYear === "all" || magazine.year === selectedYear;
       return matchesSearch && matchesYear;
     })
-    .sort((a, b) => b.id - a.id);
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Jurnal sonlari va konferensiya to'plamlarini ajratib olish
+  const journalIssues = filteredMagazines?.filter((magazine) => !magazine.konferensiya);
+  const conferenceIssues = filteredMagazines?.filter((magazine) => magazine.konferensiya);
 
   if (loading) {
     return (
@@ -133,58 +193,26 @@ function Magazine() {
             </div>
           </div>
 
-          {/* Magazines Grid */}
+          {/* Jurnal sonlari va Konferensiya to'plamlari */}
           {filteredMagazines?.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
-              {filteredMagazines.map((magazine) => (
-                <Link
-                  key={magazine.id}
-                  to={`/magazine/${magazine.id}`}
-                  className="group"
-                >
-                  <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl border-2 border-gray-100 hover:border-blue-500 transition-all duration-300 hover:-translate-y-2 flex flex-col h-full">
-                    {/* Image - A4 Format (Book/Magazine Cover) */}
-                    <div className="p-4 pb-0">
-                      <div className="relative overflow-hidden shrink-0 rounded-xl h-64 sm:h-96">
-                        <img
-                          src={magazine.image}
-                          alt={magazine.title}
-                          className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                      </div>
-                    </div>
+            <div className="space-y-14">
+              {journalIssues?.length > 0 && (
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                    Jurnal sonlari
+                  </h2>
+                  <MagazineGrid items={journalIssues} formatDate={formatDate} formatViews={formatViews} />
+                </div>
+              )}
 
-                    {/* Content */}
-                    <div className="p-5 flex flex-col flex-1">
-                      {/* Title */}
-                      <h3 className="text-lg font-bold text-gray-800 mb-4 line-clamp-2 group-hover:text-blue-600 transition-colors flex-1">
-                        {magazine.title}
-                      </h3>
-
-                      {/* Footer */}
-                      <div className="flex items-center justify-between pt-4 border-t-2 border-gray-100">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                            <FaCalendar size={16} className="text-blue-600" />
-                          </div>
-                          <span className="text-sm font-medium">
-                            {formatDate(magazine.date)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
-                            <FaEye size={16} className="text-green-600" />
-                          </div>
-                          <span className="text-sm font-medium">
-                            {formatViews(magazine.views)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+              {conferenceIssues?.length > 0 && (
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                    Konferensiya to'plamlari
+                  </h2>
+                  <MagazineGrid items={conferenceIssues} formatDate={formatDate} formatViews={formatViews} />
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16">

@@ -16,6 +16,7 @@ const INITIAL = {
   year: "",
   views_count: "",
   faol: false,
+  konferensiya: false,
 };
 
 export default function JurnalSonQoshish({ onBack, onSuccess }) {
@@ -61,6 +62,7 @@ export default function JurnalSonQoshish({ onBack, onSuccess }) {
       formData.append("year", form.year);
       if (form.views_count !== "") formData.append("views_count", form.views_count);
       formData.append("faol", form.faol ? "true" : "false");
+      formData.append("konferensiya", form.konferensiya ? "true" : "false");
       if (imageFile) formData.append("image", imageFile);
       if (pdfFile) formData.append("pdfUrl", pdfFile);
 
@@ -278,6 +280,21 @@ export default function JurnalSonQoshish({ onBack, onSuccess }) {
               />
               <label htmlFor="faol" className="text-sm font-semibold text-slate-700 cursor-pointer">
                 Faol (aktiv holat)
+              </label>
+            </div>
+
+            {/* Konferensiya */}
+            <div className="flex items-center gap-3 sm:col-span-2">
+              <input
+                type="checkbox"
+                id="konferensiya"
+                name="konferensiya"
+                checked={form.konferensiya}
+                onChange={handleChange}
+                className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+              />
+              <label htmlFor="konferensiya" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                Konferensiya (bu son "Nashrlar" sahifasida konferensiya bo'limida chiqadi)
               </label>
             </div>
           </div>
