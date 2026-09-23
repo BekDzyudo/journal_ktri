@@ -119,7 +119,7 @@ function Login() {
 
   return (
     <>
-      <SEO
+      <SEO noindex
         title="Tizimga kirish | KTRI Jurnali"
         description="Kasbiy ta'limni rivojlantirish instituti jurnali - tizimga kirish"
         keywords="login, kirish, KTRI, jurnal"

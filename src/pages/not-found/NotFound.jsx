@@ -1,8 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import SEO from "../../components/SEO";
 
 function NotFound() {
   return (
+    <>
+    <SEO title="Sahifa topilmadi" noindex />
     <section className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
       <div className="max-w-2xl w-full text-center">
         {/* 404 Animation */}
@@ -93,6 +96,7 @@ function NotFound() {
         </div>
       </div>
     </section>
+    </>
   );
 }
 

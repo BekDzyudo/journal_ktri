@@ -38,10 +38,8 @@ function MainLayout() {
     <CalendarProvider>
       <HeroContext.Provider value={{ onHero, setOnHero }}>
         {/* Default SEO - agar sahifa o'zi ko'rsatmasa */}
-        <SEO 
-          title="Kasbiy ta'limni rivojlantirish instituti"
-          description="O'zbekiston Respublikasi Kasbiy ta'limni rivojlantirish instituti - kasbiy ta'lim, treninglar, sertifikatlashtirish"
-          keywords="kasb-hunar, kasbiy ta'lim, treninglar, sertifikat, o'zbekiston"
+        <SEO
+          noindex={isProfilePath || location.pathname === "/payment-result"}
         />
         
         <div className="flex flex-col min-h-screen">

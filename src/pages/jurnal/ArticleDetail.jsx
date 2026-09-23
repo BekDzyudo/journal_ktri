@@ -20,7 +20,8 @@ import {
 } from "react-icons/fa";
 import { useHero } from "../../context/HeroContext";
 import { AuthContext } from "../../context/AuthContext.jsx";
-import SEO from "../../components/SEO";
+import SEO, { SITE_URL } from "../../components/SEO";
+import { articleCitationTags } from "../../components/ArticleCitationMeta";
 import useGetFetch from "../../hooks/useGetFetch";
 import { getAccessToken } from "../../utils/authStorage.js";
 import { toast } from "react-toastify";
@@ -515,6 +516,8 @@ function ArticleDetail() {
 
   if (!article) {
     return (
+      <>
+      <SEO title="Maqola topilmadi" noindex />
       <section className="relative min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 py-24 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
@@ -529,6 +532,7 @@ function ArticleDetail() {
           </Link>
         </div>
       </section>
+      </>
     );
   }
 
@@ -538,6 +542,8 @@ function ArticleDetail() {
   const author = getAuthor();
   const journalImage = getJournalImage();
   const certificateUrls = resolveCertificateUrls(article, finalId, activeCertIdx);
+  const articleTitle = article.sarlavha || article.title || article.maqola_nomi || "Maqola";
+  const articleAbstract = String(article.annotatsiya || article.abstract || "").trim();
   const perAuthorCertCount = Array.isArray(article?.sertifikat_urls) ? article.sertifikat_urls.length : 0;
 
   const handleCertDownload = async () => {
@@ -612,10 +618,24 @@ function ArticleDetail() {
   return (
     <>
       <SEO
-        title={`${article.sarlavha || article.title || article.maqola_nomi || "Maqola"} - KTRI`}
-        description={article.annotatsiya || article.abstract || "KTRI ilmiy maqolasi"}
+        title={articleTitle}
+        description={articleAbstract || `${articleTitle} - ${author}. KTRI ilmiy jurnali maqolasi`}
         keywords={`${keywords.join(", ")}, ${author}, ilmiy maqola`}
-      />
+        author={author}
+        type="article"
+      >
+        {articleCitationTags({
+          title: articleTitle,
+          authors,
+          abstract: articleAbstract,
+          keywords,
+          date: article.nashr_sanasi || article.date,
+          issue: article.jurnal_soni,
+          pages: article.sahifalar,
+          pdfUrl: pdfUrl ? resolveAbsoluteUrl(pdfUrl) : "",
+          url: `${SITE_URL}/article/${article.id ?? finalId}`,
+        })}
+      </SEO>
 
       {certificateFullscreen && certObjectUrl && certStatus === "ready" && (
         <div

@@ -274,7 +274,7 @@ function SendJournal() {
 
   return (
     <>
-      <SEO
+      <SEO noindex
         title="Maqola yuborish - KTRI Ilmiy jurnali"
         description="Kasbiy ta'limni rivojlantirish instituti ilmiy jurnalida maqola nashr qilish uchun ariza yuboring"
         keywords="maqola yuborish, ilmiy maqola, nashr qilish, KTRI jurnal, ilmiy tadqiqot"

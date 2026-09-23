@@ -112,7 +112,7 @@ function ForgotPassword() {
 
   return (
     <>
-      <SEO
+      <SEO noindex
         title="Parolni tiklash | KTRI Jurnali"
         description="Kasbiy ta'limni rivojlantirish instituti jurnali - parolni tiklash"
         keywords="parolni tiklash, forgot password, KTRI, jurnal"

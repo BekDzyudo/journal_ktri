@@ -2,19 +2,23 @@
 User-agent: *
 Allow: /
 
-# Disallow private pages
+# Shaxsiy sahifalar
 Disallow: /profile
-Disallow: /api
-Disallow: /profil
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /send-article
+Disallow: /payment-result
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /new-password
 
-# Allow all public pages
-Allow: /
-Allow: /news
-Allow: /materials
-Allow: /rtr
-Allow: /contact
-Allow: /faq
-Allow: /institut-info
+# API: maqola PDF fayllari ochiq qolishi kerak (Google Scholar PDF'ni o'qiydi)
+Disallow: /api/
+Allow: /api/*.pdf$
+Allow: /media/
 
-# Sitemap location
-Sitemap: https://ktri.uz/sitemap.xml
+# Sitemaplar
+Sitemap: https://journal.ktri.uz/sitemap.xml
+Sitemap: https://journal.ktri.uz/sitemap-articles.xml

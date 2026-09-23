@@ -111,7 +111,7 @@ function ResetPassword() {
 
   return (
     <>
-      <SEO
+      <SEO noindex
         title="Yangi parol o'rnatish | KTRI Jurnali"
         description="Kasbiy ta'limni rivojlantirish instituti jurnali - yangi parol o'rnatish"
         keywords="yangi parol, reset password, KTRI, jurnal"

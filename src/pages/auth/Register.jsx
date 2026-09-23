@@ -153,7 +153,7 @@ function Register() {
 
   return (
     <>
-      <SEO
+      <SEO noindex
         title="Ro'yxatdan o'tish | KTRI Jurnali"
         description="Kasbiy ta'limni rivojlantirish instituti jurnali - ro'yxatdan o'tish"
         keywords="ro'yxatdan o'tish, register, KTRI, jurnal"
