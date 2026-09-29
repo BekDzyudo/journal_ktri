@@ -61,6 +61,16 @@ function SendJournal() {
     ? sanalarData[sanalarData.length - 1]
     : null
 
+  // tavsif: “O‘ZBEKISTONDA PROFESSIONAL TA’LIM” ilmiy jurnalining 3-soni uchun qabul boshlandi!
+  // → “O‘ZBEKISTONDA PROFESSIONAL TA’LIM” jurnali, 3-son
+  const currentSonTitle = (() => {
+    const tavsif = String(currentSon?.tavsif || '')
+    const name = tavsif.match(/[“"«]([^”"»]+)[”"»]/)?.[1]?.trim()
+    const number = tavsif.match(/(\d+)\s*-\s*son/i)?.[1]
+    if (name && number) return `“${name}” jurnali, ${number}-son`
+    return tavsif
+  })()
+
   const currentUser = getUserData()
   const currentUserEmail = currentUser?.email || ''
 
@@ -327,13 +337,8 @@ function SendJournal() {
                       Sizning maqolangiz quyidagi songa yuboriladi
                     </p>
                     <p className="text-sm font-semibold leading-snug text-slate-800">
-                      {currentSon.tavsif}
+                      {currentSonTitle}
                     </p>
-                    {currentSon.sana && (
-                      <p className="mt-1.5 text-xs text-slate-500">
-                        Qabul muddati: <strong className="font-semibold text-slate-700">{currentSon.sana}</strong>
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>

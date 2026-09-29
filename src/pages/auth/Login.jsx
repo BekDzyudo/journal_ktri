@@ -23,18 +23,29 @@ function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Login sahifasiga qaysi sahifadan yo'naltirilgan bo'lsa (masalan, /send-article),
+  // kirgandan keyin o'sha yerga qaytaramiz; aks holda profilga.
+  const from = location.state?.from;
+  const redirectTo =
+    typeof from === "string" && from.startsWith("/") && !from.startsWith("//")
+      ? from
+      : "/dashboard";
+
   useEffect(() => {
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate(location.pathname, {
+        replace: true,
+        state: location.state.from ? { from: location.state.from } : {},
+      });
     }
   }, [location, navigate]);
 
   useEffect(() => {
     if (auth) {
-      navigate("/dashboard");
+      navigate(redirectTo, { replace: true });
     }
-  }, [auth, navigate]);
+  }, [auth, navigate, redirectTo]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -106,7 +117,7 @@ function Login() {
 
         const role = data?.user?.rol ?? data?.user?.role ?? ROLES.USER;
         await login(access, refreshToken, role, data?.user ?? null);
-        navigate("/dashboard");
+        navigate(redirectTo, { replace: true });
       } else {
         setError(parseApiError(data, "Email yoki parol noto'g'ri"));
       }
@@ -273,7 +284,7 @@ function Login() {
                       role,
                       data?.user ?? null,
                     );
-                    navigate("/dashboard");
+                    navigate(redirectTo, { replace: true });
                   }}
                 />
               </>
@@ -298,6 +309,7 @@ function Login() {
                 Hisobingiz yo'qmi?{" "}
                 <Link
                   to="/register"
+                  state={from ? { from } : undefined}
                   className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200 cursor-pointer"
                 >
                   Ro'yxatdan o'ting

@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus, FiPhone } from "react-icons/fi";
 import { AuthContext } from "../../context/AuthContext";
 import SEO from "../../components/SEO";
@@ -26,12 +26,20 @@ function Register() {
 
   const { auth, login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Login sahifasidan kelgan yo'naltirish manzilini (masalan, /send-article) saqlab qolamiz
+  const from = location.state?.from;
+  const redirectTo =
+    typeof from === "string" && from.startsWith("/") && !from.startsWith("//")
+      ? from
+      : "/dashboard";
 
   useEffect(() => {
     if (auth) {
-      navigate("/dashboard");
+      navigate(redirectTo, { replace: true });
     }
-  }, [auth, navigate]);
+  }, [auth, navigate, redirectTo]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -136,7 +144,7 @@ function Register() {
           typeof data?.message === "string"
             ? data.message
             : "Ro'yxatdan o'tdingiz! Endi tizimga kiring.";
-        navigate("/login", { state: { message: msg } });
+        navigate("/login", { state: { message: msg, ...(from ? { from } : {}) } });
       } else {
         const fields = mapApiFieldErrors(data);
         if (Object.keys(fields).length) {
@@ -402,7 +410,7 @@ function Register() {
                       role,
                       data?.user ?? null,
                     );
-                    navigate("/dashboard");
+                    navigate(redirectTo, { replace: true });
                   }}
                 />
               </>
@@ -427,6 +435,7 @@ function Register() {
                 Hisobingiz bormi?{" "}
                 <Link
                   to="/login"
+                  state={from ? { from } : undefined}
                   className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200 cursor-pointer"
                 >
                   Tizimga kiring

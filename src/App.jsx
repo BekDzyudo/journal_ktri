@@ -68,7 +68,7 @@ function App() {
         },
         {
           path: "send-article",
-          element: auth ? <SendJournal/> : <Navigate to="/login" replace />
+          element: auth ? <SendJournal/> : <Navigate to="/login" state={{ from: "/send-article" }} replace />
         },
         {
           path: "contact",
