@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useGlobalContext } from "../../hooks/useGlobalContext";
 import { useHero } from "../../context/HeroContext";
 import {
@@ -15,6 +16,9 @@ import {
   FaTrophy,
   FaCheckCircle,
   FaBell,
+  FaPlay,
+  FaVideo,
+  FaTimes,
 } from "react-icons/fa";
 import useGetFetch from "../../hooks/useGetFetch";
 
@@ -97,6 +101,20 @@ function HomeJurnalHero() {
         return () => clearInterval(id);
       }, [deadlineDate]);
 
+      // Yo'riqnoma video modali
+      const [videoOpen, setVideoOpen] = useState(false);
+      useEffect(() => {
+        if (!videoOpen) return;
+        const onKey = (e) => e.key === "Escape" && setVideoOpen(false);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        window.addEventListener("keydown", onKey);
+        return () => {
+          document.body.style.overflow = prevOverflow;
+          window.removeEventListener("keydown", onKey);
+        };
+      }, [videoOpen]);
+
       useEffect(() => {
         setShowHeading(false);
         setShowDesc(false);
@@ -143,7 +161,7 @@ function HomeJurnalHero() {
                   Kasbiy ta'limni rivojlantirish instituti<br className="hidden sm:block" />{' '}
                   <span className="text-info">ilmiy jurnali</span>
                 </h2>
-                
+
               </div>
               
               {/* Info Card */}
@@ -332,6 +350,88 @@ function HomeJurnalHero() {
             </div>
           </div>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/10 via-primary/5 to-transparent " />
+          {createPortal(
+            <button
+              type="button"
+              onClick={() => setVideoOpen(true)}
+              className="fixed left-0 top-1/2 z-40 flex flex-col items-center gap-2 sm:gap-2.5 rounded-r-xl bg-info hover:brightness-110 text-white font-semibold text-sm sm:text-base pl-1.5 hover:pl-3 pr-1.5 sm:pr-2 py-2 sm:py-3 shadow-xl shadow-black/30 border border-l-0 border-white/20 transition-all duration-300 cursor-pointer"
+              style={{
+                opacity: showDesc ? 1 : 0,
+                transform: showDesc ? "translateY(-50%)" : "translate(-100%, -50%)",
+              }}
+              aria-label="Maqola yuborish yo'riqnomasi videosi"
+            >
+              <span className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20">
+                <span className="absolute inset-0 rounded-full bg-white/30 animate-ping" />
+                <FaPlay className="relative text-xs sm:text-sm ml-0.5" />
+              </span>
+              <span
+                className="flex items-center gap-2 tracking-wide"
+                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+              >
+                <FaVideo className="text-base sm:text-lg rotate-90" />
+                Yo'riqnoma
+              </span>
+            </button>,
+            document.body
+          )}
+          {videoOpen &&
+            createPortal(
+              <div
+                className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-3 sm:p-6"
+                style={{ animation: "videoBackdropIn 0.2s ease-out both" }}
+                onClick={() => setVideoOpen(false)}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Maqola yuborish yo'riqnomasi"
+              >
+                <div
+                  className="relative w-full max-w-5xl overflow-hidden rounded-2xl bg-slate-900 border border-white/10 shadow-2xl shadow-black/50"
+                  style={{ animation: "videoModalIn 0.25s ease-out both" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 border-b border-white/10 bg-gradient-to-r from-info/15 to-transparent">
+                    <span className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-info/20 border border-info/30 shrink-0">
+                      <FaVideo className="text-info text-base sm:text-lg" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-white font-semibold text-sm sm:text-base leading-tight truncate">
+                        Maqola yuborish yo'riqnomasi
+                      </h3>
+                      <p className="text-slate-400 text-xs sm:text-sm leading-tight mt-0.5 truncate">
+                        Platforma orqali maqola yuborish bo'yicha video qo'llanma
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVideoOpen(false)}
+                      className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                      aria-label="Yopish"
+                    >
+                      <FaTimes className="text-lg" />
+                    </button>
+                  </div>
+                  <video
+                    src="/Maqola_yuborish_yoriqnoma_v1.mp4"
+                    controls
+                    autoPlay
+                    playsInline
+                    preload="metadata"
+                    className="block w-full aspect-video max-h-[75vh] bg-black"
+                  >
+                    Brauzeringiz videoni qo'llab-quvvatlamaydi.
+                  </video>
+                </div>
+                <style>{`
+                  @keyframes videoBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+                  @keyframes videoModalIn {
+                    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                  }
+                `}</style>
+              </div>,
+              document.body
+            )}
         </section>
   )
 }
