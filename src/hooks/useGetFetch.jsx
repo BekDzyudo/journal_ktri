@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 
 function useGetFetch(url) {
   const [data, setData] = useState(null);
-  const [isPending, setIsPending] = useState(false);
+  // url bo'lsa birinchi renderdanoq "yuklanmoqda" — aks holda bir lahzaga "topilmadi" holati chiqadi
+  const [isPending, setIsPending] = useState(Boolean(url));
   const [error, setError] = useState(null);
+  const [status, setStatus] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -13,6 +15,7 @@ function useGetFetch(url) {
       setData(null);
       setIsPending(false);
       setError(null);
+      setStatus(null);
       return () => {
         cancelled = true;
         controller.abort();
@@ -22,8 +25,10 @@ function useGetFetch(url) {
     const fetchData = async () => {
       setIsPending(true);
       setError(null);
+      setStatus(null);
       try {
         const req = await fetch(url, { signal: controller.signal });
+        if (!cancelled) setStatus(req.status);
         if (!req.ok) {
           throw new Error(req.statusText || `Request failed: ${req.status}`);
         }
@@ -47,7 +52,7 @@ function useGetFetch(url) {
     };
   }, [url]);
 
-  return { data, isPending, error };
+  return { data, isPending, error, status };
 }
 
 export default useGetFetch;

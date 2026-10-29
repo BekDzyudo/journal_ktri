@@ -285,7 +285,7 @@ function ArticleDetail() {
     };
   }, [certificateFullscreen]);
 
-  const { data: article, isPending } = useGetFetch(
+  const { data: article, isPending, status: articleStatus } = useGetFetch(
     finalId ? `${import.meta.env.VITE_BASE_URL}/maqolalar/${finalId}/` : null
   );
 
@@ -515,13 +515,16 @@ function ArticleDetail() {
   }
 
   if (!article) {
+    // noindex faqat maqola haqiqatan yo'q bo'lsa (404). Tarmoq xatosi yoki bot API'ni
+    // ololmaganda noindex qo'yilsa, Google maqolani indeksdan chiqarib yuboradi.
+    const notFound = articleStatus === 404;
     return (
       <>
-      <SEO title="Maqola topilmadi" noindex />
+      {notFound && <SEO title="Maqola topilmadi" noindex />}
       <section className="relative min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 py-24 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            Maqola topilmadi
+            {notFound ? "Maqola topilmadi" : "Maqolani yuklab bo'lmadi"}
           </h2>
           <Link
             to="/magazines"

@@ -14,9 +14,11 @@ Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /new-password
 
-# API: maqola PDF fayllari ochiq qolishi kerak (Google Scholar PDF'ni o'qiydi)
-Disallow: /api/
-Allow: /api/*.pdf$
+# API ochiq bo'lishi SHART: sayt React (SPA), Google sahifani render qilganda
+# maqola/jurnal ma'lumotlarini /api/ dan oladi. /api/ yopilsa Google bo'sh yoki
+# "Maqola topilmadi" sahifasini ko'radi va hech narsani indekslamaydi.
+Allow: /api/
+Disallow: /api/auth/
 Allow: /media/
 
 # Sitemaplar
